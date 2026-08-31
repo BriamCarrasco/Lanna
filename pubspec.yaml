@@ -1,0 +1,46 @@
+name: lanna
+description: "Lanna — lector de EPUB y PDF open source, multiplataforma."
+publish_to: 'none'
+
+# version (semver) + build number. Android: versionName / versionCode.
+version: 0.1.0+1
+
+environment:
+  sdk: ^3.13.2
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  cupertino_icons: ^1.0.8
+  flutter_riverpod: ^2.6.1
+  go_router: ^18.0.0
+  path_provider: ^2.1.6
+  drift: ^2.34.3
+  drift_flutter: ^0.3.1
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+  flutter_lints: ^6.0.0
+  drift_dev: ^2.34.5
+  build_runner: ^2.16.0
+  flutter_launcher_icons: ^0.14.4
+
+flutter:
+  uses-material-design: true
+
+  assets:
+    - assets/logo/
+
+# App icon generation: run `dart run flutter_launcher_icons`
+flutter_launcher_icons:
+  image_path: "assets/logo/lanna.png"
+  android: true
+  windows:
+    generate: true
+    image_path: "assets/logo/lanna.png"
+    icon_size: 256
+  adaptive_icon_background: "#F4EBE0"
+  adaptive_icon_foreground: "assets/logo/lanna.png"
