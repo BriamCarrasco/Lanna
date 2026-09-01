@@ -32,7 +32,9 @@ Estado: **Fase 0 — setup del proyecto.** Ver `ereader-flutter-plan_1.md` para 
 ## Requisitos de desarrollo
 
 - Flutter SDK 3.47+ (`flutter doctor` sin errores)
-- **Windows**: Visual Studio Build Tools con el workload "Desktop development with C++"
+- **Windows**: Visual Studio Build Tools con el workload "Desktop development
+  with C++", el **WebView2 Runtime** (preinstalado en Windows 11) y **NuGet
+  CLI** en el PATH (lo requiere `flutter_inappwebview_windows`)
 - **Android**: Android SDK + JDK 17+ (cmdline-tools + licencias aceptadas)
 
 ## Cómo correr
@@ -54,3 +56,9 @@ dart run flutter_launcher_icons
 [GPL-3.0-or-later](LICENSE). Copyright © 2026 los contribuidores de Lanna.
 
 Cualquier versión modificada que se distribuya debe publicarse también bajo GPL.
+
+Fuentes empaquetadas: **Manrope** y **Newsreader**, ambas bajo SIL Open Font
+License 1.1 (ver `assets/fonts/OFL-*.txt`).
+
+Motor de lectura EPUB: **epub.js** (BSD-2-Clause) y **JSZip** (MIT),
+empaquetados en `assets/reader/`.
