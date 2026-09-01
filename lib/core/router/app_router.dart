@@ -3,7 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../features/library/library_screen.dart';
-import '../../features/reader/reader_screen.dart';
+import '../../features/reader/reader_entry.dart';
+import '../../features/settings/settings_screen.dart';
 
 final appRouterProvider = Provider<GoRouter>((ref) {
   return GoRouter(
@@ -18,9 +19,14 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             path: 'reader/:bookId',
             name: 'reader',
             builder: (context, state) =>
-                ReaderScreen(bookId: state.pathParameters['bookId']!),
+                ReaderEntry(bookId: state.pathParameters['bookId']!),
           ),
         ],
+      ),
+      GoRoute(
+        path: '/settings',
+        name: 'settings',
+        builder: (context, state) => const SettingsScreen(),
       ),
     ],
   );

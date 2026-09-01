@@ -1,9 +1,11 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 import 'dart:io';
+import 'dart:ui' as ui;
 
 import 'package:drift/drift.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
+import 'package:pdfrx/pdfrx.dart';
 import 'package:uuid/uuid.dart';
 
 import '../epub/epub_package.dart';
@@ -73,6 +75,10 @@ class BookImporter {
         } on FormatException catch (e) {
           return ImportFailed(fileName, 'EPUB inválido: ${e.message}');
         }
+      } else if (format == BookFormat.pdf) {
+        try {
+          coverPath = await _renderPdfCover(source, id, dirs.covers);
+        } catch (_) {}
       }
 
       title ??= p.basenameWithoutExtension(path);
@@ -95,6 +101,38 @@ class BookImporter {
       return ImportAdded(fileName, book!);
     } catch (e) {
       return ImportFailed(fileName, e);
+    }
+  }
+
+  Future<String?> _renderPdfCover(File source, String id, String covers) async {
+    await pdfrxFlutterInitialize();
+    final document = await PdfDocument.openFile(source.path);
+    try {
+      if (document.pages.isEmpty) return null;
+      final page = document.pages.first;
+      const width = 600.0;
+      final rendered = await page.render(
+        fullWidth: width,
+        fullHeight: width * page.height / page.width,
+        backgroundColor: 0xFFFFFFFF,
+      );
+      if (rendered == null) return null;
+      try {
+        final image = await rendered.createImage();
+        try {
+          final png = await image.toByteData(format: ui.ImageByteFormat.png);
+          if (png == null) return null;
+          final dest = File(p.join(covers, '$id.png'));
+          await dest.writeAsBytes(png.buffer.asUint8List());
+          return dest.path;
+        } finally {
+          image.dispose();
+        }
+      } finally {
+        rendered.dispose();
+      }
+    } finally {
+      await document.dispose();
     }
   }
 
