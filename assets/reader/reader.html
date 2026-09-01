@@ -5,9 +5,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
   <style>
     html, body { margin: 0; padding: 0; height: 100%; overflow: hidden; background: #121116; }
-    #viewer { position: absolute; inset: 0; }
+    #viewer { position: absolute; top: 52px; right: 0; bottom: 44px; left: 0; }
     .tap {
-      position: absolute; top: 0; bottom: 0; width: 110px; z-index: 10;
+      position: absolute; top: 52px; bottom: 44px; width: 110px; z-index: 10;
       display: flex; align-items: center; justify-content: center;
       color: #e9e4da; -webkit-tap-highlight-color: transparent; cursor: pointer;
     }
@@ -45,7 +45,49 @@
 
       var theme = { bg: '#121116', fg: '#d4cec1', link: '#e8968d', fontSizePct: 112, fontFamily: 'serif', lineHeight: 1.6 };
       var columnsMode = 'auto';
+      var edgeTapsEnabled = true;
+      var pageAnimation = 'slide';
       var locationsReady = false;
+
+      function applyEdgeTaps() {
+        var display = edgeTapsEnabled ? 'flex' : 'none';
+        var prev = document.getElementById('tap-prev');
+        var next = document.getElementById('tap-next');
+        if (prev) prev.style.display = display;
+        if (next) next.style.display = display;
+      }
+
+      function scrollHost() {
+        return document.querySelector('#viewer .epub-container');
+      }
+
+      function applyPageAnimation() {
+        var host = scrollHost();
+        if (host) {
+          host.style.scrollBehavior =
+            (pageAnimation === 'slide' || pageAnimation === 'curl')
+              ? 'smooth'
+              : 'auto';
+        }
+        var viewer = document.getElementById('viewer');
+        if (viewer && pageAnimation !== 'fade') {
+          viewer.style.transition = '';
+          viewer.style.opacity = '1';
+        }
+      }
+
+      function beginPageTurn() {
+        if (pageAnimation !== 'fade') return;
+        var viewer = document.getElementById('viewer');
+        if (!viewer) return;
+        viewer.style.transition = 'opacity .12s ease';
+        viewer.style.opacity = '0.25';
+      }
+
+      function endPageTurn() {
+        var viewer = document.getElementById('viewer');
+        if (viewer) viewer.style.opacity = '1';
+      }
 
       function applyColumns() {
         if (columnsMode === 'single') rendition.spread('none', 999999);
@@ -124,7 +166,8 @@
       function turn(dir) {
         if (navBusy) return;
         navBusy = true;
-        var release = function () { navBusy = false; };
+        beginPageTurn();
+        var release = function () { navBusy = false; endPageTurn(); };
         var t = setTimeout(release, 1500);
         var p = dir > 0 ? rendition.next() : rendition.prev();
         Promise.resolve(p).catch(function () {}).then(function () {
@@ -244,6 +287,49 @@
         loadLocations: function (json) {
           try { window.__cachedLocations = json; } catch (e) {}
         },
+        search: function (query) {
+          query = (query || '').trim();
+          if (query.length < 2) {
+            sendToHost({ type: 'searchResults', query: '', results: [] });
+            return;
+          }
+          var results = [];
+          var items = book.spine.spineItems.slice();
+          var idx = 0;
+          var limit = 200;
+          function step() {
+            if (idx >= items.length || results.length >= limit) {
+              sendToHost({
+                type: 'searchResults',
+                query: query,
+                results: results.slice(0, limit)
+              });
+              return;
+            }
+            var item = items[idx++];
+            Promise.resolve(item.load(book.load.bind(book)))
+              .then(function () {
+                try {
+                  var found = (typeof item.search === 'function'
+                    ? item.search(query)
+                    : item.find(query)) || [];
+                  for (var i = 0; i < found.length; i++) {
+                    results.push({
+                      cfi: found[i].cfi,
+                      excerpt: (found[i].excerpt || '').trim()
+                    });
+                  }
+                } catch (e) {}
+                try { item.unload(); } catch (e) {}
+                setTimeout(step, 0);
+              })
+              .catch(function () {
+                try { item.unload(); } catch (e) {}
+                setTimeout(step, 0);
+              });
+          }
+          step();
+        },
         setTheme: function (t) {
           if (t.bg) theme.bg = t.bg;
           if (t.fg) theme.fg = t.fg;
@@ -256,12 +342,21 @@
             columnsMode = t.columns;
             applyColumns();
           }
+          if (t.edgeTaps !== undefined) {
+            edgeTapsEnabled = t.edgeTaps === true;
+            applyEdgeTaps();
+          }
+          if (t.pageAnimation) {
+            pageAnimation = t.pageAnimation;
+            applyPageAnimation();
+          }
         }
       };
 
       rendition.display().then(function () {
         applyTheme();
         applyColumns();
+        applyPageAnimation();
         var start = params.get('cfi');
         if (start) rendition.display(start);
         sendToHost({ type: 'ready' });

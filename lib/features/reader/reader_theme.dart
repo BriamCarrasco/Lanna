@@ -60,6 +60,48 @@ enum ReaderThemePreset {
       '#${(c.toARGB32() & 0xFFFFFF).toRadixString(16).padLeft(6, '0')}';
 }
 
+class ReaderChrome {
+  const ReaderChrome({
+    required this.barBackground,
+    required this.barBorder,
+    required this.onBar,
+    required this.onBarMuted,
+    required this.panelBackground,
+    required this.panelBorder,
+    required this.fieldBackground,
+    required this.fieldActive,
+    required this.progressTrack,
+  });
+
+  final Color barBackground;
+  final Color barBorder;
+  final Color onBar;
+  final Color onBarMuted;
+  final Color panelBackground;
+  final Color panelBorder;
+  final Color fieldBackground;
+  final Color fieldActive;
+  final Color progressTrack;
+
+  static const Color accent = Color(0xFFD9756A);
+
+  factory ReaderChrome.of(ReaderThemePreset preset) {
+    Color mix(double t) =>
+        Color.lerp(preset.background, preset.foreground, t)!;
+    return ReaderChrome(
+      barBackground: preset.background,
+      barBorder: mix(0.14),
+      onBar: mix(0.74),
+      onBarMuted: mix(0.44),
+      panelBackground: mix(0.06),
+      panelBorder: mix(0.20),
+      fieldBackground: mix(0.03),
+      fieldActive: mix(0.14),
+      progressTrack: mix(0.17),
+    );
+  }
+}
+
 class ReaderSettings {
   const ReaderSettings({
     this.preset = ReaderThemePreset.dark,
@@ -67,9 +109,13 @@ class ReaderSettings {
     this.fontFamily = 'serif',
     this.lineHeight = 1.7,
     this.columns = 'auto',
+    this.pageAnimation = 'slide',
+    this.edgeTaps = true,
+    this.keepAwake = false,
   });
 
   static const lineHeights = [1.45, 1.7, 2.0];
+  static const pageAnimations = ['curl', 'slide', 'fade', 'none'];
 
   final ReaderThemePreset preset;
   final int fontScale;
@@ -77,6 +123,9 @@ class ReaderSettings {
   final double lineHeight;
 
   final String columns;
+  final String pageAnimation;
+  final bool edgeTaps;
+  final bool keepAwake;
 
   static const minScale = 70;
   static const maxScale = 220;
@@ -89,6 +138,9 @@ class ReaderSettings {
       fontFamily: row.fontFamily,
       lineHeight: row.lineHeight,
       columns: row.columns,
+      pageAnimation: row.pageAnimation,
+      edgeTaps: row.edgeTaps,
+      keepAwake: row.keepAwake,
     );
   }
 
@@ -98,6 +150,9 @@ class ReaderSettings {
     fontFamily: Value(fontFamily),
     lineHeight: Value(lineHeight),
     columns: Value(columns),
+    pageAnimation: Value(pageAnimation),
+    edgeTaps: Value(edgeTaps),
+    keepAwake: Value(keepAwake),
   );
 
   ReaderSettings copyWith({
@@ -106,12 +161,18 @@ class ReaderSettings {
     String? fontFamily,
     double? lineHeight,
     String? columns,
+    String? pageAnimation,
+    bool? edgeTaps,
+    bool? keepAwake,
   }) => ReaderSettings(
     preset: preset ?? this.preset,
     fontScale: (fontScale ?? this.fontScale).clamp(minScale, maxScale),
     fontFamily: fontFamily ?? this.fontFamily,
     lineHeight: lineHeight ?? this.lineHeight,
     columns: columns ?? this.columns,
+    pageAnimation: pageAnimation ?? this.pageAnimation,
+    edgeTaps: edgeTaps ?? this.edgeTaps,
+    keepAwake: keepAwake ?? this.keepAwake,
   );
 
   String get cssFontFamily => switch (fontFamily) {
@@ -127,5 +188,7 @@ class ReaderSettings {
     fontFamily: cssFontFamily,
     lineHeight: lineHeight,
     columnMode: columns,
+    pageAnimation: pageAnimation,
+    edgeTaps: edgeTaps,
   );
 }

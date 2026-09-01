@@ -8,6 +8,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
+import 'package:wakelock_plus/wakelock_plus.dart';
 
 import '../../core/theme/app_theme.dart';
 import '../../data/book_repository.dart';
@@ -21,6 +22,8 @@ import 'reader_settings_provider.dart';
 import 'reader_theme.dart';
 import 'server/reader_server.dart';
 import 'widgets/appearance_panel.dart';
+import 'widgets/reader_bar_button.dart';
+import 'widgets/search_panel.dart';
 import 'widgets/toc_drawer.dart';
 
 class ReaderScreen extends ConsumerStatefulWidget {
@@ -43,6 +46,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
   ReaderLocation? _location;
 
   List<EpubTocEntry> _fallbackToc = const [];
+  List<Bookmark> _bookmarks = const [];
   double _lastPercent = 0;
   String? _cachedLocations;
   int _pageCount = 0;
@@ -53,9 +57,15 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
   bool _chromeVisible = true;
   bool _showAppearance = false;
   bool _showToc = false;
+  bool _showSearch = false;
+
+  List<SearchHit> _searchHits = const [];
+  bool _searchBusy = false;
+  String _searchQuery = '';
 
   Timer? _saveTimer;
   ProviderSubscription<AsyncValue<ReaderSettings>>? _settingsSub;
+  ProviderSubscription<AsyncValue<List<Bookmark>>>? _bookmarksSub;
 
   @override
   void initState() {
@@ -68,6 +78,17 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
       setState(() => _settings = s);
       _applySettings(s);
     });
+    _bookmarks =
+        ref.read(bookmarksProvider(widget.bookId)).valueOrNull ?? const [];
+    _bookmarksSub = ref.listenManual(
+      bookmarksProvider(widget.bookId),
+      (_, next) {
+        final list = next.valueOrNull;
+        if (list == null || !mounted) return;
+        setState(() => _bookmarks = list);
+      },
+      fireImmediately: true,
+    );
     _open();
   }
 
@@ -129,6 +150,59 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
 
   int get _chapterTotal => _epubBook?.spine.where((s) => s.linear).length ?? 0;
 
+  Bookmark? get _currentBookmark {
+    final cfi = _location?.cfi;
+    if (cfi == null) return null;
+    for (final b in _bookmarks) {
+      if (b.cfi == cfi) return b;
+    }
+    return null;
+  }
+
+  String? _currentChapterLabel() {
+    final href = _location?.href?.split('#').first;
+    if (href == null) return null;
+    String? search(List<EpubTocEntry> entries) {
+      for (final e in entries) {
+        if (e.href.split('#').first == href) return e.label;
+        final nested = search(e.children);
+        if (nested != null) return nested;
+      }
+      return null;
+    }
+
+    return search(_toc);
+  }
+
+  void _toggleBookmark() {
+    final loc = _location;
+    if (loc == null) return;
+    final repo = ref.read(bookRepositoryProvider);
+    final existing = _currentBookmark;
+    if (existing != null) {
+      repo.deleteBookmark(existing.id);
+      _notify('Marcador quitado');
+    } else {
+      repo.addBookmark(
+        bookId: widget.bookId,
+        cfi: loc.cfi,
+        chapterIndex: loc.chapterIndex,
+        percent: _lastPercent,
+        label: _currentChapterLabel(),
+      );
+      _notify('Marcador añadido');
+    }
+  }
+
+  void _notify(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(content: Text(message), duration: const Duration(seconds: 2)),
+      );
+  }
+
   void _onLocation(ReaderLocation loc) {
     if (!mounted) return;
     if (loc.percentage != null) _lastPercent = loc.percentage!;
@@ -150,11 +224,32 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
   void _applySettings(ReaderSettings settings) {
     if (!mounted) return;
     _controller?.applyPresentation(settings.toPresentation());
+    WakelockPlus.toggle(enable: settings.keepAwake);
+  }
+
+  void _runSearch(String query) {
+    final trimmed = query.trim();
+    if (trimmed.length < 2) {
+      setState(() {
+        _searchQuery = trimmed;
+        _searchHits = const [];
+        _searchBusy = false;
+      });
+      return;
+    }
+    setState(() {
+      _searchQuery = trimmed;
+      _searchHits = const [];
+      _searchBusy = true;
+    });
+    _controller?.search(trimmed);
   }
 
   @override
   void dispose() {
     _settingsSub?.close();
+    _bookmarksSub?.close();
+    WakelockPlus.disable();
     _saveTimer?.cancel();
     final loc = _location;
     if (loc != null) {
@@ -185,8 +280,8 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
         _controller?.previous();
         return KeyEventResult.handled;
       case LogicalKeyboardKey.escape:
-        if (_showToc || _showAppearance) {
-          setState(() => _showToc = _showAppearance = false);
+        if (_showToc || _showAppearance || _showSearch) {
+          setState(() => _showToc = _showAppearance = _showSearch = false);
           return KeyEventResult.handled;
         }
     }
@@ -213,8 +308,11 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
                     child: GestureDetector(
                       behavior: HitTestBehavior.translucent,
                       onTap: () {
-                        if (_showToc || _showAppearance) {
-                          setState(() => _showToc = _showAppearance = false);
+                        if (_showToc || _showAppearance || _showSearch) {
+                          setState(
+                            () => _showToc =
+                                _showAppearance = _showSearch = false,
+                          );
                         } else {
                           setState(() => _chromeVisible = !_chromeVisible);
                         }
@@ -244,13 +342,20 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
                                 .saveLocations(widget.bookId, json);
                           },
                           onPageCount: (n) => setState(() => _pageCount = n),
+                          onSearchResults: (query, hits) {
+                            if (query != _searchQuery) return;
+                            setState(() {
+                              _searchHits = hits;
+                              _searchBusy = false;
+                            });
+                          },
                           onError: (m) => setState(() => _error = m),
                         ),
                       ),
                     ),
                   ),
-                  if (_chromeVisible && !_showToc) _topBar(),
-                  if (_chromeVisible && !_showToc) _bottomBar(),
+                  if (_chromeVisible && !_showToc && !_showSearch) _topBar(),
+                  if (_chromeVisible && !_showToc && !_showSearch) _bottomBar(),
                   if (_showAppearance)
                     Positioned(
                       right: 26,
@@ -284,13 +389,41 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
                         currentHref: _location?.href,
                         chapterCount: _chapterTotal,
                         pageCount: _pageCount,
+                        bookmarks: _bookmarks,
+                        currentCfi: _location?.cfi,
+                        chrome: _chrome,
                         onSelect: (entry) {
                           if (entry.href.isNotEmpty) {
                             _controller?.goToCfi(entry.href);
                           }
                           setState(() => _showToc = false);
                         },
+                        onBookmarkSelect: (bookmark) {
+                          _controller?.goToCfi(bookmark.cfi);
+                          setState(() => _showToc = false);
+                        },
+                        onBookmarkDelete: (bookmark) => ref
+                            .read(bookRepositoryProvider)
+                            .deleteBookmark(bookmark.id),
                         onClose: () => setState(() => _showToc = false),
+                      ),
+                    ),
+                  if (_showSearch)
+                    Positioned(
+                      left: 0,
+                      top: 0,
+                      bottom: 0,
+                      child: SearchPanel(
+                        chrome: _chrome,
+                        hits: _searchHits,
+                        busy: _searchBusy,
+                        query: _searchQuery,
+                        onSubmit: _runSearch,
+                        onSelect: (hit) {
+                          _controller?.goToCfi(hit.cfi);
+                          setState(() => _showSearch = false);
+                        },
+                        onClose: () => setState(() => _showSearch = false),
                       ),
                     ),
                 ],
@@ -299,11 +432,12 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
     );
   }
 
-  Color get _barColor => _settings.preset.background.withValues(alpha: 0.94);
+  ReaderChrome get _chrome => ReaderChrome.of(_settings.preset);
 
   Widget _topBar() {
     final author = _book?.author;
     final title = _book?.title ?? '';
+    final chrome = _chrome;
     return Positioned(
       top: 0,
       left: 0,
@@ -312,14 +446,15 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
         height: 52,
         padding: const EdgeInsets.symmetric(horizontal: 12),
         decoration: BoxDecoration(
-          color: _barColor,
-          border: const Border(bottom: BorderSide(color: Color(0xFF1C1B21))),
+          color: chrome.barBackground.withValues(alpha: 0.94),
+          border: Border(bottom: BorderSide(color: chrome.barBorder)),
         ),
         child: Row(
           children: [
-            _BarButton(
+            ReaderBarButton(
               icon: Icons.chevron_left,
               size: 22,
+              color: chrome.onBarMuted,
               onTap: () => Navigator.of(context).maybePop(),
             ),
             Expanded(
@@ -330,41 +465,49 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
                 overflow: TextOverflow.ellipsis,
                 style: AppTheme.reading(
                   fontSize: 13.5,
-                  color: LannaColors.textMuted,
+                  color: chrome.onBarMuted,
                 ),
               ),
             ),
-            _BarButton(
+            ReaderBarButton(
               icon: Icons.format_list_bulleted,
               active: _showToc,
               tooltip: 'Índice',
+              color: chrome.onBarMuted,
               onTap: () => setState(() {
                 _showToc = !_showToc;
                 _showAppearance = false;
               }),
             ),
-            _BarButton(
+            ReaderBarButton(
               label: 'Aa',
               active: _showAppearance,
               tooltip: 'Apariencia',
+              color: chrome.onBarMuted,
               onTap: () => setState(() {
                 _showAppearance = !_showAppearance;
                 _showToc = false;
               }),
             ),
-            _BarButton(
-              icon: Icons.bookmark_border,
+            ReaderBarButton(
+              icon: _currentBookmark != null
+                  ? Icons.bookmark
+                  : Icons.bookmark_border,
+              active: _currentBookmark != null,
               tooltip: 'Marcador',
-              onTap: () => ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Marcadores: próximamente')),
-              ),
+              color: chrome.onBarMuted,
+              onTap: _location == null ? null : _toggleBookmark,
             ),
-            _BarButton(
+            ReaderBarButton(
               icon: Icons.search,
+              active: _showSearch,
               tooltip: 'Buscar',
-              onTap: () => ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Búsqueda: próximamente')),
-              ),
+              color: chrome.onBarMuted,
+              onTap: () => setState(() {
+                _showSearch = !_showSearch;
+                _showToc = false;
+                _showAppearance = false;
+              }),
             ),
           ],
         ),
@@ -377,10 +520,11 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
     final chapter = _location?.chapterIndex;
     final total = _chapterTotal;
     final mins = _location?.remainingMinutes;
+    final chrome = _chrome;
 
-    const style = TextStyle(
+    final style = TextStyle(
       fontSize: 11.5,
-      color: Color(0xFF7A756B),
+      color: chrome.onBarMuted,
       fontFamily: AppFonts.ui,
     );
 
@@ -392,8 +536,8 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
         height: 44,
         padding: const EdgeInsets.symmetric(horizontal: 26),
         decoration: BoxDecoration(
-          color: _barColor,
-          border: const Border(top: BorderSide(color: Color(0xFF1C1B21))),
+          color: chrome.barBackground.withValues(alpha: 0.94),
+          border: Border(top: BorderSide(color: chrome.barBorder)),
         ),
         child: Row(
           children: [
@@ -411,63 +555,21 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
                 child: LinearProgressIndicator(
                   value: pct,
                   minHeight: 3,
-                  backgroundColor: const Color(0xFF2A2831),
-                  valueColor: const AlwaysStoppedAnimation(LannaColors.accent),
+                  backgroundColor: chrome.progressTrack,
+                  valueColor: const AlwaysStoppedAnimation(ReaderChrome.accent),
                 ),
               ),
             ),
             const SizedBox(width: 14),
             Text('${(pct * 100).round()} %', style: style),
             if (mins != null && mins > 0) ...[
-              const Text('  ·  ', style: style),
+              Text('  ·  ', style: style),
               Text('quedan ~$mins min', style: style),
             ],
           ],
         ),
       ),
     );
-  }
-}
-
-class _BarButton extends StatelessWidget {
-  const _BarButton({
-    this.icon,
-    this.label,
-    this.active = false,
-    this.tooltip,
-    this.size = 19,
-    required this.onTap,
-  });
-
-  final IconData? icon;
-  final String? label;
-  final bool active;
-  final String? tooltip;
-  final double size;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final color = active ? LannaColors.accent : LannaColors.textMuted;
-    final child = InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(8),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-        child: icon != null
-            ? Icon(icon, size: size, color: color)
-            : Text(
-                label!,
-                style: TextStyle(
-                  fontFamily: AppFonts.serif,
-                  fontSize: 15.5,
-                  fontWeight: FontWeight.w600,
-                  color: color,
-                ),
-              ),
-      ),
-    );
-    return tooltip == null ? child : Tooltip(message: tooltip!, child: child);
   }
 }
 

@@ -37,6 +37,15 @@ class ReaderSettingsController {
 
   Future<void> setColumns(String mode) =>
       _save(_current.copyWith(columns: mode));
+
+  Future<void> setPageAnimation(String mode) =>
+      _save(_current.copyWith(pageAnimation: mode));
+
+  Future<void> setEdgeTaps(bool value) =>
+      _save(_current.copyWith(edgeTaps: value));
+
+  Future<void> setKeepAwake(bool value) =>
+      _save(_current.copyWith(keepAwake: value));
 }
 
 final readerSettingsControllerProvider = Provider(ReaderSettingsController.new);

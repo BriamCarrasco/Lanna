@@ -29,6 +29,9 @@ class EpubJsController implements EpubViewController {
       _call('loadLocations(${jsonEncode(json)});');
 
   @override
+  Future<void> search(String query) => _call('search(${jsonEncode(query)});');
+
+  @override
   Future<void> applyPresentation(ReaderPresentation p) {
     final arg = jsonEncode({
       'bg': p.background,
@@ -38,6 +41,8 @@ class EpubJsController implements EpubViewController {
       'fontFamily': p.fontFamily,
       'lineHeight': p.lineHeight,
       'columns': p.columnMode,
+      'pageAnimation': p.pageAnimation,
+      'edgeTaps': p.edgeTaps,
     });
     return _call('setTheme($arg);');
   }
@@ -80,6 +85,17 @@ void dispatchReaderEvent(
     case 'locationsReady':
       final total = (event['total'] as num?)?.toInt();
       if (total != null && total > 0) callbacks.onPageCount?.call(total);
+    case 'searchResults':
+      final hits = (event['results'] as List? ?? [])
+          .map(
+            (e) => SearchHit(
+              cfi: e['cfi'] as String? ?? '',
+              excerpt: (e['excerpt'] as String? ?? '').trim(),
+            ),
+          )
+          .where((h) => h.cfi.isNotEmpty)
+          .toList();
+      callbacks.onSearchResults?.call(event['query'] as String? ?? '', hits);
     case 'toc':
       final list = (event['toc'] as List? ?? [])
           .map(

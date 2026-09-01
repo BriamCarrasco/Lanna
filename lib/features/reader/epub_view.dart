@@ -29,6 +29,13 @@ class TocEntry {
   final String href;
 }
 
+class SearchHit {
+  const SearchHit({required this.cfi, required this.excerpt});
+
+  final String cfi;
+  final String excerpt;
+}
+
 class ReaderPresentation {
   const ReaderPresentation({
     required this.background,
@@ -38,6 +45,8 @@ class ReaderPresentation {
     this.fontFamily,
     this.lineHeight = 1.6,
     this.columnMode = 'auto',
+    this.pageAnimation = 'slide',
+    this.edgeTaps = true,
   });
 
   final String background;
@@ -48,6 +57,8 @@ class ReaderPresentation {
   final double lineHeight;
 
   final String columnMode;
+  final String pageAnimation;
+  final bool edgeTaps;
 }
 
 abstract class EpubViewController {
@@ -58,6 +69,8 @@ abstract class EpubViewController {
   Future<void> applyPresentation(ReaderPresentation presentation);
 
   Future<void> loadLocations(String json);
+
+  Future<void> search(String query);
 }
 
 class EpubViewCallbacks {
@@ -67,6 +80,7 @@ class EpubViewCallbacks {
     this.onTocLoaded,
     this.onLocationsGenerated,
     this.onPageCount,
+    this.onSearchResults,
     this.onError,
   });
 
@@ -77,5 +91,6 @@ class EpubViewCallbacks {
   final void Function(String json)? onLocationsGenerated;
 
   final void Function(int total)? onPageCount;
+  final void Function(String query, List<SearchHit> hits)? onSearchResults;
   final void Function(String message)? onError;
 }

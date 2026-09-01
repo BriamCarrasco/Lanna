@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 import 'package:drift/drift.dart' show Value;
 import 'package:drift/native.dart';
+import 'package:flutter/material.dart' show Color;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lanna/data/local/app_database.dart';
 import 'package:lanna/features/reader/reader_theme.dart';
@@ -26,6 +27,37 @@ void main() {
     expect(p.background, ReaderThemePreset.dark.cssBackground);
     expect(p.foreground, ReaderThemePreset.dark.cssForeground);
     expect(p.link, ReaderThemePreset.dark.cssLink);
+  });
+
+  test('toPresentation lleva animación de página y toques de borde', () {
+    const s = ReaderSettings(pageAnimation: 'fade', edgeTaps: false);
+    final p = s.toPresentation();
+    expect(p.pageAnimation, 'fade');
+    expect(p.edgeTaps, false);
+  });
+
+  test('fromRow y copyWith conservan los ajustes de interacción', () {
+    const s = ReaderSettings();
+    expect(s.pageAnimation, 'slide');
+    expect(s.edgeTaps, true);
+    expect(s.keepAwake, false);
+
+    final next = s.copyWith(pageAnimation: 'curl', keepAwake: true);
+    expect(next.pageAnimation, 'curl');
+    expect(next.keepAwake, true);
+    expect(next.edgeTaps, true);
+  });
+
+  test('ReaderChrome contrasta el texto contra el fondo del preset', () {
+    for (final preset in ReaderThemePreset.values) {
+      final chrome = ReaderChrome.of(preset);
+      final bg = chrome.barBackground.computeLuminance();
+      final fg = chrome.onBar.computeLuminance();
+      final muted = chrome.onBarMuted.computeLuminance();
+      expect((fg - bg).abs(), greaterThan(0.15));
+      expect((fg - bg).abs(), greaterThan((muted - bg).abs()));
+    }
+    expect(ReaderChrome.accent, const Color(0xFFD9756A));
   });
 
   test('fontScale se limita al rango permitido', () {

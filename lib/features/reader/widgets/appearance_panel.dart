@@ -4,41 +4,40 @@ import 'package:flutter/material.dart';
 import '../../../core/theme/app_theme.dart';
 import '../reader_theme.dart';
 
-const _panelBg = Color(0xFF1F1E24);
-const _panelBorder = Color(0xFF322F39);
-const _fieldBg = Color(0xFF17161B);
-const _fieldActive = Color(0xFF26242C);
-
 class AppearancePanel extends StatelessWidget {
   const AppearancePanel({
     super.key,
     required this.settings,
     required this.onPreset,
-    required this.onFontFamily,
-    required this.onFontScale,
-    required this.onLineHeight,
     required this.onColumns,
+    this.onFontFamily,
+    this.onFontScale,
+    this.onLineHeight,
   });
 
   final ReaderSettings settings;
   final ValueChanged<ReaderThemePreset> onPreset;
-  final ValueChanged<String> onFontFamily;
-  final ValueChanged<int> onFontScale;
-  final ValueChanged<double> onLineHeight;
   final ValueChanged<String> onColumns;
+  final ValueChanged<String>? onFontFamily;
+  final ValueChanged<int>? onFontScale;
+  final ValueChanged<double>? onLineHeight;
+
+  bool get _typography =>
+      onFontFamily != null && onFontScale != null && onLineHeight != null;
 
   @override
   Widget build(BuildContext context) {
+    final chrome = ReaderChrome.of(settings.preset);
     return Container(
       width: 360,
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: _panelBg,
+        color: chrome.panelBackground,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: _panelBorder),
+        border: Border.all(color: chrome.panelBorder),
         boxShadow: const [
           BoxShadow(
-            color: Color(0x99000000),
+            color: Color(0x55000000),
             blurRadius: 50,
             offset: Offset(0, 24),
           ),
@@ -55,12 +54,13 @@ class AppearancePanel extends StatelessWidget {
               style: AppTheme.reading(
                 fontSize: 14,
                 fontWeight: FontWeight.w600,
-                color: LannaColors.text,
+                color: chrome.onBar,
               ),
             ),
           ),
           _Row(
             label: 'Tema',
+            chrome: chrome,
             child: Row(
               children: [
                 for (final preset in ReaderThemePreset.values) ...[
@@ -70,6 +70,7 @@ class AppearancePanel extends StatelessWidget {
                     child: _Swatch(
                       preset: preset,
                       selected: preset == settings.preset,
+                      borderColor: chrome.panelBorder,
                       onTap: () => onPreset(preset),
                     ),
                   ),
@@ -77,38 +78,48 @@ class AppearancePanel extends StatelessWidget {
               ],
             ),
           ),
-          const SizedBox(height: 12),
-          _Row(
-            label: 'Fuente',
-            child: _Segmented(
-              options: const {'serif': 'Serif', 'sans': 'Sans'},
-              value: settings.fontFamily,
-              serifKey: 'serif',
-              onChanged: onFontFamily,
+          if (_typography) ...[
+            const SizedBox(height: 12),
+            _Row(
+              label: 'Fuente',
+              chrome: chrome,
+              child: _Segmented(
+                options: const {'serif': 'Serif', 'sans': 'Sans'},
+                value: settings.fontFamily,
+                serifKey: 'serif',
+                chrome: chrome,
+                onChanged: onFontFamily!,
+              ),
             ),
-          ),
-          const SizedBox(height: 12),
-          _Row(
-            label: 'Tamaño',
-            child: _SizeSlider(
-              value: settings.fontScale,
-              onChanged: onFontScale,
+            const SizedBox(height: 12),
+            _Row(
+              label: 'Tamaño',
+              chrome: chrome,
+              child: _SizeSlider(
+                value: settings.fontScale,
+                chrome: chrome,
+                onChanged: onFontScale!,
+              ),
             ),
-          ),
-          const SizedBox(height: 12),
-          _Row(
-            label: 'Interlínea',
-            child: _LineHeightSegmented(
-              value: settings.lineHeight,
-              onChanged: onLineHeight,
+            const SizedBox(height: 12),
+            _Row(
+              label: 'Interlínea',
+              chrome: chrome,
+              child: _LineHeightSegmented(
+                value: settings.lineHeight,
+                chrome: chrome,
+                onChanged: onLineHeight!,
+              ),
             ),
-          ),
+          ],
           const SizedBox(height: 12),
           _Row(
             label: 'Páginas',
+            chrome: chrome,
             child: _Segmented(
               options: const {'auto': 'Auto', 'single': '1', 'double': '2'},
               value: settings.columns,
+              chrome: chrome,
               onChanged: onColumns,
             ),
           ),
@@ -119,8 +130,9 @@ class AppearancePanel extends StatelessWidget {
 }
 
 class _Row extends StatelessWidget {
-  const _Row({required this.label, required this.child});
+  const _Row({required this.label, required this.chrome, required this.child});
   final String label;
+  final ReaderChrome chrome;
   final Widget child;
 
   @override
@@ -131,10 +143,7 @@ class _Row extends StatelessWidget {
           width: 64,
           child: Text(
             label,
-            style: const TextStyle(
-              fontSize: 11.5,
-              color: LannaColors.textMuted,
-            ),
+            style: TextStyle(fontSize: 11.5, color: chrome.onBarMuted),
           ),
         ),
         Expanded(child: child),
@@ -147,10 +156,12 @@ class _Swatch extends StatelessWidget {
   const _Swatch({
     required this.preset,
     required this.selected,
+    required this.borderColor,
     required this.onTap,
   });
   final ReaderThemePreset preset;
   final bool selected;
+  final Color borderColor;
   final VoidCallback onTap;
 
   @override
@@ -163,7 +174,7 @@ class _Swatch extends StatelessWidget {
           color: preset.background,
           borderRadius: BorderRadius.circular(8),
           border: Border.all(
-            color: selected ? LannaColors.accent : _panelBorder,
+            color: selected ? ReaderChrome.accent : borderColor,
             width: 2,
           ),
         ),
@@ -176,11 +187,13 @@ class _Segmented extends StatelessWidget {
   const _Segmented({
     required this.options,
     required this.value,
+    required this.chrome,
     required this.onChanged,
     this.serifKey,
   });
   final Map<String, String> options;
   final String value;
+  final ReaderChrome chrome;
   final ValueChanged<String> onChanged;
   final String? serifKey;
 
@@ -189,9 +202,9 @@ class _Segmented extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(3),
       decoration: BoxDecoration(
-        color: _fieldBg,
+        color: chrome.fieldBackground,
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: _panelBorder),
+        border: Border.all(color: chrome.panelBorder),
       ),
       child: Row(
         children: [
@@ -203,7 +216,7 @@ class _Segmented extends StatelessWidget {
                   padding: const EdgeInsets.symmetric(vertical: 7),
                   decoration: BoxDecoration(
                     color: entry.key == value
-                        ? _fieldActive
+                        ? chrome.fieldActive
                         : Colors.transparent,
                     borderRadius: BorderRadius.circular(6),
                   ),
@@ -216,8 +229,8 @@ class _Segmented extends StatelessWidget {
                           ? AppFonts.serif
                           : AppFonts.ui,
                       color: entry.key == value
-                          ? LannaColors.text
-                          : LannaColors.textMuted,
+                          ? chrome.onBar
+                          : chrome.onBarMuted,
                     ),
                   ),
                 ),
@@ -230,8 +243,13 @@ class _Segmented extends StatelessWidget {
 }
 
 class _SizeSlider extends StatelessWidget {
-  const _SizeSlider({required this.value, required this.onChanged});
+  const _SizeSlider({
+    required this.value,
+    required this.chrome,
+    required this.onChanged,
+  });
   final int value;
+  final ReaderChrome chrome;
   final ValueChanged<int> onChanged;
 
   @override
@@ -240,24 +258,24 @@ class _SizeSlider extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 10),
       height: 34,
       decoration: BoxDecoration(
-        color: _fieldBg,
+        color: chrome.fieldBackground,
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: _panelBorder),
+        border: Border.all(color: chrome.panelBorder),
       ),
       child: Row(
         children: [
-          const Text(
+          Text(
             'A',
-            style: TextStyle(fontSize: 12, color: LannaColors.textMuted),
+            style: TextStyle(fontSize: 12, color: chrome.onBarMuted),
           ),
           Expanded(
             child: SliderTheme(
               data: SliderThemeData(
                 trackHeight: 3,
-                activeTrackColor: LannaColors.accent,
-                inactiveTrackColor: _panelBorder,
-                thumbColor: LannaColors.accent,
-                overlayColor: LannaColors.accent.withValues(alpha: 0.12),
+                activeTrackColor: ReaderChrome.accent,
+                inactiveTrackColor: chrome.panelBorder,
+                thumbColor: ReaderChrome.accent,
+                overlayColor: ReaderChrome.accent.withValues(alpha: 0.12),
                 thumbShape: const RoundSliderThumbShape(
                   enabledThumbRadius: 6.5,
                 ),
@@ -275,9 +293,9 @@ class _SizeSlider extends StatelessWidget {
               ),
             ),
           ),
-          const Text(
+          Text(
             'A',
-            style: TextStyle(fontSize: 19, color: LannaColors.text),
+            style: TextStyle(fontSize: 19, color: chrome.onBar),
           ),
         ],
       ),
@@ -286,8 +304,13 @@ class _SizeSlider extends StatelessWidget {
 }
 
 class _LineHeightSegmented extends StatelessWidget {
-  const _LineHeightSegmented({required this.value, required this.onChanged});
+  const _LineHeightSegmented({
+    required this.value,
+    required this.chrome,
+    required this.onChanged,
+  });
   final double value;
+  final ReaderChrome chrome;
   final ValueChanged<double> onChanged;
 
   static const _icons = [
@@ -316,18 +339,20 @@ class _LineHeightSegmented extends StatelessWidget {
               child: Container(
                 height: 32,
                 decoration: BoxDecoration(
-                  color: i == nearest ? _fieldActive : _fieldBg,
+                  color: i == nearest
+                      ? chrome.fieldActive
+                      : chrome.fieldBackground,
                   borderRadius: BorderRadius.circular(8),
                   border: Border.all(
-                    color: i == nearest ? LannaColors.accent : _panelBorder,
+                    color: i == nearest
+                        ? ReaderChrome.accent
+                        : chrome.panelBorder,
                   ),
                 ),
                 child: Icon(
                   _icons[i],
                   size: 16,
-                  color: i == nearest
-                      ? LannaColors.text
-                      : LannaColors.textMuted,
+                  color: i == nearest ? chrome.onBar : chrome.onBarMuted,
                 ),
               ),
             ),
