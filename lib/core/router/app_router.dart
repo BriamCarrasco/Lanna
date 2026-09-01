@@ -3,9 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../features/library/library_screen.dart';
+import '../../features/reader/reader_screen.dart';
 
-/// Rutas de la app. Por ahora solo la biblioteca; el lector y ajustes
-/// se añaden en fases posteriores.
 final appRouterProvider = Provider<GoRouter>((ref) {
   return GoRouter(
     initialLocation: '/',
@@ -14,6 +13,14 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: '/',
         name: 'library',
         builder: (context, state) => const LibraryScreen(),
+        routes: [
+          GoRoute(
+            path: 'reader/:bookId',
+            name: 'reader',
+            builder: (context, state) =>
+                ReaderScreen(bookId: state.pathParameters['bookId']!),
+          ),
+        ],
       ),
     ],
   );
