@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 import 'package:drift/drift.dart' show Value;
 import 'package:drift/native.dart';
-import 'package:flutter/widgets.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lanna/app.dart';
@@ -37,6 +37,79 @@ void main() {
 
     expect(find.text('Biblioteca'), findsWidgets);
     expect(find.text('Tu biblioteca está vacía'), findsOneWidget);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(const Duration(milliseconds: 50));
+  });
+
+  testWidgets('la búsqueda filtra el grid', (tester) async {
+    final db = AppDatabase.forTesting(NativeDatabase.memory());
+    addTearDown(db.close);
+
+    await db.upsertBook(
+      BooksCompanion.insert(
+        id: 'a',
+        title: 'Rayuela',
+        filePath: '/a.epub',
+        format: BookFormat.epub,
+        author: const Value('Julio Cortázar'),
+      ),
+    );
+    await db.upsertBook(
+      BooksCompanion.insert(
+        id: 'b',
+        title: 'Kafka en la orilla',
+        filePath: '/b.epub',
+        format: BookFormat.epub,
+        author: const Value('Haruki Murakami'),
+      ),
+    );
+
+    await _pumpApp(tester, db);
+    expect(find.text('Rayuela'), findsWidgets);
+    expect(find.text('Kafka en la orilla'), findsWidgets);
+
+    await tester.enterText(find.byType(EditableText), 'cortazar');
+    await tester.pumpAndSettle();
+
+    expect(find.text('Rayuela'), findsWidgets);
+    expect(find.text('Kafka en la orilla'), findsNothing);
+
+    await tester.enterText(find.byType(EditableText), 'zzz');
+    await tester.pumpAndSettle();
+    expect(find.textContaining('Sin resultados'), findsOneWidget);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(const Duration(milliseconds: 50));
+  });
+
+  testWidgets('el menú contextual del libro ofrece eliminar', (tester) async {
+    final db = AppDatabase.forTesting(NativeDatabase.memory());
+    addTearDown(db.close);
+
+    await db.upsertBook(
+      BooksCompanion.insert(
+        id: 'a',
+        title: 'Rayuela',
+        filePath: '/a.epub',
+        format: BookFormat.epub,
+        author: const Value('Julio Cortázar'),
+      ),
+    );
+
+    await _pumpApp(tester, db);
+    expect(find.text('Rayuela'), findsWidgets);
+
+    await tester.longPress(find.text('Rayuela').first);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+
+    expect(find.text('Abrir'), findsOneWidget);
+    expect(find.text('Detalles'), findsOneWidget);
+    expect(find.text('Eliminar'), findsOneWidget);
+
+    await tester.tapAt(const Offset(2, 2));
+    await tester.pump(const Duration(milliseconds: 400));
 
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pump(const Duration(milliseconds: 50));

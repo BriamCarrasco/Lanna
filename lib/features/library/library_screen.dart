@@ -1,15 +1,19 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
+import 'dart:async';
+
 import 'package:desktop_drop/desktop_drop.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/text_search.dart';
 import '../../core/theme/app_theme.dart';
 import '../../data/book_repository.dart';
 import '../../data/local/app_database.dart';
 import 'import_controller.dart';
 import 'widgets/book_cover.dart';
+import 'widgets/book_details_dialog.dart';
 import 'widgets/continue_reading_row.dart';
 import 'widgets/empty_library_view.dart';
 import 'widgets/import_progress_card.dart';
@@ -39,7 +43,16 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
   _SortMode _sort = _SortMode.recent;
   _ViewMode _view = _ViewMode.grid;
 
+  final _searchController = TextEditingController();
+  String _query = '';
+
   static const _extensions = ['epub', 'pdf'];
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
 
   Future<void> _pickAndImport() async {
     final files = await FilePicker.pickFiles(
@@ -57,10 +70,61 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
     ref.read(importControllerProvider.notifier).importPaths(paths);
   }
 
+  Future<void> _showBookMenu(Book book, Offset globalPosition) async {
+    final overlay =
+        Overlay.of(context).context.findRenderObject() as RenderBox;
+    final selected = await showMenu<String>(
+      context: context,
+      position: RelativeRect.fromRect(
+        globalPosition & const Size(40, 40),
+        Offset.zero & overlay.size,
+      ),
+      items: const [
+        PopupMenuItem(value: 'open', child: Text('Abrir')),
+        PopupMenuItem(value: 'details', child: Text('Detalles')),
+        PopupMenuItem(value: 'delete', child: Text('Eliminar')),
+      ],
+    );
+    if (!mounted) return;
+    switch (selected) {
+      case 'open':
+        unawaited(context.push('/reader/${book.id}'));
+      case 'details':
+        unawaited(showBookDetails(context, book));
+      case 'delete':
+        final deleted = await confirmDeleteBook(context, ref, book);
+        if (deleted && mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('«${book.title}» eliminado')),
+          );
+        }
+    }
+  }
+
   void _onSection(LibrarySection section) {
-    if (section == LibrarySection.library) return;
-    ScaffoldMessenger.of(context)
-        .showSnackBar(const SnackBar(content: Text('Próximamente')));
+    switch (section) {
+      case LibrarySection.library:
+        return;
+      case LibrarySection.settings:
+        context.push('/settings');
+      case LibrarySection.collections:
+      case LibrarySection.authors:
+        ScaffoldMessenger.of(context)
+            .showSnackBar(const SnackBar(content: Text('Próximamente')));
+    }
+  }
+
+  List<Book> _filteredSorted(List<Book> books) {
+    final matched = _query.isEmpty
+        ? books
+        : books
+              .where(
+                (b) =>
+                    matchesQuery(b.title, _query) ||
+                    matchesQuery(b.author ?? '', _query),
+              )
+              .toList();
+    return _sorted(matched);
   }
 
   List<Book> _sorted(List<Book> books) {
@@ -96,9 +160,8 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
           LibrarySidebar(
             active: LibrarySection.library,
             onSelect: _onSection,
-            onSearchTap: () => ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Búsqueda: próximamente')),
-            ),
+            searchController: _searchController,
+            onSearchChanged: (q) => setState(() => _query = foldForSearch(q)),
           ),
           Expanded(
             child: Stack(
@@ -126,11 +189,14 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                           );
                         },
                         child: _LibraryBody(
-                          library: library.whenData(_sorted),
-                          continueReading: continueReading,
+                          library: library.whenData(_filteredSorted),
+                          continueReading:
+                              _query.isEmpty ? continueReading : const [],
+                          query: _searchController.text,
                           view: _view,
                           dragging: _dragging,
                           onImport: _pickAndImport,
+                          onBookMenu: _showBookMenu,
                         ),
                       ),
                     ),
@@ -165,40 +231,53 @@ class _LibraryBody extends StatelessWidget {
   const _LibraryBody({
     required this.library,
     required this.continueReading,
+    required this.query,
     required this.view,
     required this.dragging,
     required this.onImport,
+    required this.onBookMenu,
   });
 
   final AsyncValue<List<Book>> library;
   final List<BookWithProgress> continueReading;
+  final String query;
   final _ViewMode view;
   final bool dragging;
   final VoidCallback onImport;
+  final void Function(Book book, Offset globalPosition) onBookMenu;
 
   @override
   Widget build(BuildContext context) {
+    final searching = query.trim().isNotEmpty;
     final content = library.when(
       loading: () => const Center(child: CircularProgressIndicator()),
       error: (e, _) => Center(child: Text('Error: $e')),
-      data: (books) => books.isEmpty
-          ? EmptyLibraryView(onImport: onImport)
-          : CustomScrollView(
-              slivers: [
-                if (continueReading.isNotEmpty) ...[
-                  const _SectionLabel('Seguir leyendo'),
-                  SliverToBoxAdapter(
-                    child: ContinueReadingRow(items: continueReading),
-                  ),
-                ],
-                _SectionLabel('Todos los libros', trailing: '${books.length}'),
-                if (view == _ViewMode.grid)
-                  _BookGridSliver(books: books)
-                else
-                  _BookListSliver(books: books),
-                const SliverToBoxAdapter(child: SizedBox(height: 26)),
-              ],
+      data: (books) {
+        if (books.isEmpty) {
+          return searching
+              ? _NoResults(query: query)
+              : EmptyLibraryView(onImport: onImport);
+        }
+        return CustomScrollView(
+          slivers: [
+            if (continueReading.isNotEmpty) ...[
+              const _SectionLabel('Seguir leyendo'),
+              SliverToBoxAdapter(
+                child: ContinueReadingRow(items: continueReading),
+              ),
+            ],
+            _SectionLabel(
+              searching ? 'Resultados' : 'Todos los libros',
+              trailing: '${books.length}',
             ),
+            if (view == _ViewMode.grid)
+              _BookGridSliver(books: books, onMenu: onBookMenu)
+            else
+              _BookListSliver(books: books, onMenu: onBookMenu),
+            const SliverToBoxAdapter(child: SizedBox(height: 26)),
+          ],
+        );
+      },
     );
 
     return Stack(
@@ -228,6 +307,32 @@ class _LibraryBody extends StatelessWidget {
             ),
           ),
       ],
+    );
+  }
+}
+
+class _NoResults extends StatelessWidget {
+  const _NoResults({required this.query});
+  final String query;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(
+            Icons.search_off,
+            size: 34,
+            color: LannaColors.textMuted,
+          ),
+          const SizedBox(height: 12),
+          Text(
+            'Sin resultados para «$query»',
+            style: const TextStyle(color: LannaColors.textMuted, fontSize: 13),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -425,8 +530,9 @@ class _SortButton extends StatelessWidget {
 }
 
 class _BookGridSliver extends StatelessWidget {
-  const _BookGridSliver({required this.books});
+  const _BookGridSliver({required this.books, required this.onMenu});
   final List<Book> books;
+  final void Function(Book book, Offset globalPosition) onMenu;
 
   @override
   Widget build(BuildContext context) {
@@ -440,21 +546,27 @@ class _BookGridSliver extends StatelessWidget {
           mainAxisSpacing: 22,
         ),
         itemCount: books.length,
-        itemBuilder: (context, i) => _GridTile(book: books[i]),
+        itemBuilder: (context, i) => _GridTile(book: books[i], onMenu: onMenu),
       ),
     );
   }
 }
 
 class _GridTile extends StatelessWidget {
-  const _GridTile({required this.book});
+  const _GridTile({required this.book, required this.onMenu});
   final Book book;
+  final void Function(Book book, Offset globalPosition) onMenu;
 
   @override
   Widget build(BuildContext context) {
     return InkWell(
       borderRadius: BorderRadius.circular(6),
       onTap: () => context.push('/reader/${book.id}'),
+      onLongPress: () {
+        final box = context.findRenderObject() as RenderBox;
+        onMenu(book, box.localToGlobal(box.size.center(Offset.zero)));
+      },
+      onSecondaryTapUp: (d) => onMenu(book, d.globalPosition),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -492,8 +604,9 @@ class _GridTile extends StatelessWidget {
 }
 
 class _BookListSliver extends StatelessWidget {
-  const _BookListSliver({required this.books});
+  const _BookListSliver({required this.books, required this.onMenu});
   final List<Book> books;
+  final void Function(Book book, Offset globalPosition) onMenu;
 
   @override
   Widget build(BuildContext context) {
@@ -502,47 +615,62 @@ class _BookListSliver extends StatelessWidget {
       sliver: SliverList.separated(
         itemCount: books.length,
         separatorBuilder: (_, _) => const Divider(height: 1),
-        itemBuilder: (context, i) {
-          final book = books[i];
-          return InkWell(
-            onTap: () => context.push('/reader/${book.id}'),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 10),
-              child: Row(
+        itemBuilder: (context, i) => _BookRow(book: books[i], onMenu: onMenu),
+      ),
+    );
+  }
+}
+
+class _BookRow extends StatelessWidget {
+  const _BookRow({required this.book, required this.onMenu});
+  final Book book;
+  final void Function(Book book, Offset globalPosition) onMenu;
+
+  void _menuFromCenter(BuildContext context) {
+    final box = context.findRenderObject() as RenderBox;
+    onMenu(book, box.localToGlobal(box.size.center(Offset.zero)));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: () => context.push('/reader/${book.id}'),
+      onLongPress: () => _menuFromCenter(context),
+      onSecondaryTapUp: (d) => onMenu(book, d.globalPosition),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 10),
+        child: Row(
+          children: [
+            SizedBox(width: 34, child: BookCover(book: book)),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  SizedBox(width: 34, child: BookCover(book: book)),
-                  const SizedBox(width: 14),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          book.title,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            fontSize: 13.5,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        if (book.author != null)
-                          Text(
-                            book.author!,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              fontSize: 11.5,
-                              color: LannaColors.textMuted,
-                            ),
-                          ),
-                      ],
+                  Text(
+                    book.title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 13.5,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
+                  if (book.author != null)
+                    Text(
+                      book.author!,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 11.5,
+                        color: LannaColors.textMuted,
+                      ),
+                    ),
                 ],
               ),
             ),
-          );
-        },
+          ],
+        ),
       ),
     );
   }

@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../../data/local/app_database.dart';
+import '../../../data/models/book_format.dart';
 import 'book_cover.dart';
 
 class ContinueReadingRow extends StatelessWidget {
@@ -48,6 +49,7 @@ class _Card extends StatelessWidget {
   Widget build(BuildContext context) {
     final pct = item.progress.percent.clamp(0.0, 1.0);
     final chapter = item.progress.chapterIndex;
+    final unit = item.book.format == BookFormat.pdf ? 'Pág.' : 'Cap.';
 
     return InkWell(
       borderRadius: BorderRadius.circular(11),
@@ -91,7 +93,7 @@ class _Card extends StatelessWidget {
                   const SizedBox(height: 12),
                   Text(
                     chapter != null
-                        ? 'Cap. ${chapter + 1} · ${(pct * 100).round()} %'
+                        ? '$unit ${chapter + 1} · ${(pct * 100).round()} %'
                         : '${(pct * 100).round()} %',
                     style: const TextStyle(
                       fontSize: 11,

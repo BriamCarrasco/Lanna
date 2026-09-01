@@ -10,12 +10,14 @@ class LibrarySidebar extends StatelessWidget {
     super.key,
     required this.active,
     required this.onSelect,
-    this.onSearchTap,
+    this.searchController,
+    this.onSearchChanged,
   });
 
   final LibrarySection active;
   final ValueChanged<LibrarySection> onSelect;
-  final VoidCallback? onSearchTap;
+  final TextEditingController? searchController;
+  final ValueChanged<String>? onSearchChanged;
 
   @override
   Widget build(BuildContext context) {
@@ -52,8 +54,13 @@ class LibrarySidebar extends StatelessWidget {
           ),
           const SizedBox(height: 22),
 
-          _SearchField(onTap: onSearchTap),
-          const SizedBox(height: 22),
+          if (searchController != null && onSearchChanged != null) ...[
+            _SearchField(
+              controller: searchController!,
+              onChanged: onSearchChanged!,
+            ),
+            const SizedBox(height: 22),
+          ],
 
           _NavItem(
             icon: Icons.menu_book_outlined,
@@ -89,35 +96,65 @@ class LibrarySidebar extends StatelessWidget {
 }
 
 class _SearchField extends StatelessWidget {
-  const _SearchField({this.onTap});
-  final VoidCallback? onTap;
+  const _SearchField({required this.controller, required this.onChanged});
+
+  final TextEditingController controller;
+  final ValueChanged<String> onChanged;
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(9),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
-        decoration: BoxDecoration(
-          color: LannaColors.bg,
-          borderRadius: BorderRadius.circular(9),
-          border: Border.all(color: LannaColors.border),
-        ),
-        child: const Row(
-          children: [
-            Icon(Icons.search, size: 15, color: LannaColors.textMuted),
-            SizedBox(width: 8),
-            Expanded(
-              child: Text(
-                'Buscar en la biblioteca',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(fontSize: 13, color: LannaColors.textMuted),
+    return Container(
+      height: 36,
+      padding: const EdgeInsets.only(left: 10, right: 4),
+      decoration: BoxDecoration(
+        color: LannaColors.bg,
+        borderRadius: BorderRadius.circular(9),
+        border: Border.all(color: LannaColors.border),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.search, size: 15, color: LannaColors.textMuted),
+          const SizedBox(width: 8),
+          Expanded(
+            child: TextField(
+              controller: controller,
+              onChanged: onChanged,
+              cursorColor: LannaColors.accent,
+              cursorWidth: 1.5,
+              style: const TextStyle(fontSize: 13, color: LannaColors.text),
+              decoration: const InputDecoration(
+                isDense: true,
+                border: InputBorder.none,
+                hintText: 'Buscar en la biblioteca',
+                hintStyle: TextStyle(
+                  fontSize: 13,
+                  color: LannaColors.textMuted,
+                ),
+                contentPadding: EdgeInsets.symmetric(vertical: 8),
               ),
             ),
-          ],
-        ),
+          ),
+          ValueListenableBuilder<TextEditingValue>(
+            valueListenable: controller,
+            builder: (context, value, _) => value.text.isEmpty
+                ? const SizedBox(width: 4)
+                : InkWell(
+                    onTap: () {
+                      controller.clear();
+                      onChanged('');
+                    },
+                    borderRadius: BorderRadius.circular(20),
+                    child: const Padding(
+                      padding: EdgeInsets.all(6),
+                      child: Icon(
+                        Icons.close,
+                        size: 14,
+                        color: LannaColors.textMuted,
+                      ),
+                    ),
+                  ),
+          ),
+        ],
       ),
     );
   }
