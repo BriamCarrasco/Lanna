@@ -13,14 +13,16 @@ class BookWithProgress {
   final ReadingProgressData progress;
 }
 
-@DriftDatabase(tables: [Books, ReadingProgress, ReaderPrefs, BookLocations])
+@DriftDatabase(
+  tables: [Books, ReadingProgress, ReaderPrefs, BookLocations, Bookmarks],
+)
 class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(driftDatabase(name: 'lanna'));
 
   AppDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 4;
+  int get schemaVersion => 6;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -34,6 +36,14 @@ class AppDatabase extends _$AppDatabase {
       }
       if (from < 4) {
         await m.createTable(bookLocations);
+      }
+      if (from < 5) {
+        await m.addColumn(readerPrefs, readerPrefs.pageAnimation);
+        await m.addColumn(readerPrefs, readerPrefs.edgeTaps);
+        await m.addColumn(readerPrefs, readerPrefs.keepAwake);
+      }
+      if (from < 6) {
+        await m.createTable(bookmarks);
       }
     },
     beforeOpen: (details) async {
@@ -133,6 +143,21 @@ class AppDatabase extends _$AppDatabase {
         generatedAt: Value(DateTime.now()),
       ),
     );
+  }
+
+  Stream<List<Bookmark>> watchBookmarks(String bookId) {
+    return (select(bookmarks)
+          ..where((b) => b.bookId.equals(bookId))
+          ..orderBy([(b) => OrderingTerm.asc(b.percent)]))
+        .watch();
+  }
+
+  Future<void> addBookmark(BookmarksCompanion bookmark) {
+    return into(bookmarks).insert(bookmark);
+  }
+
+  Future<void> deleteBookmark(String id) {
+    return (delete(bookmarks)..where((b) => b.id.equals(id))).go();
   }
 
   Stream<ReaderPref?> watchReaderPrefs() {

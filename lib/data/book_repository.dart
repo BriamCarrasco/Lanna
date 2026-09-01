@@ -1,9 +1,11 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 import 'dart:io';
 
+import 'package:drift/drift.dart' show Value;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
+import 'package:uuid/uuid.dart';
 
 import 'import/book_importer.dart';
 import 'local/app_database.dart';
@@ -47,6 +49,28 @@ class BookRepository {
   Future<void> saveLocations(String bookId, String data) =>
       _db.saveLocations(bookId, data);
 
+  Stream<List<Bookmark>> watchBookmarks(String bookId) =>
+      _db.watchBookmarks(bookId);
+
+  Future<void> addBookmark({
+    required String bookId,
+    required String cfi,
+    int? chapterIndex,
+    required double percent,
+    String? label,
+  }) => _db.addBookmark(
+    BookmarksCompanion.insert(
+      id: const Uuid().v4(),
+      bookId: bookId,
+      cfi: cfi,
+      chapterIndex: Value(chapterIndex),
+      percent: Value(percent),
+      label: Value(label),
+    ),
+  );
+
+  Future<void> deleteBookmark(String id) => _db.deleteBookmark(id);
+
   Future<ImportResult> importFile(String path) => _importer.importFile(path);
 
   Future<void> deleteBook(String id) async {
@@ -82,4 +106,20 @@ final libraryProvider = StreamProvider<List<Book>>((ref) {
 
 final continueReadingProvider = StreamProvider<List<BookWithProgress>>((ref) {
   return ref.watch(bookRepositoryProvider).watchContinueReading();
+});
+
+final bookmarksProvider = StreamProvider.family<List<Bookmark>, String>((
+  ref,
+  bookId,
+) {
+  return ref.watch(bookRepositoryProvider).watchBookmarks(bookId);
+});
+
+final bookProgressProvider =
+    StreamProvider.family<ReadingProgressData?, String>((ref, bookId) {
+      return ref.watch(bookRepositoryProvider).watchProgress(bookId);
+    });
+
+final findBookProvider = FutureProvider.family<Book?, String>((ref, bookId) {
+  return ref.watch(bookRepositoryProvider).findBook(bookId);
 });

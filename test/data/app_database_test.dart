@@ -78,6 +78,40 @@ void main() {
     expect(await db.readLocations('a'), isNull);
   });
 
+  test('marcadores: añadir, ordenar por porcentaje, borrar en cascada', () async {
+    await db.upsertBook(sampleBook('a'));
+
+    expect(await db.watchBookmarks('a').first, isEmpty);
+
+    await db.addBookmark(
+      BookmarksCompanion.insert(
+        id: 'm2',
+        bookId: 'a',
+        cfi: 'cfi/2',
+        percent: const Value(0.6),
+        label: const Value('Capítulo 6'),
+      ),
+    );
+    await db.addBookmark(
+      BookmarksCompanion.insert(
+        id: 'm1',
+        bookId: 'a',
+        cfi: 'cfi/1',
+        percent: const Value(0.2),
+      ),
+    );
+
+    final list = await db.watchBookmarks('a').first;
+    expect(list.map((b) => b.id), ['m1', 'm2']);
+    expect(list.last.label, 'Capítulo 6');
+
+    await db.deleteBookmark('m1');
+    expect((await db.watchBookmarks('a').first).map((b) => b.id), ['m2']);
+
+    await db.deleteBook('a');
+    expect(await db.watchBookmarks('a').first, isEmpty);
+  });
+
   test(
     'watchContinueReading: empezados y no terminados, por recencia',
     () async {

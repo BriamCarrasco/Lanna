@@ -55,6 +55,26 @@ class BookLocations extends Table {
   Set<Column<Object>> get primaryKey => {bookId};
 }
 
+class Bookmarks extends Table {
+  TextColumn get id => text()();
+
+  TextColumn get bookId =>
+      text().references(Books, #id, onDelete: KeyAction.cascade)();
+
+  TextColumn get cfi => text()();
+
+  IntColumn get chapterIndex => integer().nullable()();
+
+  RealColumn get percent => real().withDefault(const Constant(0))();
+
+  TextColumn get label => text().nullable()();
+
+  DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
+
+  @override
+  Set<Column<Object>> get primaryKey => {id};
+}
+
 class ReaderPrefs extends Table {
   IntColumn get id => integer().withDefault(const Constant(0))();
 
@@ -67,6 +87,12 @@ class ReaderPrefs extends Table {
   RealColumn get lineHeight => real().withDefault(const Constant(1.6))();
 
   TextColumn get columns => text().withDefault(const Constant('auto'))();
+
+  TextColumn get pageAnimation => text().withDefault(const Constant('slide'))();
+
+  BoolColumn get edgeTaps => boolean().withDefault(const Constant(true))();
+
+  BoolColumn get keepAwake => boolean().withDefault(const Constant(false))();
 
   @override
   Set<Column<Object>> get primaryKey => {id};

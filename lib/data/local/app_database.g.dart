@@ -1028,6 +1028,48 @@ class $ReaderPrefsTable extends ReaderPrefs
     requiredDuringInsert: false,
     defaultValue: const Constant('auto'),
   );
+  static const VerificationMeta _pageAnimationMeta = const VerificationMeta(
+    'pageAnimation',
+  );
+  @override
+  late final GeneratedColumn<String> pageAnimation = GeneratedColumn<String>(
+    'page_animation',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('slide'),
+  );
+  static const VerificationMeta _edgeTapsMeta = const VerificationMeta(
+    'edgeTaps',
+  );
+  @override
+  late final GeneratedColumn<bool> edgeTaps = GeneratedColumn<bool>(
+    'edge_taps',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("edge_taps" IN (0, 1))',
+    ),
+    defaultValue: const Constant(true),
+  );
+  static const VerificationMeta _keepAwakeMeta = const VerificationMeta(
+    'keepAwake',
+  );
+  @override
+  late final GeneratedColumn<bool> keepAwake = GeneratedColumn<bool>(
+    'keep_awake',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("keep_awake" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -1036,6 +1078,9 @@ class $ReaderPrefsTable extends ReaderPrefs
     fontFamily,
     lineHeight,
     columns,
+    pageAnimation,
+    edgeTaps,
+    keepAwake,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -1082,6 +1127,27 @@ class $ReaderPrefsTable extends ReaderPrefs
         columns.isAcceptableOrUnknown(data['columns']!, _columnsMeta),
       );
     }
+    if (data.containsKey('page_animation')) {
+      context.handle(
+        _pageAnimationMeta,
+        pageAnimation.isAcceptableOrUnknown(
+          data['page_animation']!,
+          _pageAnimationMeta,
+        ),
+      );
+    }
+    if (data.containsKey('edge_taps')) {
+      context.handle(
+        _edgeTapsMeta,
+        edgeTaps.isAcceptableOrUnknown(data['edge_taps']!, _edgeTapsMeta),
+      );
+    }
+    if (data.containsKey('keep_awake')) {
+      context.handle(
+        _keepAwakeMeta,
+        keepAwake.isAcceptableOrUnknown(data['keep_awake']!, _keepAwakeMeta),
+      );
+    }
     return context;
   }
 
@@ -1115,6 +1181,18 @@ class $ReaderPrefsTable extends ReaderPrefs
         DriftSqlType.string,
         data['${effectivePrefix}columns'],
       )!,
+      pageAnimation: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}page_animation'],
+      )!,
+      edgeTaps: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}edge_taps'],
+      )!,
+      keepAwake: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}keep_awake'],
+      )!,
     );
   }
 
@@ -1131,6 +1209,9 @@ class ReaderPref extends DataClass implements Insertable<ReaderPref> {
   final String fontFamily;
   final double lineHeight;
   final String columns;
+  final String pageAnimation;
+  final bool edgeTaps;
+  final bool keepAwake;
   const ReaderPref({
     required this.id,
     required this.theme,
@@ -1138,6 +1219,9 @@ class ReaderPref extends DataClass implements Insertable<ReaderPref> {
     required this.fontFamily,
     required this.lineHeight,
     required this.columns,
+    required this.pageAnimation,
+    required this.edgeTaps,
+    required this.keepAwake,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -1148,6 +1232,9 @@ class ReaderPref extends DataClass implements Insertable<ReaderPref> {
     map['font_family'] = Variable<String>(fontFamily);
     map['line_height'] = Variable<double>(lineHeight);
     map['columns'] = Variable<String>(columns);
+    map['page_animation'] = Variable<String>(pageAnimation);
+    map['edge_taps'] = Variable<bool>(edgeTaps);
+    map['keep_awake'] = Variable<bool>(keepAwake);
     return map;
   }
 
@@ -1159,6 +1246,9 @@ class ReaderPref extends DataClass implements Insertable<ReaderPref> {
       fontFamily: Value(fontFamily),
       lineHeight: Value(lineHeight),
       columns: Value(columns),
+      pageAnimation: Value(pageAnimation),
+      edgeTaps: Value(edgeTaps),
+      keepAwake: Value(keepAwake),
     );
   }
 
@@ -1174,6 +1264,9 @@ class ReaderPref extends DataClass implements Insertable<ReaderPref> {
       fontFamily: serializer.fromJson<String>(json['fontFamily']),
       lineHeight: serializer.fromJson<double>(json['lineHeight']),
       columns: serializer.fromJson<String>(json['columns']),
+      pageAnimation: serializer.fromJson<String>(json['pageAnimation']),
+      edgeTaps: serializer.fromJson<bool>(json['edgeTaps']),
+      keepAwake: serializer.fromJson<bool>(json['keepAwake']),
     );
   }
   @override
@@ -1186,6 +1279,9 @@ class ReaderPref extends DataClass implements Insertable<ReaderPref> {
       'fontFamily': serializer.toJson<String>(fontFamily),
       'lineHeight': serializer.toJson<double>(lineHeight),
       'columns': serializer.toJson<String>(columns),
+      'pageAnimation': serializer.toJson<String>(pageAnimation),
+      'edgeTaps': serializer.toJson<bool>(edgeTaps),
+      'keepAwake': serializer.toJson<bool>(keepAwake),
     };
   }
 
@@ -1196,6 +1292,9 @@ class ReaderPref extends DataClass implements Insertable<ReaderPref> {
     String? fontFamily,
     double? lineHeight,
     String? columns,
+    String? pageAnimation,
+    bool? edgeTaps,
+    bool? keepAwake,
   }) => ReaderPref(
     id: id ?? this.id,
     theme: theme ?? this.theme,
@@ -1203,6 +1302,9 @@ class ReaderPref extends DataClass implements Insertable<ReaderPref> {
     fontFamily: fontFamily ?? this.fontFamily,
     lineHeight: lineHeight ?? this.lineHeight,
     columns: columns ?? this.columns,
+    pageAnimation: pageAnimation ?? this.pageAnimation,
+    edgeTaps: edgeTaps ?? this.edgeTaps,
+    keepAwake: keepAwake ?? this.keepAwake,
   );
   ReaderPref copyWithCompanion(ReaderPrefsCompanion data) {
     return ReaderPref(
@@ -1216,6 +1318,11 @@ class ReaderPref extends DataClass implements Insertable<ReaderPref> {
           ? data.lineHeight.value
           : this.lineHeight,
       columns: data.columns.present ? data.columns.value : this.columns,
+      pageAnimation: data.pageAnimation.present
+          ? data.pageAnimation.value
+          : this.pageAnimation,
+      edgeTaps: data.edgeTaps.present ? data.edgeTaps.value : this.edgeTaps,
+      keepAwake: data.keepAwake.present ? data.keepAwake.value : this.keepAwake,
     );
   }
 
@@ -1227,14 +1334,26 @@ class ReaderPref extends DataClass implements Insertable<ReaderPref> {
           ..write('fontScale: $fontScale, ')
           ..write('fontFamily: $fontFamily, ')
           ..write('lineHeight: $lineHeight, ')
-          ..write('columns: $columns')
+          ..write('columns: $columns, ')
+          ..write('pageAnimation: $pageAnimation, ')
+          ..write('edgeTaps: $edgeTaps, ')
+          ..write('keepAwake: $keepAwake')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode =>
-      Object.hash(id, theme, fontScale, fontFamily, lineHeight, columns);
+  int get hashCode => Object.hash(
+    id,
+    theme,
+    fontScale,
+    fontFamily,
+    lineHeight,
+    columns,
+    pageAnimation,
+    edgeTaps,
+    keepAwake,
+  );
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -1244,7 +1363,10 @@ class ReaderPref extends DataClass implements Insertable<ReaderPref> {
           other.fontScale == this.fontScale &&
           other.fontFamily == this.fontFamily &&
           other.lineHeight == this.lineHeight &&
-          other.columns == this.columns);
+          other.columns == this.columns &&
+          other.pageAnimation == this.pageAnimation &&
+          other.edgeTaps == this.edgeTaps &&
+          other.keepAwake == this.keepAwake);
 }
 
 class ReaderPrefsCompanion extends UpdateCompanion<ReaderPref> {
@@ -1254,6 +1376,9 @@ class ReaderPrefsCompanion extends UpdateCompanion<ReaderPref> {
   final Value<String> fontFamily;
   final Value<double> lineHeight;
   final Value<String> columns;
+  final Value<String> pageAnimation;
+  final Value<bool> edgeTaps;
+  final Value<bool> keepAwake;
   const ReaderPrefsCompanion({
     this.id = const Value.absent(),
     this.theme = const Value.absent(),
@@ -1261,6 +1386,9 @@ class ReaderPrefsCompanion extends UpdateCompanion<ReaderPref> {
     this.fontFamily = const Value.absent(),
     this.lineHeight = const Value.absent(),
     this.columns = const Value.absent(),
+    this.pageAnimation = const Value.absent(),
+    this.edgeTaps = const Value.absent(),
+    this.keepAwake = const Value.absent(),
   });
   ReaderPrefsCompanion.insert({
     this.id = const Value.absent(),
@@ -1269,6 +1397,9 @@ class ReaderPrefsCompanion extends UpdateCompanion<ReaderPref> {
     this.fontFamily = const Value.absent(),
     this.lineHeight = const Value.absent(),
     this.columns = const Value.absent(),
+    this.pageAnimation = const Value.absent(),
+    this.edgeTaps = const Value.absent(),
+    this.keepAwake = const Value.absent(),
   });
   static Insertable<ReaderPref> custom({
     Expression<int>? id,
@@ -1277,6 +1408,9 @@ class ReaderPrefsCompanion extends UpdateCompanion<ReaderPref> {
     Expression<String>? fontFamily,
     Expression<double>? lineHeight,
     Expression<String>? columns,
+    Expression<String>? pageAnimation,
+    Expression<bool>? edgeTaps,
+    Expression<bool>? keepAwake,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
@@ -1285,6 +1419,9 @@ class ReaderPrefsCompanion extends UpdateCompanion<ReaderPref> {
       if (fontFamily != null) 'font_family': fontFamily,
       if (lineHeight != null) 'line_height': lineHeight,
       if (columns != null) 'columns': columns,
+      if (pageAnimation != null) 'page_animation': pageAnimation,
+      if (edgeTaps != null) 'edge_taps': edgeTaps,
+      if (keepAwake != null) 'keep_awake': keepAwake,
     });
   }
 
@@ -1295,6 +1432,9 @@ class ReaderPrefsCompanion extends UpdateCompanion<ReaderPref> {
     Value<String>? fontFamily,
     Value<double>? lineHeight,
     Value<String>? columns,
+    Value<String>? pageAnimation,
+    Value<bool>? edgeTaps,
+    Value<bool>? keepAwake,
   }) {
     return ReaderPrefsCompanion(
       id: id ?? this.id,
@@ -1303,6 +1443,9 @@ class ReaderPrefsCompanion extends UpdateCompanion<ReaderPref> {
       fontFamily: fontFamily ?? this.fontFamily,
       lineHeight: lineHeight ?? this.lineHeight,
       columns: columns ?? this.columns,
+      pageAnimation: pageAnimation ?? this.pageAnimation,
+      edgeTaps: edgeTaps ?? this.edgeTaps,
+      keepAwake: keepAwake ?? this.keepAwake,
     );
   }
 
@@ -1327,6 +1470,15 @@ class ReaderPrefsCompanion extends UpdateCompanion<ReaderPref> {
     if (columns.present) {
       map['columns'] = Variable<String>(columns.value);
     }
+    if (pageAnimation.present) {
+      map['page_animation'] = Variable<String>(pageAnimation.value);
+    }
+    if (edgeTaps.present) {
+      map['edge_taps'] = Variable<bool>(edgeTaps.value);
+    }
+    if (keepAwake.present) {
+      map['keep_awake'] = Variable<bool>(keepAwake.value);
+    }
     return map;
   }
 
@@ -1338,7 +1490,10 @@ class ReaderPrefsCompanion extends UpdateCompanion<ReaderPref> {
           ..write('fontScale: $fontScale, ')
           ..write('fontFamily: $fontFamily, ')
           ..write('lineHeight: $lineHeight, ')
-          ..write('columns: $columns')
+          ..write('columns: $columns, ')
+          ..write('pageAnimation: $pageAnimation, ')
+          ..write('edgeTaps: $edgeTaps, ')
+          ..write('keepAwake: $keepAwake')
           ..write(')'))
         .toString();
   }
@@ -1615,6 +1770,463 @@ class BookLocationsCompanion extends UpdateCompanion<BookLocation> {
   }
 }
 
+class $BookmarksTable extends Bookmarks
+    with TableInfo<$BookmarksTable, Bookmark> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $BookmarksTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _bookIdMeta = const VerificationMeta('bookId');
+  @override
+  late final GeneratedColumn<String> bookId = GeneratedColumn<String>(
+    'book_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES books (id) ON DELETE CASCADE',
+    ),
+  );
+  static const VerificationMeta _cfiMeta = const VerificationMeta('cfi');
+  @override
+  late final GeneratedColumn<String> cfi = GeneratedColumn<String>(
+    'cfi',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _chapterIndexMeta = const VerificationMeta(
+    'chapterIndex',
+  );
+  @override
+  late final GeneratedColumn<int> chapterIndex = GeneratedColumn<int>(
+    'chapter_index',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _percentMeta = const VerificationMeta(
+    'percent',
+  );
+  @override
+  late final GeneratedColumn<double> percent = GeneratedColumn<double>(
+    'percent',
+    aliasedName,
+    false,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _labelMeta = const VerificationMeta('label');
+  @override
+  late final GeneratedColumn<String> label = GeneratedColumn<String>(
+    'label',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+    defaultValue: currentDateAndTime,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    bookId,
+    cfi,
+    chapterIndex,
+    percent,
+    label,
+    createdAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'bookmarks';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<Bookmark> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('book_id')) {
+      context.handle(
+        _bookIdMeta,
+        bookId.isAcceptableOrUnknown(data['book_id']!, _bookIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_bookIdMeta);
+    }
+    if (data.containsKey('cfi')) {
+      context.handle(
+        _cfiMeta,
+        cfi.isAcceptableOrUnknown(data['cfi']!, _cfiMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_cfiMeta);
+    }
+    if (data.containsKey('chapter_index')) {
+      context.handle(
+        _chapterIndexMeta,
+        chapterIndex.isAcceptableOrUnknown(
+          data['chapter_index']!,
+          _chapterIndexMeta,
+        ),
+      );
+    }
+    if (data.containsKey('percent')) {
+      context.handle(
+        _percentMeta,
+        percent.isAcceptableOrUnknown(data['percent']!, _percentMeta),
+      );
+    }
+    if (data.containsKey('label')) {
+      context.handle(
+        _labelMeta,
+        label.isAcceptableOrUnknown(data['label']!, _labelMeta),
+      );
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  Bookmark map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return Bookmark(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      bookId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}book_id'],
+      )!,
+      cfi: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}cfi'],
+      )!,
+      chapterIndex: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}chapter_index'],
+      ),
+      percent: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}percent'],
+      )!,
+      label: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}label'],
+      ),
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+    );
+  }
+
+  @override
+  $BookmarksTable createAlias(String alias) {
+    return $BookmarksTable(attachedDatabase, alias);
+  }
+}
+
+class Bookmark extends DataClass implements Insertable<Bookmark> {
+  final String id;
+  final String bookId;
+  final String cfi;
+  final int? chapterIndex;
+  final double percent;
+  final String? label;
+  final DateTime createdAt;
+  const Bookmark({
+    required this.id,
+    required this.bookId,
+    required this.cfi,
+    this.chapterIndex,
+    required this.percent,
+    this.label,
+    required this.createdAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['book_id'] = Variable<String>(bookId);
+    map['cfi'] = Variable<String>(cfi);
+    if (!nullToAbsent || chapterIndex != null) {
+      map['chapter_index'] = Variable<int>(chapterIndex);
+    }
+    map['percent'] = Variable<double>(percent);
+    if (!nullToAbsent || label != null) {
+      map['label'] = Variable<String>(label);
+    }
+    map['created_at'] = Variable<DateTime>(createdAt);
+    return map;
+  }
+
+  BookmarksCompanion toCompanion(bool nullToAbsent) {
+    return BookmarksCompanion(
+      id: Value(id),
+      bookId: Value(bookId),
+      cfi: Value(cfi),
+      chapterIndex: chapterIndex == null && nullToAbsent
+          ? const Value.absent()
+          : Value(chapterIndex),
+      percent: Value(percent),
+      label: label == null && nullToAbsent
+          ? const Value.absent()
+          : Value(label),
+      createdAt: Value(createdAt),
+    );
+  }
+
+  factory Bookmark.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return Bookmark(
+      id: serializer.fromJson<String>(json['id']),
+      bookId: serializer.fromJson<String>(json['bookId']),
+      cfi: serializer.fromJson<String>(json['cfi']),
+      chapterIndex: serializer.fromJson<int?>(json['chapterIndex']),
+      percent: serializer.fromJson<double>(json['percent']),
+      label: serializer.fromJson<String?>(json['label']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'bookId': serializer.toJson<String>(bookId),
+      'cfi': serializer.toJson<String>(cfi),
+      'chapterIndex': serializer.toJson<int?>(chapterIndex),
+      'percent': serializer.toJson<double>(percent),
+      'label': serializer.toJson<String?>(label),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+    };
+  }
+
+  Bookmark copyWith({
+    String? id,
+    String? bookId,
+    String? cfi,
+    Value<int?> chapterIndex = const Value.absent(),
+    double? percent,
+    Value<String?> label = const Value.absent(),
+    DateTime? createdAt,
+  }) => Bookmark(
+    id: id ?? this.id,
+    bookId: bookId ?? this.bookId,
+    cfi: cfi ?? this.cfi,
+    chapterIndex: chapterIndex.present ? chapterIndex.value : this.chapterIndex,
+    percent: percent ?? this.percent,
+    label: label.present ? label.value : this.label,
+    createdAt: createdAt ?? this.createdAt,
+  );
+  Bookmark copyWithCompanion(BookmarksCompanion data) {
+    return Bookmark(
+      id: data.id.present ? data.id.value : this.id,
+      bookId: data.bookId.present ? data.bookId.value : this.bookId,
+      cfi: data.cfi.present ? data.cfi.value : this.cfi,
+      chapterIndex: data.chapterIndex.present
+          ? data.chapterIndex.value
+          : this.chapterIndex,
+      percent: data.percent.present ? data.percent.value : this.percent,
+      label: data.label.present ? data.label.value : this.label,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('Bookmark(')
+          ..write('id: $id, ')
+          ..write('bookId: $bookId, ')
+          ..write('cfi: $cfi, ')
+          ..write('chapterIndex: $chapterIndex, ')
+          ..write('percent: $percent, ')
+          ..write('label: $label, ')
+          ..write('createdAt: $createdAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode =>
+      Object.hash(id, bookId, cfi, chapterIndex, percent, label, createdAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is Bookmark &&
+          other.id == this.id &&
+          other.bookId == this.bookId &&
+          other.cfi == this.cfi &&
+          other.chapterIndex == this.chapterIndex &&
+          other.percent == this.percent &&
+          other.label == this.label &&
+          other.createdAt == this.createdAt);
+}
+
+class BookmarksCompanion extends UpdateCompanion<Bookmark> {
+  final Value<String> id;
+  final Value<String> bookId;
+  final Value<String> cfi;
+  final Value<int?> chapterIndex;
+  final Value<double> percent;
+  final Value<String?> label;
+  final Value<DateTime> createdAt;
+  final Value<int> rowid;
+  const BookmarksCompanion({
+    this.id = const Value.absent(),
+    this.bookId = const Value.absent(),
+    this.cfi = const Value.absent(),
+    this.chapterIndex = const Value.absent(),
+    this.percent = const Value.absent(),
+    this.label = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  BookmarksCompanion.insert({
+    required String id,
+    required String bookId,
+    required String cfi,
+    this.chapterIndex = const Value.absent(),
+    this.percent = const Value.absent(),
+    this.label = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       bookId = Value(bookId),
+       cfi = Value(cfi);
+  static Insertable<Bookmark> custom({
+    Expression<String>? id,
+    Expression<String>? bookId,
+    Expression<String>? cfi,
+    Expression<int>? chapterIndex,
+    Expression<double>? percent,
+    Expression<String>? label,
+    Expression<DateTime>? createdAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (bookId != null) 'book_id': bookId,
+      if (cfi != null) 'cfi': cfi,
+      if (chapterIndex != null) 'chapter_index': chapterIndex,
+      if (percent != null) 'percent': percent,
+      if (label != null) 'label': label,
+      if (createdAt != null) 'created_at': createdAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  BookmarksCompanion copyWith({
+    Value<String>? id,
+    Value<String>? bookId,
+    Value<String>? cfi,
+    Value<int?>? chapterIndex,
+    Value<double>? percent,
+    Value<String?>? label,
+    Value<DateTime>? createdAt,
+    Value<int>? rowid,
+  }) {
+    return BookmarksCompanion(
+      id: id ?? this.id,
+      bookId: bookId ?? this.bookId,
+      cfi: cfi ?? this.cfi,
+      chapterIndex: chapterIndex ?? this.chapterIndex,
+      percent: percent ?? this.percent,
+      label: label ?? this.label,
+      createdAt: createdAt ?? this.createdAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (bookId.present) {
+      map['book_id'] = Variable<String>(bookId.value);
+    }
+    if (cfi.present) {
+      map['cfi'] = Variable<String>(cfi.value);
+    }
+    if (chapterIndex.present) {
+      map['chapter_index'] = Variable<int>(chapterIndex.value);
+    }
+    if (percent.present) {
+      map['percent'] = Variable<double>(percent.value);
+    }
+    if (label.present) {
+      map['label'] = Variable<String>(label.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('BookmarksCompanion(')
+          ..write('id: $id, ')
+          ..write('bookId: $bookId, ')
+          ..write('cfi: $cfi, ')
+          ..write('chapterIndex: $chapterIndex, ')
+          ..write('percent: $percent, ')
+          ..write('label: $label, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -1624,6 +2236,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   );
   late final $ReaderPrefsTable readerPrefs = $ReaderPrefsTable(this);
   late final $BookLocationsTable bookLocations = $BookLocationsTable(this);
+  late final $BookmarksTable bookmarks = $BookmarksTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -1633,6 +2246,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     readingProgress,
     readerPrefs,
     bookLocations,
+    bookmarks,
   ];
   @override
   StreamQueryUpdateRules get streamUpdateRules => const StreamQueryUpdateRules([
@@ -1649,6 +2263,13 @@ abstract class _$AppDatabase extends GeneratedDatabase {
         limitUpdateKind: UpdateKind.delete,
       ),
       result: [TableUpdate('book_locations', kind: UpdateKind.delete)],
+    ),
+    WritePropagation(
+      on: TableUpdateQuery.onTableName(
+        'books',
+        limitUpdateKind: UpdateKind.delete,
+      ),
+      result: [TableUpdate('bookmarks', kind: UpdateKind.delete)],
     ),
   ]);
 }
@@ -1715,6 +2336,24 @@ final class $$BooksTableReferences
     ).filter((f) => f.bookId.id.sqlEquals($_itemColumn<String>('id')!));
 
     final cache = $_typedResult.readTableOrNull(_bookLocationsRefsTable($_db));
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+
+  static MultiTypedResultKey<$BookmarksTable, List<Bookmark>>
+  _bookmarksRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
+    db.bookmarks,
+    aliasName: 'books__id__bookmarks__book_id',
+  );
+
+  $$BookmarksTableProcessedTableManager get bookmarksRefs {
+    final manager = $$BookmarksTableTableManager(
+      $_db,
+      $_db.bookmarks,
+    ).filter((f) => f.bookId.id.sqlEquals($_itemColumn<String>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(_bookmarksRefsTable($_db));
     return ProcessedTableManager(
       manager.$state.copyWith(prefetchedData: cache),
     );
@@ -1816,6 +2455,31 @@ class $$BooksTableFilterComposer extends Composer<_$AppDatabase, $BooksTable> {
           }) => $$BookLocationsTableFilterComposer(
             $db: $db,
             $table: $db.bookLocations,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<bool> bookmarksRefs(
+    Expression<bool> Function($$BookmarksTableFilterComposer f) f,
+  ) {
+    final $$BookmarksTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.bookmarks,
+      getReferencedColumn: (t) => t.bookId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$BookmarksTableFilterComposer(
+            $db: $db,
+            $table: $db.bookmarks,
             $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
             joinBuilder: joinBuilder,
             $removeJoinBuilderFromRootComposer:
@@ -1970,6 +2634,31 @@ class $$BooksTableAnnotationComposer
     );
     return f(composer);
   }
+
+  Expression<T> bookmarksRefs<T extends Object>(
+    Expression<T> Function($$BookmarksTableAnnotationComposer a) f,
+  ) {
+    final $$BookmarksTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.bookmarks,
+      getReferencedColumn: (t) => t.bookId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$BookmarksTableAnnotationComposer(
+            $db: $db,
+            $table: $db.bookmarks,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
 }
 
 class $$BooksTableTableManager
@@ -1988,6 +2677,7 @@ class $$BooksTableTableManager
           PrefetchHooks Function({
             bool readingProgressRefs,
             bool bookLocationsRefs,
+            bool bookmarksRefs,
           })
         > {
   $$BooksTableTableManager(_$AppDatabase db, $BooksTable table)
@@ -2056,12 +2746,17 @@ class $$BooksTableTableManager
               )
               .toList(),
           prefetchHooksCallback:
-              ({readingProgressRefs = false, bookLocationsRefs = false}) {
+              ({
+                readingProgressRefs = false,
+                bookLocationsRefs = false,
+                bookmarksRefs = false,
+              }) {
                 return PrefetchHooks(
                   db: db,
                   explicitlyWatchedTables: [
                     if (readingProgressRefs) db.readingProgress,
                     if (bookLocationsRefs) db.bookLocations,
+                    if (bookmarksRefs) db.bookmarks,
                   ],
                   addJoins: null,
                   getPrefetchedDataCallback: (items) async {
@@ -2108,6 +2803,23 @@ class $$BooksTableTableManager
                               ),
                           typedResults: items,
                         ),
+                      if (bookmarksRefs)
+                        await $_getPrefetchedData<Book, $BooksTable, Bookmark>(
+                          currentTable: table,
+                          referencedTable: $$BooksTableReferences
+                              ._bookmarksRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$BooksTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).bookmarksRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.bookId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
                     ];
                   },
                 );
@@ -2128,7 +2840,11 @@ typedef $$BooksTableProcessedTableManager =
       $$BooksTableUpdateCompanionBuilder,
       (Book, $$BooksTableReferences),
       Book,
-      PrefetchHooks Function({bool readingProgressRefs, bool bookLocationsRefs})
+      PrefetchHooks Function({
+        bool readingProgressRefs,
+        bool bookLocationsRefs,
+        bool bookmarksRefs,
+      })
     >;
 typedef $$ReadingProgressTableCreateCompanionBuilder =
     ReadingProgressCompanion Function({
@@ -2466,6 +3182,9 @@ typedef $$ReaderPrefsTableCreateCompanionBuilder =
       Value<String> fontFamily,
       Value<double> lineHeight,
       Value<String> columns,
+      Value<String> pageAnimation,
+      Value<bool> edgeTaps,
+      Value<bool> keepAwake,
     });
 typedef $$ReaderPrefsTableUpdateCompanionBuilder =
     ReaderPrefsCompanion Function({
@@ -2475,6 +3194,9 @@ typedef $$ReaderPrefsTableUpdateCompanionBuilder =
       Value<String> fontFamily,
       Value<double> lineHeight,
       Value<String> columns,
+      Value<String> pageAnimation,
+      Value<bool> edgeTaps,
+      Value<bool> keepAwake,
     });
 
 class $$ReaderPrefsTableFilterComposer
@@ -2513,6 +3235,21 @@ class $$ReaderPrefsTableFilterComposer
 
   ColumnFilters<String> get columns => $composableBuilder(
     column: $table.columns,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get pageAnimation => $composableBuilder(
+    column: $table.pageAnimation,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get edgeTaps => $composableBuilder(
+    column: $table.edgeTaps,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get keepAwake => $composableBuilder(
+    column: $table.keepAwake,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -2555,6 +3292,21 @@ class $$ReaderPrefsTableOrderingComposer
     column: $table.columns,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<String> get pageAnimation => $composableBuilder(
+    column: $table.pageAnimation,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get edgeTaps => $composableBuilder(
+    column: $table.edgeTaps,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get keepAwake => $composableBuilder(
+    column: $table.keepAwake,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$ReaderPrefsTableAnnotationComposer
@@ -2587,6 +3339,17 @@ class $$ReaderPrefsTableAnnotationComposer
 
   GeneratedColumn<String> get columns =>
       $composableBuilder(column: $table.columns, builder: (column) => column);
+
+  GeneratedColumn<String> get pageAnimation => $composableBuilder(
+    column: $table.pageAnimation,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<bool> get edgeTaps =>
+      $composableBuilder(column: $table.edgeTaps, builder: (column) => column);
+
+  GeneratedColumn<bool> get keepAwake =>
+      $composableBuilder(column: $table.keepAwake, builder: (column) => column);
 }
 
 class $$ReaderPrefsTableTableManager
@@ -2626,6 +3389,9 @@ class $$ReaderPrefsTableTableManager
                 Value<String> fontFamily = const Value.absent(),
                 Value<double> lineHeight = const Value.absent(),
                 Value<String> columns = const Value.absent(),
+                Value<String> pageAnimation = const Value.absent(),
+                Value<bool> edgeTaps = const Value.absent(),
+                Value<bool> keepAwake = const Value.absent(),
               }) => ReaderPrefsCompanion(
                 id: id,
                 theme: theme,
@@ -2633,6 +3399,9 @@ class $$ReaderPrefsTableTableManager
                 fontFamily: fontFamily,
                 lineHeight: lineHeight,
                 columns: columns,
+                pageAnimation: pageAnimation,
+                edgeTaps: edgeTaps,
+                keepAwake: keepAwake,
               ),
           createCompanionCallback:
               ({
@@ -2642,6 +3411,9 @@ class $$ReaderPrefsTableTableManager
                 Value<String> fontFamily = const Value.absent(),
                 Value<double> lineHeight = const Value.absent(),
                 Value<String> columns = const Value.absent(),
+                Value<String> pageAnimation = const Value.absent(),
+                Value<bool> edgeTaps = const Value.absent(),
+                Value<bool> keepAwake = const Value.absent(),
               }) => ReaderPrefsCompanion.insert(
                 id: id,
                 theme: theme,
@@ -2649,6 +3421,9 @@ class $$ReaderPrefsTableTableManager
                 fontFamily: fontFamily,
                 lineHeight: lineHeight,
                 columns: columns,
+                pageAnimation: pageAnimation,
+                edgeTaps: edgeTaps,
+                keepAwake: keepAwake,
               ),
           withReferenceMapper: (p0) => p0
               .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
@@ -2958,6 +3733,359 @@ typedef $$BookLocationsTableProcessedTableManager =
       BookLocation,
       PrefetchHooks Function({bool bookId})
     >;
+typedef $$BookmarksTableCreateCompanionBuilder = BookmarksCompanion Function({
+  required String id,
+  required String bookId,
+  required String cfi,
+  Value<int?> chapterIndex,
+  Value<double> percent,
+  Value<String?> label,
+  Value<DateTime> createdAt,
+  Value<int> rowid,
+});
+typedef $$BookmarksTableUpdateCompanionBuilder = BookmarksCompanion Function({
+  Value<String> id,
+  Value<String> bookId,
+  Value<String> cfi,
+  Value<int?> chapterIndex,
+  Value<double> percent,
+  Value<String?> label,
+  Value<DateTime> createdAt,
+  Value<int> rowid,
+});
+
+final class $$BookmarksTableReferences
+    extends BaseReferences<_$AppDatabase, $BookmarksTable, Bookmark> {
+  $$BookmarksTableReferences(super.$_db, super.$_table, super.$_typedResult);
+
+  static $BooksTable _bookIdTable(_$AppDatabase db) =>
+      db.books.createAlias('bookmarks__book_id__books__id');
+
+  $$BooksTableProcessedTableManager get bookId {
+    final $_column = $_itemColumn<String>('book_id')!;
+
+    final manager = $$BooksTableTableManager(
+      $_db,
+      $_db.books,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_bookIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+}
+
+class $$BookmarksTableFilterComposer
+    extends Composer<_$AppDatabase, $BookmarksTable> {
+  $$BookmarksTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get cfi => $composableBuilder(
+    column: $table.cfi,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get chapterIndex => $composableBuilder(
+    column: $table.chapterIndex,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get percent => $composableBuilder(
+    column: $table.percent,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get label => $composableBuilder(
+    column: $table.label,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  $$BooksTableFilterComposer get bookId {
+    final $$BooksTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.bookId,
+      referencedTable: $db.books,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$BooksTableFilterComposer(
+            $db: $db,
+            $table: $db.books,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$BookmarksTableOrderingComposer
+    extends Composer<_$AppDatabase, $BookmarksTable> {
+  $$BookmarksTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get cfi => $composableBuilder(
+    column: $table.cfi,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get chapterIndex => $composableBuilder(
+    column: $table.chapterIndex,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get percent => $composableBuilder(
+    column: $table.percent,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get label => $composableBuilder(
+    column: $table.label,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $$BooksTableOrderingComposer get bookId {
+    final $$BooksTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.bookId,
+      referencedTable: $db.books,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$BooksTableOrderingComposer(
+            $db: $db,
+            $table: $db.books,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$BookmarksTableAnnotationComposer
+    extends Composer<_$AppDatabase, $BookmarksTable> {
+  $$BookmarksTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get cfi =>
+      $composableBuilder(column: $table.cfi, builder: (column) => column);
+
+  GeneratedColumn<int> get chapterIndex => $composableBuilder(
+    column: $table.chapterIndex,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<double> get percent =>
+      $composableBuilder(column: $table.percent, builder: (column) => column);
+
+  GeneratedColumn<String> get label =>
+      $composableBuilder(column: $table.label, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  $$BooksTableAnnotationComposer get bookId {
+    final $$BooksTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.bookId,
+      referencedTable: $db.books,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$BooksTableAnnotationComposer(
+            $db: $db,
+            $table: $db.books,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$BookmarksTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $BookmarksTable,
+          Bookmark,
+          $$BookmarksTableFilterComposer,
+          $$BookmarksTableOrderingComposer,
+          $$BookmarksTableAnnotationComposer,
+          $$BookmarksTableCreateCompanionBuilder,
+          $$BookmarksTableUpdateCompanionBuilder,
+          (Bookmark, $$BookmarksTableReferences),
+          Bookmark,
+          PrefetchHooks Function({bool bookId})
+        > {
+  $$BookmarksTableTableManager(_$AppDatabase db, $BookmarksTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$BookmarksTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$BookmarksTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$BookmarksTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> bookId = const Value.absent(),
+                Value<String> cfi = const Value.absent(),
+                Value<int?> chapterIndex = const Value.absent(),
+                Value<double> percent = const Value.absent(),
+                Value<String?> label = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => BookmarksCompanion(
+                id: id,
+                bookId: bookId,
+                cfi: cfi,
+                chapterIndex: chapterIndex,
+                percent: percent,
+                label: label,
+                createdAt: createdAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String bookId,
+                required String cfi,
+                Value<int?> chapterIndex = const Value.absent(),
+                Value<double> percent = const Value.absent(),
+                Value<String?> label = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => BookmarksCompanion.insert(
+                id: id,
+                bookId: bookId,
+                cfi: cfi,
+                chapterIndex: chapterIndex,
+                percent: percent,
+                label: label,
+                createdAt: createdAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable(table),
+                  $$BookmarksTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: ({bookId = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [],
+              addJoins:
+                  <
+                    T extends TableManagerState<
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic
+                    >
+                  >(state) {
+                    if (bookId) {
+                      state = state.withJoin(
+                        currentTable: table,
+                        currentColumn: table.bookId,
+                        referencedTable: $$BookmarksTableReferences
+                            ._bookIdTable(db),
+                        referencedColumn: $$BookmarksTableReferences
+                            ._bookIdTable(db)
+                            .id,
+                      ) as T;
+                    }
+
+                    return state;
+                  },
+              getPrefetchedDataCallback: (items) async {
+                return [];
+              },
+            );
+          },
+        ),
+      );
+}
+
+typedef $$BookmarksTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $BookmarksTable,
+      Bookmark,
+      $$BookmarksTableFilterComposer,
+      $$BookmarksTableOrderingComposer,
+      $$BookmarksTableAnnotationComposer,
+      $$BookmarksTableCreateCompanionBuilder,
+      $$BookmarksTableUpdateCompanionBuilder,
+      (Bookmark, $$BookmarksTableReferences),
+      Bookmark,
+      PrefetchHooks Function({bool bookId})
+    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -2970,4 +4098,6 @@ class $AppDatabaseManager {
       $$ReaderPrefsTableTableManager(_db, _db.readerPrefs);
   $$BookLocationsTableTableManager get bookLocations =>
       $$BookLocationsTableTableManager(_db, _db.bookLocations);
+  $$BookmarksTableTableManager get bookmarks =>
+      $$BookmarksTableTableManager(_db, _db.bookmarks);
 }
