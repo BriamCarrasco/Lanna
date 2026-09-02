@@ -15,7 +15,11 @@ abstract final class LannaColors {
 
   static const Color accent = Color(0xFFD9756A);
   static const Color accentStrong = Color(0xFFE8968D);
+  static const Color accentTint = Color(0x22D9756A);
+
   static const Color success = Color(0xFF6FAE86);
+  static const Color warning = Color(0xFFD9A441);
+  static const Color danger = Color(0xFFE5686B);
 }
 
 abstract final class AppFonts {
@@ -54,7 +58,7 @@ abstract final class AppTheme {
       onSurfaceVariant: LannaColors.textMuted,
       outline: LannaColors.border,
       outlineVariant: LannaColors.borderSubtle,
-      error: Color(0xFFE5686B),
+      error: LannaColors.danger,
     );
 
     final base = ThemeData(
@@ -81,6 +85,29 @@ abstract final class AppTheme {
       navigationRailTheme: const NavigationRailThemeData(
         backgroundColor: LannaColors.surfaceHigh,
         indicatorColor: LannaColors.surfaceActive,
+      ),
+      navigationBarTheme: NavigationBarThemeData(
+        height: 62,
+        backgroundColor: LannaColors.surfaceHigh,
+        indicatorColor: LannaColors.surfaceActive,
+        surfaceTintColor: Colors.transparent,
+        labelBehavior: NavigationDestinationLabelBehavior.onlyShowSelected,
+        iconTheme: WidgetStateProperty.resolveWith(
+          (states) => IconThemeData(
+            size: 22,
+            color: states.contains(WidgetState.selected)
+                ? LannaColors.accent
+                : LannaColors.textMuted,
+          ),
+        ),
+        labelTextStyle: WidgetStateProperty.all(
+          const TextStyle(
+            fontFamily: AppFonts.ui,
+            fontSize: 11.5,
+            fontWeight: FontWeight.w600,
+            color: LannaColors.text,
+          ),
+        ),
       ),
       filledButtonTheme: FilledButtonThemeData(
         style: FilledButton.styleFrom(

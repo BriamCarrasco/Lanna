@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../../core/theme/tokens.dart';
+import '../../../core/widgets/pressable.dart';
 import '../../../data/local/app_database.dart';
 import '../../../data/models/book_format.dart';
 import 'book_cover.dart';
@@ -15,10 +17,15 @@ class ContinueReadingRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(26, 0, 26, 4),
+      padding: const EdgeInsets.fromLTRB(
+        LannaSpacing.s6,
+        0,
+        LannaSpacing.s6,
+        LannaSpacing.s1,
+      ),
       child: LayoutBuilder(
         builder: (context, constraints) {
-          const gap = 14.0;
+          const gap = LannaSpacing.s3;
           final perRow = items.length.clamp(1, 3);
           final width = (constraints.maxWidth - gap * (perRow - 1)) / perRow;
           return SingleChildScrollView(
@@ -51,21 +58,21 @@ class _Card extends StatelessWidget {
     final chapter = item.progress.chapterIndex;
     final unit = item.book.format == BookFormat.pdf ? 'Pág.' : 'Cap.';
 
-    return InkWell(
-      borderRadius: BorderRadius.circular(11),
+    return Pressable(
+      scale: 0.98,
       onTap: () => context.push('/reader/${item.book.id}'),
       child: Container(
-        padding: const EdgeInsets.all(13),
+        padding: const EdgeInsets.all(LannaSpacing.s3),
         decoration: BoxDecoration(
           color: LannaColors.surfaceHigh,
-          borderRadius: BorderRadius.circular(11),
+          borderRadius: LannaRadii.brMd,
           border: Border.all(color: LannaColors.border),
         ),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             SizedBox(width: 64, child: BookCover(book: item.book)),
-            const SizedBox(width: 13),
+            const SizedBox(width: LannaSpacing.s3),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -74,9 +81,8 @@ class _Card extends StatelessWidget {
                     item.book.title,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: AppTheme.reading(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w600,
+                    style: LannaType.lg.copyWith(
+                      fontFamily: AppFonts.serif,
                       color: LannaColors.text,
                     ),
                   ),
@@ -85,24 +91,22 @@ class _Card extends StatelessWidget {
                       item.book.author!,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontSize: 11.5,
+                      style: LannaType.micro.copyWith(
                         color: LannaColors.textMuted,
                       ),
                     ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: LannaSpacing.s3),
                   Text(
                     chapter != null
                         ? '$unit ${chapter + 1} · ${(pct * 100).round()} %'
                         : '${(pct * 100).round()} %',
-                    style: const TextStyle(
-                      fontSize: 11,
+                    style: LannaType.micro.copyWith(
                       color: LannaColors.textMuted,
                     ),
                   ),
-                  const SizedBox(height: 6),
+                  const SizedBox(height: LannaSpacing.s1 + 2),
                   ClipRRect(
-                    borderRadius: BorderRadius.circular(2),
+                    borderRadius: LannaRadii.brXs,
                     child: LinearProgressIndicator(
                       value: pct,
                       minHeight: 3,

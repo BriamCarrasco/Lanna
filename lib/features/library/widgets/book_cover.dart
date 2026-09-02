@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../../core/theme/tokens.dart';
 import '../../../data/local/app_database.dart';
 
 class BookCover extends StatelessWidget {
@@ -17,7 +18,7 @@ class BookCover extends StatelessWidget {
     return AspectRatio(
       aspectRatio: 2 / 3,
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(6),
+        borderRadius: LannaRadii.brSm,
         child: (cover != null && File(cover).existsSync())
             ? Image.file(File(cover), fit: BoxFit.cover)
             : _FallbackCover(title: book.title),
@@ -46,7 +47,7 @@ class _FallbackCover extends StatelessWidget {
         ),
       ),
       child: Padding(
-        padding: const EdgeInsets.all(11),
+        padding: const EdgeInsets.all(LannaSpacing.s3),
         child: Align(
           alignment: Alignment.bottomLeft,
           child: Text(

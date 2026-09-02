@@ -1,9 +1,31 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../../core/theme/tokens.dart';
 
 enum LibrarySection { library, collections, authors, settings }
+
+const librarySections = <(IconData, String, LibrarySection)>[
+  (Icons.menu_book_outlined, 'Biblioteca', LibrarySection.library),
+  (Icons.folder_outlined, 'Colecciones', LibrarySection.collections),
+  (Icons.person_outline, 'Autores', LibrarySection.authors),
+  (Icons.settings_outlined, 'Ajustes', LibrarySection.settings),
+];
+
+void goToLibrarySection(BuildContext context, LibrarySection section) {
+  switch (section) {
+    case LibrarySection.library:
+      context.go('/');
+    case LibrarySection.collections:
+      context.go('/collections');
+    case LibrarySection.authors:
+      context.go('/authors');
+    case LibrarySection.settings:
+      context.go('/settings');
+  }
+}
 
 class LibrarySidebar extends StatelessWidget {
   const LibrarySidebar({
@@ -27,24 +49,29 @@ class LibrarySidebar extends StatelessWidget {
         color: LannaColors.surfaceHigh,
         border: Border(right: BorderSide(color: LannaColors.border)),
       ),
-      padding: const EdgeInsets.fromLTRB(16, 22, 16, 16),
+      padding: const EdgeInsets.fromLTRB(
+        LannaSpacing.s4,
+        LannaSpacing.s5,
+        LannaSpacing.s4,
+        LannaSpacing.s4,
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 6),
+            padding: const EdgeInsets.symmetric(
+              horizontal: LannaSpacing.s1 + 2,
+            ),
             child: Row(
               children: [
                 Image.asset('assets/logo/lanna.png', width: 34, height: 34),
-                const SizedBox(width: 10),
+                const SizedBox(width: LannaSpacing.s3 - 2),
                 Flexible(
                   child: Text(
                     'Lanna',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: AppTheme.reading(
-                      fontSize: 22,
-                      fontWeight: FontWeight.w600,
+                    style: LannaType.display.copyWith(
                       color: LannaColors.textStrong,
                     ),
                   ),
@@ -52,40 +79,17 @@ class LibrarySidebar extends StatelessWidget {
               ],
             ),
           ),
-          const SizedBox(height: 22),
+          const SizedBox(height: LannaSpacing.s5),
 
           if (searchController != null && onSearchChanged != null) ...[
-            _SearchField(
+            LibrarySearchField(
               controller: searchController!,
               onChanged: onSearchChanged!,
             ),
-            const SizedBox(height: 22),
+            const SizedBox(height: LannaSpacing.s5),
           ],
 
-          _NavItem(
-            icon: Icons.menu_book_outlined,
-            label: 'Biblioteca',
-            selected: active == LibrarySection.library,
-            onTap: () => onSelect(LibrarySection.library),
-          ),
-          _NavItem(
-            icon: Icons.folder_outlined,
-            label: 'Colecciones',
-            selected: active == LibrarySection.collections,
-            onTap: () => onSelect(LibrarySection.collections),
-          ),
-          _NavItem(
-            icon: Icons.person_outline,
-            label: 'Autores',
-            selected: active == LibrarySection.authors,
-            onTap: () => onSelect(LibrarySection.authors),
-          ),
-          _NavItem(
-            icon: Icons.settings_outlined,
-            label: 'Ajustes',
-            selected: active == LibrarySection.settings,
-            onTap: () => onSelect(LibrarySection.settings),
-          ),
+          _NavSection(active: active, onSelect: onSelect),
 
           const Spacer(),
           const _AccountChip(),
@@ -95,8 +99,12 @@ class LibrarySidebar extends StatelessWidget {
   }
 }
 
-class _SearchField extends StatelessWidget {
-  const _SearchField({required this.controller, required this.onChanged});
+class LibrarySearchField extends StatelessWidget {
+  const LibrarySearchField({
+    super.key,
+    required this.controller,
+    required this.onChanged,
+  });
 
   final TextEditingController controller;
   final ValueChanged<String> onChanged;
@@ -104,33 +112,32 @@ class _SearchField extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: 36,
-      padding: const EdgeInsets.only(left: 10, right: 4),
+      height: LannaSpacing.fieldHeight,
+      padding: const EdgeInsets.only(left: LannaSpacing.s3 - 2, right: 4),
       decoration: BoxDecoration(
         color: LannaColors.bg,
-        borderRadius: BorderRadius.circular(9),
+        borderRadius: LannaRadii.brMd,
         border: Border.all(color: LannaColors.border),
       ),
       child: Row(
         children: [
           const Icon(Icons.search, size: 15, color: LannaColors.textMuted),
-          const SizedBox(width: 8),
+          const SizedBox(width: LannaSpacing.s2),
           Expanded(
             child: TextField(
               controller: controller,
               onChanged: onChanged,
               cursorColor: LannaColors.accent,
               cursorWidth: 1.5,
-              style: const TextStyle(fontSize: 13, color: LannaColors.text),
-              decoration: const InputDecoration(
+              style: LannaType.md.copyWith(color: LannaColors.text),
+              decoration: InputDecoration(
                 isDense: true,
                 border: InputBorder.none,
                 hintText: 'Buscar en la biblioteca',
-                hintStyle: TextStyle(
-                  fontSize: 13,
-                  color: LannaColors.textMuted,
+                hintStyle: LannaType.md.copyWith(color: LannaColors.textMuted),
+                contentPadding: const EdgeInsets.symmetric(
+                  vertical: LannaSpacing.s2,
                 ),
-                contentPadding: EdgeInsets.symmetric(vertical: 8),
               ),
             ),
           ),
@@ -143,9 +150,9 @@ class _SearchField extends StatelessWidget {
                       controller.clear();
                       onChanged('');
                     },
-                    borderRadius: BorderRadius.circular(20),
+                    borderRadius: LannaRadii.brPill,
                     child: const Padding(
-                      padding: EdgeInsets.all(6),
+                      padding: EdgeInsets.all(LannaSpacing.s1 + 2),
                       child: Icon(
                         Icons.close,
                         size: 14,
@@ -160,49 +167,111 @@ class _SearchField extends StatelessWidget {
   }
 }
 
+class _NavSection extends StatelessWidget {
+  const _NavSection({required this.active, required this.onSelect});
+
+  final LibrarySection active;
+  final ValueChanged<LibrarySection> onSelect;
+
+  static const _items = librarySections;
+
+  static const _itemHeight = 36.0;
+  static const _gap = 3.0;
+
+  @override
+  Widget build(BuildContext context) {
+    final index = _items.indexWhere((e) => e.$3 == active);
+    return SizedBox(
+      height: _items.length * (_itemHeight + _gap) - _gap,
+      child: Stack(
+        children: [
+          AnimatedPositioned(
+            duration: LannaMotion.slow,
+            curve: LannaMotion.ease,
+            top: index * (_itemHeight + _gap),
+            left: 0,
+            right: 0,
+            height: _itemHeight,
+            child: const DecoratedBox(
+              decoration: BoxDecoration(
+                color: LannaColors.surfaceActive,
+                borderRadius: LannaRadii.brMd,
+              ),
+            ),
+          ),
+          Column(
+            children: [
+              for (var i = 0; i < _items.length; i++) ...[
+                if (i > 0) const SizedBox(height: _gap),
+                _NavItem(
+                  icon: _items[i].$1,
+                  label: _items[i].$2,
+                  selected: i == index,
+                  height: _itemHeight,
+                  onTap: () => onSelect(_items[i].$3),
+                ),
+              ],
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _NavItem extends StatelessWidget {
   const _NavItem({
     required this.icon,
     required this.label,
     required this.selected,
+    required this.height,
     required this.onTap,
   });
 
   final IconData icon;
   final String label;
   final bool selected;
+  final double height;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 3),
+    return SizedBox(
+      height: height,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(8),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 9),
-          decoration: BoxDecoration(
-            color: selected ? LannaColors.surfaceActive : Colors.transparent,
-            borderRadius: BorderRadius.circular(8),
-          ),
+        borderRadius: LannaRadii.brMd,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: LannaSpacing.s3 - 1),
           child: Row(
             children: [
-              Icon(
-                icon,
-                size: 17,
-                color: selected ? LannaColors.accent : LannaColors.textMuted,
+              TweenAnimationBuilder<double>(
+                tween: Tween(begin: 0, end: selected ? 1 : 0),
+                duration: LannaMotion.slow,
+                curve: LannaMotion.ease,
+                builder: (context, t, _) => Icon(
+                  icon,
+                  size: 17,
+                  color: Color.lerp(
+                    LannaColors.textMuted,
+                    LannaColors.accent,
+                    t,
+                  ),
+                ),
               ),
-              const SizedBox(width: 11),
+              const SizedBox(width: LannaSpacing.s3 - 1),
               Expanded(
-                child: Text(
-                  label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: 13.5,
+                child: AnimatedDefaultTextStyle(
+                  duration: LannaMotion.base,
+                  curve: LannaMotion.ease,
+                  style: LannaType.md.copyWith(
                     fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
                     color: selected ? LannaColors.text : LannaColors.textMuted,
+                  ),
+                  child: Text(
+                    label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
               ),
@@ -220,36 +289,29 @@ class _AccountChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
+      padding: const EdgeInsets.symmetric(
+        horizontal: LannaSpacing.s3,
+        vertical: LannaSpacing.s2 + 1,
+      ),
       decoration: BoxDecoration(
         color: LannaColors.bg,
-        borderRadius: BorderRadius.circular(9),
+        borderRadius: LannaRadii.brPill,
         border: Border.all(color: LannaColors.borderSubtle),
       ),
       child: Row(
         children: [
           const Icon(
             Icons.cloud_off_outlined,
-            size: 18,
+            size: 17,
             color: LannaColors.textMuted,
           ),
-          const SizedBox(width: 9),
+          const SizedBox(width: LannaSpacing.s2 + 1),
           Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: const [
-                Text(
-                  'Google Drive',
-                  style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600),
-                ),
-                Text(
-                  'Sin conectar',
-                  style: TextStyle(
-                    fontSize: 10.5,
-                    color: LannaColors.textMuted,
-                  ),
-                ),
-              ],
+            child: Text(
+              'Google Drive · Sin conectar',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: LannaType.sm.copyWith(color: LannaColors.textMuted),
             ),
           ),
         ],

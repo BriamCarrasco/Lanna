@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../../core/theme/tokens.dart';
 import '../../../data/book_repository.dart';
 import '../../../data/local/app_database.dart';
 import '../../../data/models/book_format.dart';
@@ -37,7 +38,7 @@ Future<bool> confirmDeleteBook(
         ),
         FilledButton(
           style: FilledButton.styleFrom(
-            backgroundColor: LannaColors.accent,
+            backgroundColor: LannaColors.danger,
             foregroundColor: LannaColors.surface,
           ),
           onPressed: () => Navigator.of(context).pop(true),
@@ -64,11 +65,11 @@ class BookDetailsDialog extends ConsumerWidget {
 
     return Dialog(
       backgroundColor: LannaColors.surfaceHigh,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+      shape: const RoundedRectangleBorder(borderRadius: LannaRadii.brLg),
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 460),
         child: Padding(
-          padding: const EdgeInsets.all(22),
+          padding: const EdgeInsets.all(LannaSpacing.s5),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -77,49 +78,45 @@ class BookDetailsDialog extends ConsumerWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   SizedBox(width: 96, child: BookCover(book: book)),
-                  const SizedBox(width: 18),
+                  const SizedBox(width: LannaSpacing.s4),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
                           book.title,
-                          style: AppTheme.reading(
-                            fontSize: 19,
-                            fontWeight: FontWeight.w600,
+                          style: LannaType.title.copyWith(
                             color: LannaColors.textStrong,
                           ),
                         ),
                         if (book.author != null) ...[
-                          const SizedBox(height: 4),
+                          const SizedBox(height: LannaSpacing.s1),
                           Text(
                             book.author!,
-                            style: const TextStyle(
-                              fontSize: 13,
+                            style: LannaType.md.copyWith(
                               color: LannaColors.textMuted,
                             ),
                           ),
                         ],
-                        const SizedBox(height: 12),
+                        const SizedBox(height: LannaSpacing.s3),
                         Wrap(
-                          spacing: 6,
-                          runSpacing: 6,
+                          spacing: LannaSpacing.s1 + 2,
+                          runSpacing: LannaSpacing.s1 + 2,
                           children: [
-                            _Chip(book.format == BookFormat.epub
-                                ? 'EPUB'
-                                : 'PDF'),
+                            _Chip(
+                              book.format == BookFormat.epub ? 'EPUB' : 'PDF',
+                            ),
                             if (book.fileSizeBytes != null)
                               _Chip(_formatSize(book.fileSizeBytes!)),
                             _Chip('Añadido ${_formatDate(book.addedAt)}'),
                           ],
                         ),
-                        const SizedBox(height: 12),
+                        const SizedBox(height: LannaSpacing.s3),
                         Text(
                           started
                               ? 'Progreso de lectura: $percent %'
                               : 'Sin empezar',
-                          style: const TextStyle(
-                            fontSize: 12,
+                          style: LannaType.sm.copyWith(
                             color: LannaColors.textMuted,
                           ),
                         ),
@@ -128,13 +125,17 @@ class BookDetailsDialog extends ConsumerWidget {
                   ),
                 ],
               ),
-              const SizedBox(height: 22),
+              const SizedBox(height: LannaSpacing.s5),
               Row(
                 children: [
                   TextButton(
                     onPressed: () async {
                       final navigator = Navigator.of(context);
-                      final deleted = await confirmDeleteBook(context, ref, book);
+                      final deleted = await confirmDeleteBook(
+                        context,
+                        ref,
+                        book,
+                      );
                       if (deleted) navigator.pop();
                     },
                     style: TextButton.styleFrom(
@@ -147,7 +148,7 @@ class BookDetailsDialog extends ConsumerWidget {
                     onPressed: () => Navigator.of(context).pop(),
                     child: const Text('Cerrar'),
                   ),
-                  const SizedBox(width: 8),
+                  const SizedBox(width: LannaSpacing.s2),
                   FilledButton(
                     onPressed: () {
                       Navigator.of(context).pop();
@@ -172,14 +173,17 @@ class _Chip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+      padding: const EdgeInsets.symmetric(
+        horizontal: LannaSpacing.s2 + 1,
+        vertical: LannaSpacing.s1,
+      ),
       decoration: BoxDecoration(
         color: LannaColors.surfaceActive,
-        borderRadius: BorderRadius.circular(6),
+        borderRadius: LannaRadii.brSm,
       ),
       child: Text(
         label,
-        style: const TextStyle(fontSize: 11, color: LannaColors.text),
+        style: LannaType.micro.copyWith(color: LannaColors.text),
       ),
     );
   }

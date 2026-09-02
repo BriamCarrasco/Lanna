@@ -9,15 +9,19 @@ import 'package:go_router/go_router.dart';
 
 import '../../core/text_search.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/theme/tokens.dart';
+import '../../core/widgets/fade_in.dart';
 import '../../data/book_repository.dart';
 import '../../data/local/app_database.dart';
 import 'import_controller.dart';
+import 'library_shell.dart';
+import 'widgets/book_actions.dart';
 import 'widgets/book_cover.dart';
-import 'widgets/book_details_dialog.dart';
+import 'widgets/book_grid.dart';
 import 'widgets/continue_reading_row.dart';
 import 'widgets/empty_library_view.dart';
 import 'widgets/import_progress_card.dart';
-import 'widgets/library_sidebar.dart';
+import 'widgets/section_scaffold.dart';
 
 enum _SortMode {
   recent('Recientes'),
@@ -43,16 +47,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
   _SortMode _sort = _SortMode.recent;
   _ViewMode _view = _ViewMode.grid;
 
-  final _searchController = TextEditingController();
-  String _query = '';
-
   static const _extensions = ['epub', 'pdf'];
-
-  @override
-  void dispose() {
-    _searchController.dispose();
-    super.dispose();
-  }
 
   Future<void> _pickAndImport() async {
     final files = await FilePicker.pickFiles(
@@ -70,58 +65,19 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
     ref.read(importControllerProvider.notifier).importPaths(paths);
   }
 
-  Future<void> _showBookMenu(Book book, Offset globalPosition) async {
-    final overlay =
-        Overlay.of(context).context.findRenderObject() as RenderBox;
-    final selected = await showMenu<String>(
-      context: context,
-      position: RelativeRect.fromRect(
-        globalPosition & const Size(40, 40),
-        Offset.zero & overlay.size,
-      ),
-      items: const [
-        PopupMenuItem(value: 'open', child: Text('Abrir')),
-        PopupMenuItem(value: 'details', child: Text('Detalles')),
-        PopupMenuItem(value: 'delete', child: Text('Eliminar')),
-      ],
-    );
-    if (!mounted) return;
-    switch (selected) {
-      case 'open':
-        unawaited(context.push('/reader/${book.id}'));
-      case 'details':
-        unawaited(showBookDetails(context, book));
-      case 'delete':
-        final deleted = await confirmDeleteBook(context, ref, book);
-        if (deleted && mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('«${book.title}» eliminado')),
-          );
-        }
-    }
+  void _showBookMenu(Book book, Offset globalPosition) {
+    unawaited(showBookMenu(context, ref, book, globalPosition));
   }
 
-  void _onSection(LibrarySection section) {
-    switch (section) {
-      case LibrarySection.library:
-        return;
-      case LibrarySection.settings:
-        context.push('/settings');
-      case LibrarySection.collections:
-      case LibrarySection.authors:
-        ScaffoldMessenger.of(context)
-            .showSnackBar(const SnackBar(content: Text('Próximamente')));
-    }
-  }
-
-  List<Book> _filteredSorted(List<Book> books) {
-    final matched = _query.isEmpty
+  List<Book> _filteredSorted(List<Book> books, String rawQuery) {
+    final query = foldForSearch(rawQuery);
+    final matched = query.isEmpty
         ? books
         : books
               .where(
                 (b) =>
-                    matchesQuery(b.title, _query) ||
-                    matchesQuery(b.author ?? '', _query),
+                    matchesQuery(b.title, query) ||
+                    matchesQuery(b.author ?? '', query),
               )
               .toList();
     return _sorted(matched);
@@ -152,77 +108,90 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
     final continueReading =
         ref.watch(continueReadingProvider).valueOrNull ?? const [];
     final import = ref.watch(importControllerProvider);
+    final query = ref.watch(librarySearchProvider);
     final showOverlay = !import.isEmpty && !_overlayHidden;
+    final count = library.valueOrNull?.length ?? 0;
+    final compact = MediaQuery.sizeOf(context).width < 720;
 
-    return Scaffold(
-      body: Row(
-        children: [
-          LibrarySidebar(
-            active: LibrarySection.library,
-            onSelect: _onSection,
-            searchController: _searchController,
-            onSearchChanged: (q) => setState(() => _query = foldForSearch(q)),
-          ),
-          Expanded(
-            child: Stack(
-              children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    _Header(
-                      count: library.valueOrNull?.length ?? 0,
-                      sort: _sort,
-                      view: _view,
-                      onSort: (s) => setState(() => _sort = s),
-                      onView: (v) => setState(() => _view = v),
-                      onImport: _pickAndImport,
+    return Stack(
+      children: [
+        SectionScaffold(
+          title: 'Biblioteca',
+          subtitle: '$count ${count == 1 ? 'libro' : 'libros'}',
+          actions: compact
+              ? [
+                  PopupMenuButton<_SortMode>(
+                    icon: const Icon(
+                      Icons.sort,
+                      size: 20,
+                      color: LannaColors.textMuted,
                     ),
-                    const Divider(height: 1),
-                    Expanded(
-                      child: DropTarget(
-                        onDragEntered: (_) => setState(() => _dragging = true),
-                        onDragExited: (_) => setState(() => _dragging = false),
-                        onDragDone: (detail) {
-                          setState(() => _dragging = false);
-                          _startImport(
-                            detail.files.map((f) => f.path).toList(),
-                          );
-                        },
-                        child: _LibraryBody(
-                          library: library.whenData(_filteredSorted),
-                          continueReading:
-                              _query.isEmpty ? continueReading : const [],
-                          query: _searchController.text,
-                          view: _view,
-                          dragging: _dragging,
-                          onImport: _pickAndImport,
-                          onBookMenu: _showBookMenu,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                if (showOverlay)
-                  Positioned.fill(
-                    child: ColoredBox(
-                      color: Colors.black.withValues(alpha: 0.55),
-                      child: ImportProgressCard(
-                        progress: import,
-                        onDismiss: () {
-                          if (import.isRunning) {
-                            setState(() => _overlayHidden = true);
-                          } else {
-                            ref.read(importControllerProvider.notifier).clear();
-                          }
-                        },
-                      ),
-                    ),
+                    initialValue: _sort,
+                    tooltip: 'Ordenar',
+                    onSelected: (s) => setState(() => _sort = s),
+                    itemBuilder: (_) => [
+                      for (final m in _SortMode.values)
+                        PopupMenuItem(value: m, child: Text(m.label)),
+                    ],
                   ),
-              ],
+                  IconButton(
+                    onPressed: _pickAndImport,
+                    icon: const Icon(Icons.add),
+                    tooltip: 'Importar libros',
+                  ),
+                ]
+              : [
+                  _ViewToggle(
+                    view: _view,
+                    onChanged: (v) => setState(() => _view = v),
+                  ),
+                  _SortButton(
+                    sort: _sort,
+                    onChanged: (s) => setState(() => _sort = s),
+                  ),
+                  FilledButton.icon(
+                    onPressed: _pickAndImport,
+                    icon: const Icon(Icons.add, size: 18),
+                    label: const Text('Importar'),
+                  ),
+                ],
+          child: DropTarget(
+            onDragEntered: (_) => setState(() => _dragging = true),
+            onDragExited: (_) => setState(() => _dragging = false),
+            onDragDone: (detail) {
+              setState(() => _dragging = false);
+              _startImport(detail.files.map((f) => f.path).toList());
+            },
+            child: _LibraryBody(
+              library: library.whenData(
+                (books) => _filteredSorted(books, query),
+              ),
+              continueReading: query.isEmpty ? continueReading : const [],
+              query: query,
+              view: _view,
+              dragging: _dragging,
+              onImport: _pickAndImport,
+              onBookMenu: _showBookMenu,
             ),
           ),
-        ],
-      ),
+        ),
+        if (showOverlay)
+          Positioned.fill(
+            child: ColoredBox(
+              color: Colors.black.withValues(alpha: 0.55),
+              child: ImportProgressCard(
+                progress: import,
+                onDismiss: () {
+                  if (import.isRunning) {
+                    setState(() => _overlayHidden = true);
+                  } else {
+                    ref.read(importControllerProvider.notifier).clear();
+                  }
+                },
+              ),
+            ),
+          ),
+      ],
     );
   }
 }
@@ -255,8 +224,11 @@ class _LibraryBody extends StatelessWidget {
       data: (books) {
         if (books.isEmpty) {
           return searching
-              ? _NoResults(query: query)
-              : EmptyLibraryView(onImport: onImport);
+              ? SectionEmpty(
+                  icon: Icons.search_off,
+                  message: 'Sin resultados para «$query»',
+                )
+              : FadeIn(child: EmptyLibraryView(onImport: onImport));
         }
         return CustomScrollView(
           slivers: [
@@ -271,10 +243,10 @@ class _LibraryBody extends StatelessWidget {
               trailing: '${books.length}',
             ),
             if (view == _ViewMode.grid)
-              _BookGridSliver(books: books, onMenu: onBookMenu)
+              BookGridSliver(books: books, onMenu: onBookMenu)
             else
               _BookListSliver(books: books, onMenu: onBookMenu),
-            const SliverToBoxAdapter(child: SizedBox(height: 26)),
+            const SliverToBoxAdapter(child: SizedBox(height: LannaSpacing.s6)),
           ],
         );
       },
@@ -283,22 +255,23 @@ class _LibraryBody extends StatelessWidget {
     return Stack(
       children: [
         content,
-        if (dragging)
-          Positioned.fill(
-            child: IgnorePointer(
+        Positioned.fill(
+          child: IgnorePointer(
+            child: AnimatedOpacity(
+              opacity: dragging ? 1 : 0,
+              duration: LannaMotion.fast,
+              curve: LannaMotion.ease,
               child: Container(
-                margin: const EdgeInsets.all(12),
+                margin: const EdgeInsets.all(LannaSpacing.s3),
                 decoration: BoxDecoration(
-                  color: LannaColors.accent.withValues(alpha: 0.08),
-                  borderRadius: BorderRadius.circular(16),
+                  color: LannaColors.accentTint,
+                  borderRadius: LannaRadii.brXl,
                   border: Border.all(color: LannaColors.accent, width: 2),
                 ),
-                child: const Center(
+                child: Center(
                   child: Text(
                     'Suelta para importar',
-                    style: TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w600,
+                    style: LannaType.lg.copyWith(
                       color: LannaColors.accentStrong,
                     ),
                   ),
@@ -306,33 +279,8 @@ class _LibraryBody extends StatelessWidget {
               ),
             ),
           ),
+        ),
       ],
-    );
-  }
-}
-
-class _NoResults extends StatelessWidget {
-  const _NoResults({required this.query});
-  final String query;
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Icon(
-            Icons.search_off,
-            size: 34,
-            color: LannaColors.textMuted,
-          ),
-          const SizedBox(height: 12),
-          Text(
-            'Sin resultados para «$query»',
-            style: const TextStyle(color: LannaColors.textMuted, fontSize: 13),
-          ),
-        ],
-      ),
     );
   }
 }
@@ -346,101 +294,27 @@ class _SectionLabel extends StatelessWidget {
   Widget build(BuildContext context) {
     return SliverToBoxAdapter(
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(26, 22, 26, 12),
+        padding: const EdgeInsets.fromLTRB(
+          LannaSpacing.s6,
+          LannaSpacing.s5,
+          LannaSpacing.s6,
+          LannaSpacing.s3,
+        ),
         child: Row(
           children: [
             Text(
               text.toUpperCase(),
-              style: const TextStyle(
-                fontSize: 11.5,
-                letterSpacing: 1.6,
-                fontWeight: FontWeight.w700,
-                color: LannaColors.textMuted,
-              ),
+              style: LannaType.xs.copyWith(color: LannaColors.textMuted),
             ),
             if (trailing != null) ...[
-              const SizedBox(width: 8),
+              const SizedBox(width: LannaSpacing.s2),
               Text(
                 trailing!,
-                style: const TextStyle(
-                  fontSize: 11.5,
-                  color: LannaColors.border,
-                  fontWeight: FontWeight.w700,
-                ),
+                style: LannaType.xs.copyWith(color: LannaColors.border),
               ),
             ],
           ],
         ),
-      ),
-    );
-  }
-}
-
-class _Header extends StatelessWidget {
-  const _Header({
-    required this.count,
-    required this.sort,
-    required this.view,
-    required this.onSort,
-    required this.onView,
-    required this.onImport,
-  });
-
-  final int count;
-  final _SortMode sort;
-  final _ViewMode view;
-  final ValueChanged<_SortMode> onSort;
-  final ValueChanged<_ViewMode> onView;
-  final VoidCallback onImport;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      height: 64,
-      color: LannaColors.surface,
-      padding: const EdgeInsets.symmetric(horizontal: 26),
-      child: Row(
-        children: [
-          Expanded(
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Flexible(
-                  child: Text(
-                    'Biblioteca',
-                    maxLines: 1,
-                    softWrap: false,
-                    overflow: TextOverflow.ellipsis,
-                    style: Theme.of(context).textTheme.headlineSmall,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Flexible(
-                  child: Text(
-                    '$count ${count == 1 ? 'libro' : 'libros'}',
-                    maxLines: 1,
-                    softWrap: false,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: LannaColors.textMuted,
-                      fontSize: 13,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 16),
-          _ViewToggle(view: view, onChanged: onView),
-          const SizedBox(width: 10),
-          _SortButton(sort: sort, onChanged: onSort),
-          const SizedBox(width: 10),
-          FilledButton.icon(
-            onPressed: onImport,
-            icon: const Icon(Icons.add, size: 18),
-            label: const Text('Importar'),
-          ),
-        ],
       ),
     );
   }
@@ -458,7 +332,10 @@ class _ViewToggle extends StatelessWidget {
       return InkWell(
         onTap: () => onChanged(mode),
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 7),
+          padding: const EdgeInsets.symmetric(
+            horizontal: LannaSpacing.s2 + 1,
+            vertical: LannaSpacing.s2 - 1,
+          ),
           color: active ? LannaColors.surfaceActive : Colors.transparent,
           child: Icon(
             icon,
@@ -473,7 +350,7 @@ class _ViewToggle extends StatelessWidget {
       decoration: BoxDecoration(
         color: LannaColors.bg,
         border: Border.all(color: LannaColors.border),
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: LannaRadii.brMd,
       ),
       clipBehavior: Clip.antiAlias,
       child: Row(
@@ -503,20 +380,23 @@ class _SortButton extends StatelessWidget {
           PopupMenuItem(value: mode, child: Text(mode.label)),
       ],
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+        padding: const EdgeInsets.symmetric(
+          horizontal: LannaSpacing.s3,
+          vertical: LannaSpacing.s2 - 1,
+        ),
         decoration: BoxDecoration(
           color: LannaColors.bg,
           border: Border.all(color: LannaColors.border),
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: LannaRadii.brMd,
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
             Text(
               sort.label,
-              style: const TextStyle(fontSize: 13, color: LannaColors.text),
+              style: LannaType.md.copyWith(color: LannaColors.text),
             ),
-            const SizedBox(width: 6),
+            const SizedBox(width: LannaSpacing.s1 + 2),
             const Icon(
               Icons.expand_more,
               size: 14,
@@ -524,80 +404,6 @@ class _SortButton extends StatelessWidget {
             ),
           ],
         ),
-      ),
-    );
-  }
-}
-
-class _BookGridSliver extends StatelessWidget {
-  const _BookGridSliver({required this.books, required this.onMenu});
-  final List<Book> books;
-  final void Function(Book book, Offset globalPosition) onMenu;
-
-  @override
-  Widget build(BuildContext context) {
-    return SliverPadding(
-      padding: const EdgeInsets.symmetric(horizontal: 26),
-      sliver: SliverGrid.builder(
-        gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-          maxCrossAxisExtent: 168,
-          childAspectRatio: 0.54,
-          crossAxisSpacing: 20,
-          mainAxisSpacing: 22,
-        ),
-        itemCount: books.length,
-        itemBuilder: (context, i) => _GridTile(book: books[i], onMenu: onMenu),
-      ),
-    );
-  }
-}
-
-class _GridTile extends StatelessWidget {
-  const _GridTile({required this.book, required this.onMenu});
-  final Book book;
-  final void Function(Book book, Offset globalPosition) onMenu;
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      borderRadius: BorderRadius.circular(6),
-      onTap: () => context.push('/reader/${book.id}'),
-      onLongPress: () {
-        final box = context.findRenderObject() as RenderBox;
-        onMenu(book, box.localToGlobal(box.size.center(Offset.zero)));
-      },
-      onSecondaryTapUp: (d) => onMenu(book, d.globalPosition),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Expanded(
-            child: Align(
-              alignment: Alignment.topCenter,
-              child: BookCover(book: book),
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            book.title,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-              height: 1.25,
-            ),
-          ),
-          if (book.author != null)
-            Text(
-              book.author!,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                fontSize: 10.5,
-                color: LannaColors.textMuted,
-              ),
-            ),
-        ],
       ),
     );
   }
@@ -611,10 +417,11 @@ class _BookListSliver extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SliverPadding(
-      padding: const EdgeInsets.symmetric(horizontal: 26),
+      padding: const EdgeInsets.symmetric(horizontal: LannaSpacing.s6),
       sliver: SliverList.separated(
         itemCount: books.length,
-        separatorBuilder: (_, _) => const Divider(height: 1),
+        separatorBuilder: (_, _) =>
+            const Divider(height: 1, color: LannaColors.borderSubtle),
         itemBuilder: (context, i) => _BookRow(book: books[i], onMenu: onMenu),
       ),
     );
@@ -638,11 +445,11 @@ class _BookRow extends StatelessWidget {
       onLongPress: () => _menuFromCenter(context),
       onSecondaryTapUp: (d) => onMenu(book, d.globalPosition),
       child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 10),
+        padding: const EdgeInsets.symmetric(vertical: LannaSpacing.s3),
         child: Row(
           children: [
             SizedBox(width: 34, child: BookCover(book: book)),
-            const SizedBox(width: 14),
+            const SizedBox(width: LannaSpacing.s3),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -651,18 +458,14 @@ class _BookRow extends StatelessWidget {
                     book.title,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      fontSize: 13.5,
-                      fontWeight: FontWeight.w600,
-                    ),
+                    style: LannaType.md.copyWith(fontWeight: FontWeight.w600),
                   ),
                   if (book.author != null)
                     Text(
                       book.author!,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontSize: 11.5,
+                      style: LannaType.sm.copyWith(
                         color: LannaColors.textMuted,
                       ),
                     ),

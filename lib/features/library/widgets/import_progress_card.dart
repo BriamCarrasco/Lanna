@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../../core/theme/tokens.dart';
 import '../import_controller.dart';
 
 class ImportProgressCard extends StatelessWidget {
@@ -25,11 +26,12 @@ class ImportProgressCard extends StatelessWidget {
     return Center(
       child: Container(
         width: 440,
-        padding: const EdgeInsets.all(22),
+        padding: const EdgeInsets.all(LannaSpacing.s5),
         decoration: BoxDecoration(
-          color: const Color(0xFF1F1E24),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: const Color(0xFF322F39)),
+          color: LannaColors.surfaceHigh,
+          borderRadius: LannaRadii.brLg,
+          border: Border.all(color: LannaColors.border),
+          boxShadow: LannaElevation.e3,
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -37,31 +39,31 @@ class ImportProgressCard extends StatelessWidget {
           children: [
             Row(
               children: [
-                Text(title, style: Theme.of(context).textTheme.titleMedium),
+                Text(
+                  title,
+                  style: LannaType.lg.copyWith(color: LannaColors.textStrong),
+                ),
                 const Spacer(),
                 Text(
                   '${progress.finished} de ${progress.total}',
-                  style: const TextStyle(
-                    fontSize: 12,
-                    color: LannaColors.textMuted,
-                  ),
+                  style: LannaType.sm.copyWith(color: LannaColors.textMuted),
                 ),
               ],
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: LannaSpacing.s3),
             ClipRRect(
-              borderRadius: BorderRadius.circular(2),
+              borderRadius: LannaRadii.brXs,
               child: LinearProgressIndicator(
                 value: progress.total == 0
                     ? 0
                     : progress.finished / progress.total,
                 minHeight: 3,
-                backgroundColor: const Color(0xFF322F39),
+                backgroundColor: LannaColors.border,
               ),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: LannaSpacing.s2),
             ...progress.items.map(_row),
-            const SizedBox(height: 12),
+            const SizedBox(height: LannaSpacing.s3),
             Align(
               alignment: Alignment.centerRight,
               child: TextButton(
@@ -77,11 +79,11 @@ class ImportProgressCard extends StatelessWidget {
 
   Widget _row(ImportItem item) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 7),
+      padding: const EdgeInsets.symmetric(vertical: LannaSpacing.s2 - 1),
       child: Row(
         children: [
           _StatusIcon(item.status),
-          const SizedBox(width: 11),
+          const SizedBox(width: LannaSpacing.s3 - 1),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -90,20 +92,16 @@ class ImportProgressCard extends StatelessWidget {
                   item.fileName,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontSize: 12.5,
-                    fontWeight: FontWeight.w600,
-                  ),
+                  style: LannaType.sm.copyWith(fontWeight: FontWeight.w600),
                 ),
                 if (item.detail != null)
                   Text(
                     item.detail!,
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: 10.5,
+                    style: LannaType.micro.copyWith(
                       color: item.status == ImportItemStatus.failed
-                          ? const Color(0xFFE5686B)
+                          ? LannaColors.danger
                           : LannaColors.textMuted,
                     ),
                   ),
@@ -136,7 +134,7 @@ class _StatusIcon extends StatelessWidget {
         return const Icon(
           Icons.error_outline,
           size: 17,
-          color: Color(0xFFE5686B),
+          color: LannaColors.danger,
         );
       case ImportItemStatus.processing:
         return const SizedBox(
@@ -150,7 +148,7 @@ class _StatusIcon extends StatelessWidget {
           height: 15,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            border: Border.all(color: const Color(0xFF3A3742), width: 2),
+            border: Border.all(color: LannaColors.border, width: 2),
           ),
         );
     }

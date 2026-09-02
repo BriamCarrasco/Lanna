@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../../core/theme/tokens.dart';
 
 class EmptyLibraryView extends StatelessWidget {
   const EmptyLibraryView({super.key, required this.onImport});
@@ -11,13 +12,13 @@ class EmptyLibraryView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.all(30),
+      padding: const EdgeInsets.all(LannaSpacing.s6),
       child: Container(
         width: double.infinity,
         decoration: BoxDecoration(
-          color: const Color(0xFF191820),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: const Color(0xFF3A3742), width: 2),
+          color: LannaColors.surfaceHigh,
+          borderRadius: LannaRadii.brXl,
+          border: Border.all(color: LannaColors.border, width: 2),
         ),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -28,17 +29,17 @@ class EmptyLibraryView extends StatelessWidget {
               height: 84,
               opacity: const AlwaysStoppedAnimation(0.35),
             ),
-            const SizedBox(height: 18),
+            const SizedBox(height: LannaSpacing.s4),
             Text(
               'Tu biblioteca está vacía',
-              style: AppTheme.reading(fontSize: 20, color: LannaColors.text),
+              style: LannaType.title.copyWith(color: LannaColors.text),
             ),
-            const SizedBox(height: 8),
-            const Text(
+            const SizedBox(height: LannaSpacing.s2),
+            Text(
               'Arrastra archivos EPUB o PDF aquí, o impórtalos desde tu equipo',
-              style: TextStyle(fontSize: 13, color: LannaColors.textMuted),
+              style: LannaType.md.copyWith(color: LannaColors.textMuted),
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: LannaSpacing.s5),
             FilledButton.icon(
               onPressed: onImport,
               icon: const Icon(Icons.add, size: 18),
