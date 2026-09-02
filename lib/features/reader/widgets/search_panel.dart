@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../../core/theme/tokens.dart';
 import '../epub_view.dart';
 import '../reader_theme.dart';
 
@@ -38,7 +39,9 @@ class _SearchPanelState extends State<SearchPanel> {
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _focusNode.requestFocus());
+    WidgetsBinding.instance.addPostFrameCallback(
+      (_) => _focusNode.requestFocus(),
+    );
   }
 
   @override
@@ -63,7 +66,12 @@ class _SearchPanelState extends State<SearchPanel> {
         children: [
           Container(
             height: 52,
-            padding: const EdgeInsets.fromLTRB(20, 0, 12, 0),
+            padding: const EdgeInsets.fromLTRB(
+              LannaSpacing.s5,
+              0,
+              LannaSpacing.s3,
+              0,
+            ),
             decoration: BoxDecoration(
               border: Border(bottom: BorderSide(color: chrome.barBorder)),
             ),
@@ -71,9 +79,8 @@ class _SearchPanelState extends State<SearchPanel> {
               children: [
                 Text(
                   'Buscar en el libro',
-                  style: AppTheme.reading(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w600,
+                  style: LannaType.lg.copyWith(
+                    fontFamily: AppFonts.serif,
                     color: chrome.onBar,
                   ),
                 ),
@@ -88,19 +95,27 @@ class _SearchPanelState extends State<SearchPanel> {
             ),
           ),
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 14, 16, 10),
+            padding: const EdgeInsets.fromLTRB(
+              LannaSpacing.s4,
+              LannaSpacing.s4,
+              LannaSpacing.s4,
+              LannaSpacing.s3,
+            ),
             child: Container(
-              height: 36,
-              padding: const EdgeInsets.only(left: 10, right: 4),
+              height: LannaSpacing.fieldHeight,
+              padding: const EdgeInsets.only(
+                left: LannaSpacing.s3 - 2,
+                right: 4,
+              ),
               decoration: BoxDecoration(
                 color: chrome.fieldBackground,
-                borderRadius: BorderRadius.circular(9),
+                borderRadius: LannaRadii.brMd,
                 border: Border.all(color: chrome.panelBorder),
               ),
               child: Row(
                 children: [
                   Icon(Icons.search, size: 15, color: chrome.onBarMuted),
-                  const SizedBox(width: 8),
+                  const SizedBox(width: LannaSpacing.s2),
                   Expanded(
                     child: TextField(
                       controller: _controller,
@@ -109,16 +124,17 @@ class _SearchPanelState extends State<SearchPanel> {
                       onSubmitted: widget.onSubmit,
                       cursorColor: ReaderChrome.accent,
                       cursorWidth: 1.5,
-                      style: TextStyle(fontSize: 13, color: chrome.onBar),
+                      style: LannaType.md.copyWith(color: chrome.onBar),
                       decoration: InputDecoration(
                         isDense: true,
                         border: InputBorder.none,
                         hintText: 'Palabra o frase',
-                        hintStyle: TextStyle(
-                          fontSize: 13,
+                        hintStyle: LannaType.md.copyWith(
                           color: chrome.onBarMuted,
                         ),
-                        contentPadding: const EdgeInsets.symmetric(vertical: 8),
+                        contentPadding: const EdgeInsets.symmetric(
+                          vertical: LannaSpacing.s2,
+                        ),
                       ),
                     ),
                   ),
@@ -127,10 +143,15 @@ class _SearchPanelState extends State<SearchPanel> {
             ),
           ),
           Padding(
-            padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
+            padding: const EdgeInsets.fromLTRB(
+              LannaSpacing.s5,
+              0,
+              LannaSpacing.s5,
+              LannaSpacing.s2,
+            ),
             child: Text(
               _statusLine(),
-              style: TextStyle(fontSize: 11, color: chrome.onBarMuted),
+              style: LannaType.micro.copyWith(color: chrome.onBarMuted),
             ),
           ),
           Expanded(child: _results(chrome)),
@@ -150,23 +171,24 @@ class _SearchPanelState extends State<SearchPanel> {
   Widget _results(ReaderChrome chrome) {
     if (widget.hits.isEmpty) return const SizedBox.shrink();
     return ListView.builder(
-      padding: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.only(bottom: LannaSpacing.s2),
       itemCount: widget.hits.length,
       itemBuilder: (context, i) {
         final hit = widget.hits[i];
         return InkWell(
           onTap: () => widget.onSelect(hit),
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(20, 9, 16, 9),
+            padding: const EdgeInsets.fromLTRB(
+              LannaSpacing.s5,
+              LannaSpacing.s2 + 1,
+              LannaSpacing.s4,
+              LannaSpacing.s2 + 1,
+            ),
             child: Text(
               hit.excerpt,
               maxLines: 3,
               overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                fontSize: 12,
-                height: 1.4,
-                color: chrome.onBarMuted,
-              ),
+              style: LannaType.sm.copyWith(color: chrome.onBarMuted),
             ),
           ),
         );

@@ -79,13 +79,21 @@ class ReaderServer {
     return Response.notFound('no encontrado');
   }
 
-  Uri readerUrl({String? opfPath, String? cfi, bool hasLocations = false}) {
+  Uri readerUrl({
+    String? opfPath,
+    String? cfi,
+    bool hasLocations = false,
+    int insetTop = 52,
+    int insetBottom = 48,
+  }) {
     return baseUri.replace(
       path: '/reader.html',
       queryParameters: {
         if (opfPath != null && opfPath.isNotEmpty) 'opf': opfPath,
         if (cfi != null && cfi.isNotEmpty) 'cfi': cfi,
         if (hasLocations) 'loc': '1',
+        'top': '$insetTop',
+        'bottom': '$insetBottom',
       },
     );
   }

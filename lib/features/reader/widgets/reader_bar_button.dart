@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../../core/theme/tokens.dart';
 import '../reader_theme.dart';
 
 class ReaderBarButton extends StatelessWidget {
@@ -29,16 +30,15 @@ class ReaderBarButton extends StatelessWidget {
     final color = active ? ReaderChrome.accent : this.color;
     final child = InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(8),
+      borderRadius: LannaRadii.brMd,
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+        padding: const EdgeInsets.all(LannaSpacing.s2),
         child: icon != null
             ? Icon(icon, size: size, color: color)
             : Text(
                 label!,
-                style: TextStyle(
+                style: LannaType.base.copyWith(
                   fontFamily: AppFonts.serif,
-                  fontSize: 15.5,
                   fontWeight: FontWeight.w600,
                   color: color,
                 ),

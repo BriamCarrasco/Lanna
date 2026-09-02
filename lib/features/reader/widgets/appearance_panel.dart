@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../../core/theme/tokens.dart';
 import '../reader_theme.dart';
 
 class AppearancePanel extends StatelessWidget {
@@ -30,29 +31,23 @@ class AppearancePanel extends StatelessWidget {
     final chrome = ReaderChrome.of(settings.preset);
     return Container(
       width: 360,
-      padding: const EdgeInsets.all(18),
+      padding: const EdgeInsets.all(LannaSpacing.s5),
       decoration: BoxDecoration(
         color: chrome.panelBackground,
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: LannaRadii.brLg,
         border: Border.all(color: chrome.panelBorder),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x55000000),
-            blurRadius: 50,
-            offset: Offset(0, 24),
-          ),
-        ],
+        boxShadow: LannaElevation.e3,
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Padding(
-            padding: const EdgeInsets.only(bottom: 14),
+            padding: const EdgeInsets.only(bottom: LannaSpacing.s4),
             child: Text(
               'Apariencia',
-              style: AppTheme.reading(
-                fontSize: 14,
+              style: LannaType.base.copyWith(
+                fontFamily: AppFonts.serif,
                 fontWeight: FontWeight.w600,
                 color: chrome.onBar,
               ),
@@ -65,7 +60,7 @@ class AppearancePanel extends StatelessWidget {
               children: [
                 for (final preset in ReaderThemePreset.values) ...[
                   if (preset != ReaderThemePreset.values.first)
-                    const SizedBox(width: 8),
+                    const SizedBox(width: LannaSpacing.s2),
                   Expanded(
                     child: _Swatch(
                       preset: preset,
@@ -79,7 +74,7 @@ class AppearancePanel extends StatelessWidget {
             ),
           ),
           if (_typography) ...[
-            const SizedBox(height: 12),
+            const SizedBox(height: LannaSpacing.s3),
             _Row(
               label: 'Fuente',
               chrome: chrome,
@@ -91,7 +86,7 @@ class AppearancePanel extends StatelessWidget {
                 onChanged: onFontFamily!,
               ),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: LannaSpacing.s3),
             _Row(
               label: 'Tamaño',
               chrome: chrome,
@@ -101,7 +96,7 @@ class AppearancePanel extends StatelessWidget {
                 onChanged: onFontScale!,
               ),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: LannaSpacing.s3),
             _Row(
               label: 'Interlínea',
               chrome: chrome,
@@ -112,7 +107,7 @@ class AppearancePanel extends StatelessWidget {
               ),
             ),
           ],
-          const SizedBox(height: 12),
+          const SizedBox(height: LannaSpacing.s3),
           _Row(
             label: 'Páginas',
             chrome: chrome,
@@ -143,7 +138,7 @@ class _Row extends StatelessWidget {
           width: 64,
           child: Text(
             label,
-            style: TextStyle(fontSize: 11.5, color: chrome.onBarMuted),
+            style: LannaType.micro.copyWith(color: chrome.onBarMuted),
           ),
         ),
         Expanded(child: child),
@@ -172,7 +167,7 @@ class _Swatch extends StatelessWidget {
         height: 34,
         decoration: BoxDecoration(
           color: preset.background,
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: LannaRadii.brMd,
           border: Border.all(
             color: selected ? ReaderChrome.accent : borderColor,
             width: 2,
@@ -203,7 +198,7 @@ class _Segmented extends StatelessWidget {
       padding: const EdgeInsets.all(3),
       decoration: BoxDecoration(
         color: chrome.fieldBackground,
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: LannaRadii.brMd,
         border: Border.all(color: chrome.panelBorder),
       ),
       child: Row(
@@ -213,18 +208,19 @@ class _Segmented extends StatelessWidget {
               child: GestureDetector(
                 onTap: () => onChanged(entry.key),
                 child: Container(
-                  padding: const EdgeInsets.symmetric(vertical: 7),
+                  padding: const EdgeInsets.symmetric(
+                    vertical: LannaSpacing.s2 - 1,
+                  ),
                   decoration: BoxDecoration(
                     color: entry.key == value
                         ? chrome.fieldActive
                         : Colors.transparent,
-                    borderRadius: BorderRadius.circular(6),
+                    borderRadius: LannaRadii.brSm,
                   ),
                   child: Text(
                     entry.value,
                     textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: 12.5,
+                    style: LannaType.sm.copyWith(
                       fontFamily: entry.key == serifKey
                           ? AppFonts.serif
                           : AppFonts.ui,
@@ -255,19 +251,16 @@ class _SizeSlider extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10),
+      padding: const EdgeInsets.symmetric(horizontal: LannaSpacing.s3 - 2),
       height: 34,
       decoration: BoxDecoration(
         color: chrome.fieldBackground,
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: LannaRadii.brMd,
         border: Border.all(color: chrome.panelBorder),
       ),
       child: Row(
         children: [
-          Text(
-            'A',
-            style: TextStyle(fontSize: 12, color: chrome.onBarMuted),
-          ),
+          Text('A', style: LannaType.sm.copyWith(color: chrome.onBarMuted)),
           Expanded(
             child: SliderTheme(
               data: SliderThemeData(
@@ -295,7 +288,10 @@ class _SizeSlider extends StatelessWidget {
           ),
           Text(
             'A',
-            style: TextStyle(fontSize: 19, color: chrome.onBar),
+            style: LannaType.title.copyWith(
+              fontFamily: AppFonts.ui,
+              color: chrome.onBar,
+            ),
           ),
         ],
       ),
@@ -332,7 +328,7 @@ class _LineHeightSegmented extends StatelessWidget {
     return Row(
       children: [
         for (var i = 0; i < ReaderSettings.lineHeights.length; i++) ...[
-          if (i > 0) const SizedBox(width: 8),
+          if (i > 0) const SizedBox(width: LannaSpacing.s2),
           Expanded(
             child: GestureDetector(
               onTap: () => onChanged(ReaderSettings.lineHeights[i]),
@@ -342,7 +338,7 @@ class _LineHeightSegmented extends StatelessWidget {
                   color: i == nearest
                       ? chrome.fieldActive
                       : chrome.fieldBackground,
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: LannaRadii.brMd,
                   border: Border.all(
                     color: i == nearest
                         ? ReaderChrome.accent

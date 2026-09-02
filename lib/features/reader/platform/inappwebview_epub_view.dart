@@ -1,4 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
+import 'dart:ui' as ui;
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
@@ -24,12 +26,25 @@ class _InAppWebViewEpubViewState extends State<InAppWebViewEpubView> {
   InAppWebViewController? _webView;
   bool _disposed = false;
 
-  late final EpubJsController _controller = EpubJsController((source) async {
-    if (_disposed || _webView == null) return;
-    try {
-      await _webView!.evaluateJavascript(source: source);
-    } catch (_) {}
-  });
+  late final EpubJsController _controller = EpubJsController(
+    (source) async {
+      if (_disposed || _webView == null) return;
+      try {
+        await _webView!.evaluateJavascript(source: source);
+      } catch (_) {}
+    },
+    capture: () async {
+      if (_disposed || _webView == null) return null;
+      try {
+        final bytes = await _webView!.takeScreenshot();
+        if (bytes == null) return null;
+        final codec = await ui.instantiateImageCodec(bytes);
+        return (await codec.getNextFrame()).image;
+      } catch (_) {
+        return null;
+      }
+    },
+  );
 
   @override
   void dispose() {
@@ -43,7 +58,7 @@ class _InAppWebViewEpubViewState extends State<InAppWebViewEpubView> {
     return InAppWebView(
       initialUrlRequest: URLRequest(url: WebUri.uri(widget.readerUrl)),
       initialSettings: InAppWebViewSettings(
-        transparentBackground: true,
+        transparentBackground: false,
         supportZoom: false,
         disableContextMenu: true,
         isInspectable: kDebugMode,

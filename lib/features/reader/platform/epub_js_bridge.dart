@@ -1,12 +1,14 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 import 'dart:convert';
+import 'dart:ui' as ui;
 
 import '../epub_view.dart';
 
 class EpubJsController implements EpubViewController {
-  EpubJsController(this._runJs);
+  EpubJsController(this._runJs, {this.capture});
 
   final Future<void> Function(String source) _runJs;
+  final Future<ui.Image?> Function()? capture;
 
   Future<void> _call(String expr) =>
       _runJs('window.readerApi && window.readerApi.$expr');
@@ -30,6 +32,32 @@ class EpubJsController implements EpubViewController {
 
   @override
   Future<void> search(String query) => _call('search(${jsonEncode(query)});');
+
+  @override
+  Future<ui.Image?> snapshot() => capture?.call() ?? Future.value();
+
+  @override
+  Future<void> applyHighlights(List<HighlightSpec> highlights) {
+    final arg = jsonEncode([
+      for (final h in highlights) {'cfi': h.cfi, 'color': h.color},
+    ]);
+    return _call('applyHighlights($arg);');
+  }
+
+  @override
+  Future<void> addHighlight(String cfi, String color) =>
+      _call('addHighlight(${jsonEncode(cfi)}, ${jsonEncode(color)});');
+
+  @override
+  Future<void> removeHighlight(String cfi) =>
+      _call('removeHighlight(${jsonEncode(cfi)});');
+
+  @override
+  Future<void> clearSelection() => _call('clearSelection();');
+
+  @override
+  Future<void> setInsets(double top, double bottom) =>
+      _call('setInsets(${top.round()}, ${bottom.round()});');
 
   @override
   Future<void> applyPresentation(ReaderPresentation p) {
@@ -85,6 +113,31 @@ void dispatchReaderEvent(
     case 'locationsReady':
       final total = (event['total'] as num?)?.toInt();
       if (total != null && total > 0) callbacks.onPageCount?.call(total);
+    case 'rendered':
+      callbacks.onRendered?.call();
+    case 'turnRequest':
+      callbacks.onTurnRequest?.call(
+        (event['dir'] as num?)?.toInt() == -1 ? -1 : 1,
+      );
+    case 'textSelected':
+      final rect = event['rect'] as Map?;
+      callbacks.onTextSelected?.call(
+        ReaderSelection(
+          cfi: event['cfi'] as String? ?? '',
+          text: (event['text'] as String? ?? '').trim(),
+          rect: ui.Rect.fromLTWH(
+            (rect?['x'] as num?)?.toDouble() ?? 0,
+            (rect?['y'] as num?)?.toDouble() ?? 0,
+            (rect?['w'] as num?)?.toDouble() ?? 0,
+            (rect?['h'] as num?)?.toDouble() ?? 0,
+          ),
+        ),
+      );
+    case 'selectionCleared':
+      callbacks.onSelectionCleared?.call();
+    case 'highlightTapped':
+      final cfi = event['cfi'] as String?;
+      if (cfi != null) callbacks.onHighlightTapped?.call(cfi);
     case 'searchResults':
       final hits = (event['results'] as List? ?? [])
           .map(

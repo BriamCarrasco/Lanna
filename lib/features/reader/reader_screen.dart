@@ -11,6 +11,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 
 import '../../core/theme/app_theme.dart';
+import '../../core/theme/tokens.dart';
 import '../../data/book_repository.dart';
 import '../../data/epub/epub_book.dart';
 import '../../data/local/app_database.dart';
@@ -22,9 +23,19 @@ import 'reader_settings_provider.dart';
 import 'reader_theme.dart';
 import 'server/reader_server.dart';
 import 'widgets/appearance_panel.dart';
+import 'widgets/page_curl.dart';
 import 'widgets/reader_bar_button.dart';
+import 'widgets/reader_scrubber.dart';
+import 'widgets/reader_transitions.dart';
 import 'widgets/search_panel.dart';
 import 'widgets/toc_drawer.dart';
+
+const _highlightColors = <String, Color>{
+  'yellow': Color(0xFFFFE14D),
+  'green': Color(0xFF8FE08A),
+  'blue': Color(0xFF7FC0FF),
+  'pink': Color(0xFFFF9EC9),
+};
 
 class ReaderScreen extends ConsumerStatefulWidget {
   const ReaderScreen({super.key, required this.bookId});
@@ -35,8 +46,17 @@ class ReaderScreen extends ConsumerStatefulWidget {
   ConsumerState<ReaderScreen> createState() => _ReaderScreenState();
 }
 
-class _ReaderScreenState extends ConsumerState<ReaderScreen> {
+class _ReaderScreenState extends ConsumerState<ReaderScreen>
+    with SingleTickerProviderStateMixin, WidgetsBindingObserver {
   final _focusNode = FocusNode();
+
+  late final PageCurlController _curl = PageCurlController(
+    vsync: this,
+    onChange: () {
+      if (mounted) setState(() {});
+    },
+    onSettled: _scheduleCurlCapture,
+  );
 
   ReaderServer? _server;
   EpubViewController? _controller;
@@ -47,6 +67,8 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
 
   List<EpubTocEntry> _fallbackToc = const [];
   List<Bookmark> _bookmarks = const [];
+  List<Highlight> _highlights = const [];
+  ReaderSelection? _selection;
   double _lastPercent = 0;
   String? _cachedLocations;
   int _pageCount = 0;
@@ -66,10 +88,14 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
   Timer? _saveTimer;
   ProviderSubscription<AsyncValue<ReaderSettings>>? _settingsSub;
   ProviderSubscription<AsyncValue<List<Bookmark>>>? _bookmarksSub;
+  ProviderSubscription<AsyncValue<List<Highlight>>>? _highlightsSub;
+  late final BookRepository _repo;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _repo = ref.read(bookRepositoryProvider);
     _settings =
         ref.read(readerSettingsProvider).valueOrNull ?? const ReaderSettings();
     _settingsSub = ref.listenManual(readerSettingsProvider, (_, next) {
@@ -80,16 +106,120 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
     });
     _bookmarks =
         ref.read(bookmarksProvider(widget.bookId)).valueOrNull ?? const [];
-    _bookmarksSub = ref.listenManual(
-      bookmarksProvider(widget.bookId),
-      (_, next) {
-        final list = next.valueOrNull;
-        if (list == null || !mounted) return;
-        setState(() => _bookmarks = list);
-      },
-      fireImmediately: true,
-    );
+    _bookmarksSub = ref.listenManual(bookmarksProvider(widget.bookId), (
+      _,
+      next,
+    ) {
+      final list = next.valueOrNull;
+      if (list == null || !mounted) return;
+      setState(() => _bookmarks = list);
+    }, fireImmediately: true);
+    _highlights =
+        ref.read(highlightsProvider(widget.bookId)).valueOrNull ?? const [];
+    _highlightsSub = ref.listenManual(highlightsProvider(widget.bookId), (
+      _,
+      next,
+    ) {
+      final list = next.valueOrNull;
+      if (list == null || !mounted) return;
+      setState(() => _highlights = list);
+    }, fireImmediately: true);
+    _syncSystemUi();
     _open();
+  }
+
+  void _syncSystemUi() {
+    SystemChrome.setEnabledSystemUIMode(
+      _chromeVisible ? SystemUiMode.edgeToEdge : SystemUiMode.immersiveSticky,
+    );
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.inactive) {
+      _saveProgressNow();
+    }
+  }
+
+  void _saveProgressNow() {
+    final loc = _location;
+    if (loc == null) return;
+    _saveTimer?.cancel();
+    _repo.saveProgress(
+      bookId: widget.bookId,
+      locator: loc.cfi,
+      percent: _lastPercent,
+      chapterIndex: loc.chapterIndex,
+    );
+  }
+
+  Offset? _tapDownPos;
+  DateTime? _tapDownAt;
+
+  void _onReaderPointerUp(Offset up) {
+    final down = _tapDownPos;
+    final at = _tapDownAt;
+    _tapDownPos = null;
+    _tapDownAt = null;
+    if (down == null || at == null || !mounted) return;
+
+    final size = MediaQuery.sizeOf(context);
+    final safe = MediaQuery.viewPaddingOf(context);
+    if (_chromeVisible &&
+        (down.dy < safe.top + 52 || down.dy > size.height - safe.bottom - 48)) {
+      return;
+    }
+
+    final elapsed = DateTime.now().difference(at);
+    final delta = up - down;
+    final panelOpen = _showToc || _showAppearance || _showSearch;
+
+    if (delta.distance > 16) {
+      if (!panelOpen &&
+          elapsed < const Duration(milliseconds: 600) &&
+          delta.dx.abs() > 56 &&
+          delta.dx.abs() > delta.dy.abs() * 1.5) {
+        _turn(delta.dx < 0 ? 1 : -1);
+      }
+      return;
+    }
+
+    if (elapsed > const Duration(milliseconds: 350)) return;
+
+    if (panelOpen) {
+      setState(() => _showToc = _showAppearance = _showSearch = false);
+      return;
+    }
+
+    final edgeRaw = size.width * 0.22;
+    final edge = edgeRaw > 130 ? 130.0 : edgeRaw;
+    if (_settings.edgeTaps && up.dx < edge) {
+      _turn(-1);
+      return;
+    }
+    if (_settings.edgeTaps && up.dx > size.width - edge) {
+      _turn(1);
+      return;
+    }
+    setState(() => _chromeVisible = !_chromeVisible);
+    _syncSystemUi();
+  }
+
+  (double, double)? _lastInsets;
+  Size? _lastSize;
+
+  void _pushInsets() {
+    final controller = _controller;
+    if (controller == null || !mounted) return;
+    final size = MediaQuery.sizeOf(context);
+    if (_lastSize == size) return;
+    _lastSize = size;
+    final safe = MediaQuery.viewPaddingOf(context);
+    final next = (safe.top + 52.0, safe.bottom + 48.0);
+    if (_lastInsets == next) return;
+    _lastInsets = next;
+    controller.setInsets(next.$1, next.$2);
   }
 
   Future<void> _open() async {
@@ -135,10 +265,17 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
       _book = book;
       _epubBook = epubBook;
       _server = server;
+      final safe = MediaQuery.viewPaddingOf(context);
+      final top = (safe.top + 52).round();
+      final bottom = (safe.bottom + 48).round();
+      _lastInsets = (top.toDouble(), bottom.toDouble());
+      _lastSize = MediaQuery.sizeOf(context);
       _readerUrl = server.readerUrl(
         opfPath: epubBook?.opfPath,
         cfi: progress?.locator,
         hasLocations: _cachedLocations != null,
+        insetTop: top,
+        insetBottom: bottom,
       );
     });
   }
@@ -203,21 +340,155 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
       );
   }
 
+  void _addHighlight(String color) {
+    final sel = _selection;
+    if (sel == null) return;
+    ref
+        .read(bookRepositoryProvider)
+        .addHighlight(
+          bookId: widget.bookId,
+          cfi: sel.cfi,
+          text: sel.text,
+          color: color,
+          chapterIndex: _location?.chapterIndex,
+          percent: _lastPercent,
+        );
+    _controller?.addHighlight(sel.cfi, color);
+    _controller?.clearSelection();
+    setState(() => _selection = null);
+  }
+
+  Future<void> _openHighlight(String cfi) async {
+    if (!mounted) return;
+    final match = _highlights.where((h) => h.cfi == cfi).toList();
+    if (match.isEmpty) return;
+    final highlight = match.first;
+    final repo = _repo;
+    final action = await showModalBottomSheet<String>(
+      context: context,
+      backgroundColor: LannaColors.surfaceHigh,
+      builder: (context) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                LannaSpacing.s5,
+                LannaSpacing.s4,
+                LannaSpacing.s5,
+                LannaSpacing.s2,
+              ),
+              child: Text(
+                highlight.content,
+                maxLines: 4,
+                overflow: TextOverflow.ellipsis,
+                style: AppTheme.reading(fontSize: 14, color: LannaColors.text),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: LannaSpacing.s4),
+              child: Row(
+                children: [
+                  for (final c in _highlightColors.keys)
+                    Padding(
+                      padding: const EdgeInsets.all(LannaSpacing.s1 + 2),
+                      child: GestureDetector(
+                        onTap: () {
+                          repo.setHighlightColor(highlight.id, c);
+                          _controller?.addHighlight(cfi, c);
+                          Navigator.of(context).pop();
+                        },
+                        child: Container(
+                          width: 30,
+                          height: 30,
+                          decoration: BoxDecoration(
+                            color: _highlightColors[c],
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: c == highlight.color
+                                  ? LannaColors.textStrong
+                                  : Colors.transparent,
+                              width: 2,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+            ListTile(
+              leading: const Icon(Icons.notes),
+              title: Text(
+                highlight.note?.isNotEmpty == true
+                    ? 'Editar nota'
+                    : 'Añadir nota',
+              ),
+              onTap: () => Navigator.of(context).pop('note'),
+            ),
+            ListTile(
+              leading: const Icon(Icons.delete_outline),
+              title: const Text('Eliminar'),
+              onTap: () => Navigator.of(context).pop('delete'),
+            ),
+            const SizedBox(height: LannaSpacing.s1 + 2),
+          ],
+        ),
+      ),
+    );
+    if (!mounted) return;
+    if (action == 'delete') {
+      unawaited(repo.deleteHighlight(highlight.id));
+      unawaited(_controller?.removeHighlight(cfi) ?? Future.value());
+    } else if (action == 'note') {
+      final note = await _promptNote(highlight.note);
+      if (note != null) unawaited(repo.setHighlightNote(highlight.id, note));
+    }
+  }
+
+  Future<String?> _promptNote(String? initial) async {
+    final controller = TextEditingController(text: initial);
+    final result = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: LannaColors.surfaceHigh,
+        title: const Text('Nota'),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          maxLines: 4,
+          decoration: const InputDecoration(hintText: 'Escribe una nota'),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(controller.text.trim()),
+            child: const Text('Guardar'),
+          ),
+        ],
+      ),
+    );
+    WidgetsBinding.instance.addPostFrameCallback((_) => controller.dispose());
+    return result;
+  }
+
   void _onLocation(ReaderLocation loc) {
     if (!mounted) return;
     if (loc.percentage != null) _lastPercent = loc.percentage!;
     setState(() => _location = loc);
+    _scheduleCurlCapture();
 
     _saveTimer?.cancel();
     _saveTimer = Timer(const Duration(milliseconds: 700), () {
-      ref
-          .read(bookRepositoryProvider)
-          .saveProgress(
-            bookId: widget.bookId,
-            locator: loc.cfi,
-            percent: _lastPercent,
-            chapterIndex: loc.chapterIndex,
-          );
+      _repo.saveProgress(
+        bookId: widget.bookId,
+        locator: loc.cfi,
+        percent: _lastPercent,
+        chapterIndex: loc.chapterIndex,
+      );
     });
   }
 
@@ -225,6 +496,40 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
     if (!mounted) return;
     _controller?.applyPresentation(settings.toPresentation());
     WakelockPlus.toggle(enable: settings.keepAwake);
+    _scheduleCurlCapture();
+  }
+
+  void _scheduleCurlCapture({int delayMs = 120}) {
+    _curl.scheduleCapture(
+      () async {
+        if (!mounted) return null;
+        return _controller?.snapshot();
+      },
+      enabled: _settings.pageAnimation == 'curl',
+      delayMs: delayMs,
+    );
+  }
+
+  Future<void> _curlTurn(int dir, VoidCallback advance) async {
+    final ok = await _curl.startOrCapture(dir, advance: advance);
+    if (!ok && mounted) advance();
+  }
+
+  void _turn(int dir) {
+    if (_showToc || _showAppearance || _showSearch) return;
+    final controller = _controller;
+    if (controller == null) return;
+    void advance() => dir > 0 ? controller.next() : controller.previous();
+    if (kDebugMode) {
+      debugPrint('[curl] turn dir=$dir modo=${_settings.pageAnimation}');
+    }
+    if (_settings.pageAnimation == 'curl') {
+      if (_curl.busy) return;
+      if (_curl.start(dir, advance: advance)) return;
+      unawaited(_curlTurn(dir, advance));
+      return;
+    }
+    advance();
   }
 
   void _runSearch(String query) {
@@ -247,21 +552,14 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
     _settingsSub?.close();
     _bookmarksSub?.close();
+    _highlightsSub?.close();
     WakelockPlus.disable();
-    _saveTimer?.cancel();
-    final loc = _location;
-    if (loc != null) {
-      ref
-          .read(bookRepositoryProvider)
-          .saveProgress(
-            bookId: widget.bookId,
-            locator: loc.cfi,
-            percent: _lastPercent,
-            chapterIndex: loc.chapterIndex,
-          );
-    }
+    _curl.dispose();
+    _saveProgressNow();
     _server?.dispose();
     _focusNode.dispose();
     super.dispose();
@@ -273,11 +571,11 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
       case LogicalKeyboardKey.arrowRight:
       case LogicalKeyboardKey.pageDown:
       case LogicalKeyboardKey.space:
-        _controller?.next();
+        _turn(1);
         return KeyEventResult.handled;
       case LogicalKeyboardKey.arrowLeft:
       case LogicalKeyboardKey.pageUp:
-        _controller?.previous();
+        _turn(-1);
         return KeyEventResult.handled;
       case LogicalKeyboardKey.escape:
         if (_showToc || _showAppearance || _showSearch) {
@@ -291,6 +589,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
   @override
   Widget build(BuildContext context) {
     final settings = _settings;
+    WidgetsBinding.instance.addPostFrameCallback((_) => _pushInsets());
 
     return Scaffold(
       backgroundColor: settings.preset.background,
@@ -305,127 +604,179 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
               child: Stack(
                 children: [
                   Positioned.fill(
-                    child: GestureDetector(
-                      behavior: HitTestBehavior.translucent,
-                      onTap: () {
-                        if (_showToc || _showAppearance || _showSearch) {
-                          setState(
-                            () => _showToc =
-                                _showAppearance = _showSearch = false,
-                          );
-                        } else {
-                          setState(() => _chromeVisible = !_chromeVisible);
-                        }
-                      },
-                      child: createEpubView(
-                        key: ValueKey(_readerUrl.toString()),
-                        readerUrl: _readerUrl!,
-                        callbacks: EpubViewCallbacks(
-                          onReady: (c) {
-                            _controller = c;
-                            _applySettings(settings);
-                            final cached = _cachedLocations;
-                            if (cached != null) c.loadLocations(cached);
-                            _focusNode.requestFocus();
-                          },
-                          onLocationChanged: _onLocation,
-                          onTocLoaded: (toc) => setState(() {
+                    child: createEpubView(
+                      key: ValueKey(_readerUrl.toString()),
+                      readerUrl: _readerUrl!,
+                      callbacks: EpubViewCallbacks(
+                        onReady: (c) {
+                          _controller = c;
+                          _applySettings(settings);
+                          final cached = _cachedLocations;
+                          if (cached != null) c.loadLocations(cached);
+                          c.applyHighlights([
+                            for (final h in _highlights)
+                              HighlightSpec(cfi: h.cfi, color: h.color),
+                          ]);
+                          _pushInsets();
+                          _focusNode.requestFocus();
+                        },
+                        onLocationChanged: _onLocation,
+                        onTocLoaded: (toc) {
+                          if (!mounted) return;
+                          setState(() {
                             _fallbackToc = [
                               for (final e in toc)
                                 EpubTocEntry(label: e.label, href: e.href),
                             ];
-                          }),
-                          onLocationsGenerated: (json) {
-                            _cachedLocations = json;
-                            ref
-                                .read(bookRepositoryProvider)
-                                .saveLocations(widget.bookId, json);
-                          },
-                          onPageCount: (n) => setState(() => _pageCount = n),
-                          onSearchResults: (query, hits) {
-                            if (query != _searchQuery) return;
-                            setState(() {
-                              _searchHits = hits;
-                              _searchBusy = false;
-                            });
-                          },
-                          onError: (m) => setState(() => _error = m),
-                        ),
+                          });
+                        },
+                        onLocationsGenerated: (json) {
+                          _cachedLocations = json;
+                          _repo.saveLocations(widget.bookId, json);
+                        },
+                        onPageCount: (n) {
+                          if (!mounted) return;
+                          setState(() => _pageCount = n);
+                        },
+                        onRendered: () {
+                          if (!mounted) return;
+                          _curl.invalidate();
+                          _scheduleCurlCapture(delayMs: 350);
+                        },
+                        onSearchResults: (query, hits) {
+                          if (!mounted || query != _searchQuery) return;
+                          setState(() {
+                            _searchHits = hits;
+                            _searchBusy = false;
+                          });
+                        },
+                        onTurnRequest: _turn,
+                        onTextSelected: (sel) {
+                          if (!mounted) return;
+                          setState(() => _selection = sel);
+                        },
+                        onSelectionCleared: () {
+                          if (mounted && _selection != null) {
+                            setState(() => _selection = null);
+                          }
+                        },
+                        onHighlightTapped: _openHighlight,
+                        onError: (m) {
+                          if (!mounted) return;
+                          setState(() => _error = m);
+                        },
                       ),
                     ),
                   ),
-                  if (_chromeVisible && !_showToc && !_showSearch) _topBar(),
-                  if (_chromeVisible && !_showToc && !_showSearch) _bottomBar(),
-                  if (_showAppearance)
-                    Positioned(
-                      right: 26,
-                      bottom: 58,
-                      child: AppearancePanel(
-                        settings: settings,
-                        onPreset: (p) => ref
-                            .read(readerSettingsControllerProvider)
-                            .setPreset(p),
-                        onFontFamily: (f) => ref
-                            .read(readerSettingsControllerProvider)
-                            .setFontFamily(f),
-                        onFontScale: (v) => ref
-                            .read(readerSettingsControllerProvider)
-                            .setFontScale(v),
-                        onLineHeight: (v) => ref
-                            .read(readerSettingsControllerProvider)
-                            .setLineHeight(v),
-                        onColumns: (m) => ref
-                            .read(readerSettingsControllerProvider)
-                            .setColumns(m),
+                  if (!_showToc && !_showAppearance && !_showSearch)
+                    Positioned.fill(
+                      child: Listener(
+                        behavior: HitTestBehavior.translucent,
+                        onPointerDown: (e) {
+                          _tapDownPos = e.position;
+                          _tapDownAt = DateTime.now();
+                        },
+                        onPointerUp: (e) => _onReaderPointerUp(e.position),
+                        onPointerCancel: (_) {
+                          _tapDownPos = null;
+                          _tapDownAt = null;
+                        },
                       ),
                     ),
-                  if (_showToc)
-                    Positioned(
-                      left: 0,
-                      top: 0,
-                      bottom: 0,
-                      child: TocDrawer(
-                        toc: _toc,
-                        currentHref: _location?.href,
-                        chapterCount: _chapterTotal,
-                        pageCount: _pageCount,
-                        bookmarks: _bookmarks,
-                        currentCfi: _location?.cfi,
-                        chrome: _chrome,
-                        onSelect: (entry) {
-                          if (entry.href.isNotEmpty) {
-                            _controller?.goToCfi(entry.href);
-                          }
-                          setState(() => _showToc = false);
-                        },
-                        onBookmarkSelect: (bookmark) {
-                          _controller?.goToCfi(bookmark.cfi);
-                          setState(() => _showToc = false);
-                        },
-                        onBookmarkDelete: (bookmark) => ref
-                            .read(bookRepositoryProvider)
-                            .deleteBookmark(bookmark.id),
-                        onClose: () => setState(() => _showToc = false),
-                      ),
-                    ),
-                  if (_showSearch)
-                    Positioned(
-                      left: 0,
-                      top: 0,
-                      bottom: 0,
-                      child: SearchPanel(
-                        chrome: _chrome,
-                        hits: _searchHits,
-                        busy: _searchBusy,
-                        query: _searchQuery,
-                        onSubmit: _runSearch,
-                        onSelect: (hit) {
-                          _controller?.goToCfi(hit.cfi);
-                          setState(() => _showSearch = false);
-                        },
-                        onClose: () => setState(() => _showSearch = false),
-                      ),
-                    ),
+                  ?_curl.overlay(),
+                  ?_selectionToolbar(),
+                  ReaderBar(
+                    visible: _chromeVisible && !_showToc && !_showSearch,
+                    fromTop: true,
+                    child: _topBar(),
+                  ),
+                  ReaderBar(
+                    visible: _chromeVisible && !_showToc && !_showSearch,
+                    fromTop: false,
+                    child: _bottomBar(),
+                  ),
+                  ReaderCornerPanel(
+                    open: _showAppearance,
+                    right: 26,
+                    bottom: 58,
+                    child: _showAppearance
+                        ? AppearancePanel(
+                            settings: settings,
+                            onPreset: (p) => ref
+                                .read(readerSettingsControllerProvider)
+                                .setPreset(p),
+                            onFontFamily: (f) => ref
+                                .read(readerSettingsControllerProvider)
+                                .setFontFamily(f),
+                            onFontScale: (v) => ref
+                                .read(readerSettingsControllerProvider)
+                                .setFontScale(v),
+                            onLineHeight: (v) => ref
+                                .read(readerSettingsControllerProvider)
+                                .setLineHeight(v),
+                            onColumns: (m) => ref
+                                .read(readerSettingsControllerProvider)
+                                .setColumns(m),
+                          )
+                        : const SizedBox.shrink(),
+                  ),
+                  ReaderSidePanel(
+                    open: _showToc,
+                    child: _showToc
+                        ? TocDrawer(
+                            toc: _toc,
+                            currentHref: _location?.href,
+                            chapterCount: _chapterTotal,
+                            pageCount: _pageCount,
+                            bookmarks: _bookmarks,
+                            currentCfi: _location?.cfi,
+                            chrome: _chrome,
+                            onSelect: (entry) {
+                              if (entry.href.isNotEmpty) {
+                                _controller?.goToCfi(entry.href);
+                              }
+                              setState(() => _showToc = false);
+                            },
+                            onBookmarkSelect: (bookmark) {
+                              _controller?.goToCfi(bookmark.cfi);
+                              setState(() => _showToc = false);
+                            },
+                            onBookmarkDelete: (bookmark) => ref
+                                .read(bookRepositoryProvider)
+                                .deleteBookmark(bookmark.id),
+                            highlights: _highlights,
+                            highlightColors: _highlightColors,
+                            onHighlightSelect: (h) {
+                              _controller?.goToCfi(h.cfi);
+                              setState(() => _showToc = false);
+                            },
+                            onHighlightDelete: (h) {
+                              ref
+                                  .read(bookRepositoryProvider)
+                                  .deleteHighlight(h.id);
+                              _controller?.removeHighlight(h.cfi);
+                            },
+                            onClose: () => setState(() => _showToc = false),
+                          )
+                        : const SizedBox.shrink(),
+                  ),
+                  ReaderSidePanel(
+                    open: _showSearch,
+                    child: _showSearch
+                        ? SearchPanel(
+                            chrome: _chrome,
+                            hits: _searchHits,
+                            busy: _searchBusy,
+                            query: _searchQuery,
+                            onSubmit: _runSearch,
+                            onSelect: (hit) {
+                              _controller?.goToCfi(hit.cfi);
+                              setState(() => _showSearch = false);
+                            },
+                            onClose: () => setState(() => _showSearch = false),
+                          )
+                        : const SizedBox.shrink(),
+                  ),
                 ],
               ),
             ),
@@ -434,21 +785,107 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
 
   ReaderChrome get _chrome => ReaderChrome.of(_settings.preset);
 
+  Widget? _selectionToolbar() {
+    final sel = _selection;
+    if (sel == null || sel.text.isEmpty) return null;
+    final chrome = _chrome;
+    final size = MediaQuery.sizeOf(context);
+    const toolbarWidth = 236.0;
+    const toolbarHeight = 44.0;
+    final left = (sel.rect.center.dx - toolbarWidth / 2)
+        .clamp(8.0, size.width - toolbarWidth - 8)
+        .toDouble();
+    var top = sel.rect.top - toolbarHeight - 10;
+    if (top < 60) {
+      top = (sel.rect.bottom + 10)
+          .clamp(60.0, size.height - toolbarHeight - 50)
+          .toDouble();
+    }
+    return Positioned(
+      left: left,
+      top: top,
+      child: Material(
+        color: Colors.transparent,
+        child: TweenAnimationBuilder<double>(
+          key: ValueKey(sel.cfi),
+          tween: Tween(begin: 0, end: 1),
+          duration: LannaMotion.fast,
+          curve: LannaMotion.ease,
+          builder: (context, t, child) => Opacity(
+            opacity: t.clamp(0.0, 1.0),
+            child: Transform.scale(
+              scale: 0.92 + 0.08 * t,
+              alignment: Alignment.bottomCenter,
+              child: child,
+            ),
+          ),
+          child: Container(
+            height: toolbarHeight,
+            padding: const EdgeInsets.symmetric(horizontal: LannaSpacing.s2),
+            decoration: BoxDecoration(
+              color: chrome.panelBackground,
+              borderRadius: LannaRadii.brMd,
+              border: Border.all(color: chrome.panelBorder),
+              boxShadow: LannaElevation.e2,
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                for (final c in _highlightColors.keys)
+                  GestureDetector(
+                    onTap: () => _addHighlight(c),
+                    child: Padding(
+                      padding: const EdgeInsets.all(6),
+                      child: Container(
+                        width: 22,
+                        height: 22,
+                        decoration: BoxDecoration(
+                          color: _highlightColors[c],
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                    ),
+                  ),
+                Container(
+                  width: 1,
+                  height: 22,
+                  color: chrome.panelBorder,
+                  margin: const EdgeInsets.symmetric(horizontal: 4),
+                ),
+                IconButton(
+                  visualDensity: VisualDensity.compact,
+                  icon: Icon(Icons.copy, size: 17, color: chrome.onBarMuted),
+                  onPressed: () {
+                    Clipboard.setData(ClipboardData(text: sel.text));
+                    _controller?.clearSelection();
+                    setState(() => _selection = null);
+                    _notify('Texto copiado');
+                  },
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _topBar() {
     final author = _book?.author;
     final title = _book?.title ?? '';
     final chrome = _chrome;
-    return Positioned(
-      top: 0,
-      left: 0,
-      right: 0,
-      child: Container(
+    return Container(
+      padding: EdgeInsets.only(
+        top: MediaQuery.viewPaddingOf(context).top,
+        left: LannaSpacing.s3,
+        right: LannaSpacing.s3,
+      ),
+      decoration: BoxDecoration(
+        color: chrome.barBackground.withValues(alpha: 0.94),
+        border: Border(bottom: BorderSide(color: chrome.barBorder)),
+      ),
+      child: SizedBox(
         height: 52,
-        padding: const EdgeInsets.symmetric(horizontal: 12),
-        decoration: BoxDecoration(
-          color: chrome.barBackground.withValues(alpha: 0.94),
-          border: Border(bottom: BorderSide(color: chrome.barBorder)),
-        ),
         child: Row(
           children: [
             ReaderBarButton(
@@ -463,10 +900,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
                 textAlign: TextAlign.center,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: AppTheme.reading(
-                  fontSize: 13.5,
-                  color: chrome.onBarMuted,
-                ),
+                style: AppTheme.reading(fontSize: 13, color: chrome.onBarMuted),
               ),
             ),
             ReaderBarButton(
@@ -522,23 +956,20 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
     final mins = _location?.remainingMinutes;
     final chrome = _chrome;
 
-    final style = TextStyle(
-      fontSize: 11.5,
-      color: chrome.onBarMuted,
-      fontFamily: AppFonts.ui,
-    );
+    final style = LannaType.micro.copyWith(color: chrome.onBarMuted);
 
-    return Positioned(
-      bottom: 0,
-      left: 0,
-      right: 0,
-      child: Container(
-        height: 44,
-        padding: const EdgeInsets.symmetric(horizontal: 26),
-        decoration: BoxDecoration(
-          color: chrome.barBackground.withValues(alpha: 0.94),
-          border: Border(top: BorderSide(color: chrome.barBorder)),
-        ),
+    return Container(
+      padding: EdgeInsets.only(
+        left: LannaSpacing.s6,
+        right: LannaSpacing.s6,
+        bottom: MediaQuery.viewPaddingOf(context).bottom,
+      ),
+      decoration: BoxDecoration(
+        color: chrome.barBackground.withValues(alpha: 0.94),
+        border: Border(top: BorderSide(color: chrome.barBorder)),
+      ),
+      child: SizedBox(
+        height: LannaSpacing.barHeight,
         child: Row(
           children: [
             if (chapter != null)
@@ -548,20 +979,16 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
                     : 'Capítulo ${chapter + 1}',
                 style: style,
               ),
-            const SizedBox(width: 14),
+            const SizedBox(width: LannaSpacing.s3),
             Expanded(
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(2),
-                child: LinearProgressIndicator(
-                  value: pct,
-                  minHeight: 3,
-                  backgroundColor: chrome.progressTrack,
-                  valueColor: const AlwaysStoppedAnimation(ReaderChrome.accent),
-                ),
+              child: ReaderScrubber(
+                value: pct,
+                chrome: chrome,
+                onSeek: (f) => _controller?.goToPercentage(f),
+                trailingLabel: (f) => '${(f * 100).round()} %',
+                bubbleLabel: (f) => '${(f * 100).round()} %',
               ),
             ),
-            const SizedBox(width: 14),
-            Text('${(pct * 100).round()} %', style: style),
             if (mins != null && mins > 0) ...[
               Text('  ·  ', style: style),
               Text('quedan ~$mins min', style: style),
@@ -585,9 +1012,12 @@ class _ErrorView extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           const Icon(Icons.error_outline, color: LannaColors.textMuted),
-          const SizedBox(height: 12),
-          Text(message, style: const TextStyle(color: LannaColors.textMuted)),
-          const SizedBox(height: 16),
+          const SizedBox(height: LannaSpacing.s3),
+          Text(
+            message,
+            style: LannaType.md.copyWith(color: LannaColors.textMuted),
+          ),
+          const SizedBox(height: LannaSpacing.s4),
           TextButton(
             onPressed: () => Navigator.of(context).maybePop(),
             child: const Text('Volver'),

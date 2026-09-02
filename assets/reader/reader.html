@@ -5,26 +5,11 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
   <style>
     html, body { margin: 0; padding: 0; height: 100%; overflow: hidden; background: #121116; }
-    #viewer { position: absolute; top: 52px; right: 0; bottom: 44px; left: 0; }
-    .tap {
-      position: absolute; top: 52px; bottom: 44px; width: 110px; z-index: 10;
-      display: flex; align-items: center; justify-content: center;
-      color: #e9e4da; -webkit-tap-highlight-color: transparent; cursor: pointer;
-    }
-    #tap-prev { left: 0; }
-    #tap-next { right: 0; background: linear-gradient(90deg, transparent, rgba(0,0,0,.22)); }
-    .tap svg { opacity: .2; transition: opacity .15s; }
-    .tap:hover svg { opacity: .45; }
+    #viewer { position: absolute; top: 52px; right: 0; bottom: 48px; left: 0; }
   </style>
 </head>
 <body>
   <div id="viewer"></div>
-  <div id="tap-prev" class="tap">
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M15 5l-7 7 7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-  </div>
-  <div id="tap-next" class="tap">
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M9 5l7 7-7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-  </div>
 
   <script src="jszip.min.js"></script>
   <script src="epub.min.js"></script>
@@ -34,6 +19,15 @@
       var opf = params.get('opf');
       var book = opf ? ePub('book/' + opf) : ePub('book/');
       var hasCachedLocations = params.get('loc') === '1';
+
+      (function () {
+        var v = document.getElementById('viewer');
+        var t = parseInt(params.get('top'), 10);
+        var b = parseInt(params.get('bottom'), 10);
+        if (v && !isNaN(t)) v.style.top = Math.max(0, t) + 'px';
+        if (v && !isNaN(b)) v.style.bottom = Math.max(0, b) + 'px';
+      })();
+
       var rendition = book.renderTo('viewer', {
         width: '100%',
         height: '100%',
@@ -45,17 +39,8 @@
 
       var theme = { bg: '#121116', fg: '#d4cec1', link: '#e8968d', fontSizePct: 112, fontFamily: 'serif', lineHeight: 1.6 };
       var columnsMode = 'auto';
-      var edgeTapsEnabled = true;
       var pageAnimation = 'slide';
       var locationsReady = false;
-
-      function applyEdgeTaps() {
-        var display = edgeTapsEnabled ? 'flex' : 'none';
-        var prev = document.getElementById('tap-prev');
-        var next = document.getElementById('tap-next');
-        if (prev) prev.style.display = display;
-        if (next) next.style.display = display;
-      }
 
       function scrollHost() {
         return document.querySelector('#viewer .epub-container');
@@ -65,9 +50,7 @@
         var host = scrollHost();
         if (host) {
           host.style.scrollBehavior =
-            (pageAnimation === 'slide' || pageAnimation === 'curl')
-              ? 'smooth'
-              : 'auto';
+            pageAnimation === 'slide' ? 'smooth' : 'auto';
         }
         var viewer = document.getElementById('viewer');
         if (viewer && pageAnimation !== 'fade') {
@@ -147,7 +130,23 @@
             'margin-left': 'auto !important',
             'margin-right': 'auto !important'
           },
-          'img': { 'max-width': '100% !important', 'height': 'auto !important' },
+          'img': {
+            'max-width': '100% !important',
+            'max-height': '86vh !important',
+            'width': 'auto !important',
+            'height': 'auto !important'
+          },
+          'svg': {
+            'max-width': '100% !important',
+            'max-height': '86vh !important',
+            'height': 'auto !important'
+          },
+          'svg image': { 'max-width': '100%' },
+          'h1 > img, h2 > img, h3 > img, figure > img, div > img': {
+            'display': 'block !important',
+            'margin-left': 'auto !important',
+            'margin-right': 'auto !important'
+          },
           'a, a:link, a:visited, a *': {
             'color': (theme.link || theme.fg) + ' !important',
             'text-decoration': 'underline !important'
@@ -163,7 +162,7 @@
       }
 
       var navBusy = false;
-      function turn(dir) {
+      function doTurn(dir) {
         if (navBusy) return;
         navBusy = true;
         beginPageTurn();
@@ -176,6 +175,14 @@
         });
       }
 
+      function turn(dir) {
+        if (pageAnimation === 'curl') {
+          sendToHost({ type: 'turnRequest', dir: dir });
+          return;
+        }
+        doTurn(dir);
+      }
+
       function onNavKey(e) {
         var k = e.key;
         if (k === 'ArrowRight' || k === 'PageDown' || k === ' ' || k === 'Spacebar') {
@@ -186,8 +193,72 @@
       }
 
       document.addEventListener('keydown', onNavKey);
+
+      var highlights = {};
+      var selClearTimer;
+
+      function highlightColor(name) {
+        var map = {
+          yellow: '#ffe14d',
+          green: '#8fe08a',
+          blue: '#7fc0ff',
+          pink: '#ff9ec9'
+        };
+        return map[name] || map.yellow;
+      }
+
+      function addAnnotation(cfi, color) {
+        if (highlights[cfi]) {
+          try { rendition.annotations.remove(cfi, 'highlight'); } catch (e) {}
+        }
+        highlights[cfi] = color;
+        try {
+          rendition.annotations.add('highlight', cfi, {}, function () {
+            sendToHost({ type: 'highlightTapped', cfi: cfi });
+          }, 'lanna-hl', {
+            'fill': highlightColor(color),
+            'fill-opacity': '0.32',
+            'mix-blend-mode': 'multiply'
+          });
+        } catch (e) {}
+      }
+
+      rendition.on('selected', function (cfiRange, contents) {
+        try {
+          var sel = contents.window.getSelection();
+          if (!sel || sel.rangeCount === 0) return;
+          var text = sel.toString();
+          if (!text || !text.trim()) return;
+          var rect = sel.getRangeAt(0).getBoundingClientRect();
+          var frame = contents.document.defaultView.frameElement;
+          var fo = frame
+            ? frame.getBoundingClientRect()
+            : { left: 0, top: 0 };
+          sendToHost({
+            type: 'textSelected',
+            cfi: cfiRange,
+            text: text,
+            rect: {
+              x: rect.left + fo.left,
+              y: rect.top + fo.top,
+              w: rect.width,
+              h: rect.height
+            }
+          });
+        } catch (e) {}
+      });
+
       rendition.hooks.content.register(function (contents) {
         contents.document.addEventListener('keydown', onNavKey);
+        contents.document.addEventListener('selectionchange', function () {
+          var s = contents.window.getSelection();
+          if (!s || s.isCollapsed || !s.toString().trim()) {
+            clearTimeout(selClearTimer);
+            selClearTimer = setTimeout(function () {
+              sendToHost({ type: 'selectionCleared' });
+            }, 60);
+          }
+        });
       });
 
       function emitRelocated(location) {
@@ -219,7 +290,10 @@
       }
 
       rendition.on('relocated', emitRelocated);
-      rendition.on('rendered', function () { sendToHost({ type: 'rendered' }); });
+      rendition.on('rendered', function () {
+        applyPageAnimation();
+        sendToHost({ type: 'rendered' });
+      });
 
       function waitFor(getter, timeoutMs) {
         return new Promise(function (resolve) {
@@ -272,12 +346,9 @@
           sendToHost({ type: 'error', message: String(err && err.message || err) });
         });
 
-      document.getElementById('tap-next').addEventListener('click', function () { turn(1); });
-      document.getElementById('tap-prev').addEventListener('click', function () { turn(-1); });
-
       window.readerApi = {
-        next: function () { turn(1); },
-        prev: function () { turn(-1); },
+        next: function () { doTurn(1); },
+        prev: function () { doTurn(-1); },
         display: function (target) { return rendition.display(target || undefined); },
         goToPercentage: function (p) {
           if (!locationsReady) return;
@@ -286,6 +357,26 @@
         },
         loadLocations: function (json) {
           try { window.__cachedLocations = json; } catch (e) {}
+        },
+        applyHighlights: function (list) {
+          highlights = {};
+          for (var i = 0; i < (list || []).length; i++) {
+            addAnnotation(list[i].cfi, list[i].color);
+          }
+        },
+        addHighlight: function (cfi, color) { addAnnotation(cfi, color); },
+        removeHighlight: function (cfi) {
+          try { rendition.annotations.remove(cfi, 'highlight'); } catch (e) {}
+          delete highlights[cfi];
+        },
+        clearSelection: function () {
+          try {
+            rendition.getContents().forEach(function (c) {
+              if (c.window && c.window.getSelection) {
+                c.window.getSelection().removeAllRanges();
+              }
+            });
+          } catch (e) {}
         },
         search: function (query) {
           query = (query || '').trim();
@@ -342,14 +433,20 @@
             columnsMode = t.columns;
             applyColumns();
           }
-          if (t.edgeTaps !== undefined) {
-            edgeTapsEnabled = t.edgeTaps === true;
-            applyEdgeTaps();
-          }
           if (t.pageAnimation) {
             pageAnimation = t.pageAnimation;
             applyPageAnimation();
           }
+        },
+        setInsets: function (top, bottom) {
+          var v = document.getElementById('viewer');
+          if (!v) return;
+          var t = Math.max(0, top) + 'px';
+          var b = Math.max(0, bottom) + 'px';
+          if (v.style.top === t && v.style.bottom === b) return;
+          v.style.top = t;
+          v.style.bottom = b;
+          try { rendition.resize(); } catch (e) {}
         }
       };
 

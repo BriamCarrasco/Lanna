@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 import 'package:flutter/material.dart';
 
-import '../../../core/theme/app_theme.dart';
+import '../../../core/theme/tokens.dart';
 import '../../../data/epub/epub_book.dart';
 import '../../../data/local/app_database.dart';
 import '../reader_theme.dart';
 
-enum _Tab { chapters, bookmarks }
+enum _Tab { chapters, bookmarks, notes }
 
 class TocDrawer extends StatefulWidget {
   const TocDrawer({
@@ -22,6 +22,10 @@ class TocDrawer extends StatefulWidget {
     required this.onBookmarkSelect,
     required this.onBookmarkDelete,
     required this.onClose,
+    this.highlights = const [],
+    this.highlightColors = const {},
+    this.onHighlightSelect,
+    this.onHighlightDelete,
   });
 
   final List<EpubTocEntry> toc;
@@ -35,6 +39,10 @@ class TocDrawer extends StatefulWidget {
   final ValueChanged<Bookmark> onBookmarkSelect;
   final ValueChanged<Bookmark> onBookmarkDelete;
   final VoidCallback onClose;
+  final List<Highlight> highlights;
+  final Map<String, Color> highlightColors;
+  final ValueChanged<Highlight>? onHighlightSelect;
+  final ValueChanged<Highlight>? onHighlightDelete;
 
   @override
   State<TocDrawer> createState() => _TocDrawerState();
@@ -47,7 +55,7 @@ class _TocDrawerState extends State<TocDrawer> {
   Widget build(BuildContext context) {
     final chrome = widget.chrome;
     return Container(
-      width: 300,
+      width: 320,
       height: double.infinity,
       decoration: BoxDecoration(
         color: chrome.panelBackground,
@@ -57,28 +65,24 @@ class _TocDrawerState extends State<TocDrawer> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Container(
-            height: 52,
-            padding: const EdgeInsets.fromLTRB(20, 0, 12, 0),
+            padding: const EdgeInsets.fromLTRB(
+              LannaSpacing.s4,
+              LannaSpacing.s2,
+              LannaSpacing.s2,
+              LannaSpacing.s2,
+            ),
             decoration: BoxDecoration(
               border: Border(bottom: BorderSide(color: chrome.barBorder)),
             ),
             child: Row(
               children: [
-                Text(
-                  _tab == _Tab.chapters ? 'Contenido' : 'Marcadores',
-                  style: AppTheme.reading(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w600,
-                    color: chrome.onBar,
+                Expanded(
+                  child: _TabToggle(
+                    tab: _tab,
+                    chrome: chrome,
+                    onChanged: (t) => setState(() => _tab = t),
                   ),
                 ),
-                const Spacer(),
-                _TabToggle(
-                  tab: _tab,
-                  chrome: chrome,
-                  onChanged: (t) => setState(() => _tab = t),
-                ),
-                const SizedBox(width: 4),
                 IconButton(
                   visualDensity: VisualDensity.compact,
                   icon: const Icon(Icons.close, size: 17),
@@ -89,21 +93,31 @@ class _TocDrawerState extends State<TocDrawer> {
             ),
           ),
           Expanded(
-            child: _tab == _Tab.chapters ? _chapters() : _bookmarksList(),
+            child: switch (_tab) {
+              _Tab.chapters => _chapters(),
+              _Tab.bookmarks => _bookmarksList(),
+              _Tab.notes => _notesList(),
+            },
           ),
           if (_tab == _Tab.chapters &&
               (widget.chapterCount > 0 || widget.pageCount > 0))
             Container(
-              padding: const EdgeInsets.fromLTRB(20, 12, 20, 14),
+              padding: const EdgeInsets.fromLTRB(
+                LannaSpacing.s5,
+                LannaSpacing.s3,
+                LannaSpacing.s5,
+                LannaSpacing.s3,
+              ),
               decoration: BoxDecoration(
                 border: Border(top: BorderSide(color: chrome.barBorder)),
               ),
               child: Text(
                 [
-                  if (widget.chapterCount > 0) '${widget.chapterCount} capítulos',
+                  if (widget.chapterCount > 0)
+                    '${widget.chapterCount} capítulos',
                   if (widget.pageCount > 0) '${widget.pageCount} páginas',
                 ].join(' · '),
-                style: TextStyle(fontSize: 11, color: chrome.onBarMuted),
+                style: LannaType.micro.copyWith(color: chrome.onBarMuted),
               ),
             ),
         ],
@@ -128,7 +142,7 @@ class _TocDrawerState extends State<TocDrawer> {
 
     final current = widget.currentHref?.split('#').first;
     return ListView.builder(
-      padding: const EdgeInsets.symmetric(vertical: 8),
+      padding: const EdgeInsets.symmetric(vertical: LannaSpacing.s2),
       itemCount: flat.length,
       itemBuilder: (context, i) {
         final row = flat[i];
@@ -137,11 +151,16 @@ class _TocDrawerState extends State<TocDrawer> {
         return InkWell(
           onTap: () => widget.onSelect(row.entry),
           child: Container(
-            padding: EdgeInsets.fromLTRB(20.0 + row.depth * 14, 9, 16, 9),
+            padding: EdgeInsets.fromLTRB(
+              LannaSpacing.s5 + row.depth * LannaSpacing.s4,
+              LannaSpacing.s2 + 1,
+              LannaSpacing.s4,
+              LannaSpacing.s2 + 1,
+            ),
             decoration: BoxDecoration(
               color: active ? chrome.fieldActive : Colors.transparent,
               borderRadius: active
-                  ? const BorderRadius.horizontal(right: Radius.circular(6))
+                  ? const BorderRadius.horizontal(right: LannaRadii.sm)
                   : null,
               border: Border(
                 left: BorderSide(
@@ -152,9 +171,7 @@ class _TocDrawerState extends State<TocDrawer> {
             ),
             child: Text(
               row.entry.label,
-              style: TextStyle(
-                fontSize: row.depth == 0 ? 12.5 : 12,
-                height: 1.35,
+              style: LannaType.sm.copyWith(
                 fontWeight: active
                     ? FontWeight.w600
                     : (row.depth == 0 ? FontWeight.w500 : FontWeight.w400),
@@ -173,7 +190,7 @@ class _TocDrawerState extends State<TocDrawer> {
       return _Empty('Sin marcadores todavía', chrome: chrome);
     }
     return ListView.builder(
-      padding: const EdgeInsets.symmetric(vertical: 8),
+      padding: const EdgeInsets.symmetric(vertical: LannaSpacing.s2),
       itemCount: widget.bookmarks.length,
       itemBuilder: (context, i) {
         final bookmark = widget.bookmarks[i];
@@ -183,7 +200,12 @@ class _TocDrawerState extends State<TocDrawer> {
         return InkWell(
           onTap: () => widget.onBookmarkSelect(bookmark),
           child: Container(
-            padding: const EdgeInsets.fromLTRB(20, 10, 12, 10),
+            padding: const EdgeInsets.fromLTRB(
+              LannaSpacing.s5,
+              LannaSpacing.s3,
+              LannaSpacing.s3,
+              LannaSpacing.s3,
+            ),
             color: active ? chrome.fieldActive : Colors.transparent,
             child: Row(
               children: [
@@ -192,7 +214,7 @@ class _TocDrawerState extends State<TocDrawer> {
                   size: 14,
                   color: ReaderChrome.accent,
                 ),
-                const SizedBox(width: 10),
+                const SizedBox(width: LannaSpacing.s3 - 1),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -203,8 +225,7 @@ class _TocDrawerState extends State<TocDrawer> {
                             : 'Marcador',
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontSize: 12.5,
+                        style: LannaType.sm.copyWith(
                           fontWeight: FontWeight.w500,
                           color: chrome.onBar,
                         ),
@@ -212,8 +233,7 @@ class _TocDrawerState extends State<TocDrawer> {
                       const SizedBox(height: 2),
                       Text(
                         '$percent %',
-                        style: TextStyle(
-                          fontSize: 10.5,
+                        style: LannaType.micro.copyWith(
                           color: chrome.onBarMuted,
                         ),
                       ),
@@ -225,6 +245,75 @@ class _TocDrawerState extends State<TocDrawer> {
                   icon: const Icon(Icons.close, size: 14),
                   color: chrome.onBarMuted,
                   onPressed: () => widget.onBookmarkDelete(bookmark),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _notesList() {
+    final chrome = widget.chrome;
+    if (widget.highlights.isEmpty) {
+      return _Empty('Sin notas todavía', chrome: chrome);
+    }
+    return ListView.builder(
+      padding: const EdgeInsets.symmetric(vertical: LannaSpacing.s2),
+      itemCount: widget.highlights.length,
+      itemBuilder: (context, i) {
+        final h = widget.highlights[i];
+        final dot = widget.highlightColors[h.color] ?? ReaderChrome.accent;
+        return InkWell(
+          onTap: () => widget.onHighlightSelect?.call(h),
+          child: Container(
+            padding: const EdgeInsets.fromLTRB(
+              LannaSpacing.s5,
+              LannaSpacing.s3,
+              LannaSpacing.s3,
+              LannaSpacing.s3,
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  margin: const EdgeInsets.only(top: 3),
+                  width: 10,
+                  height: 10,
+                  decoration: BoxDecoration(color: dot, shape: BoxShape.circle),
+                ),
+                const SizedBox(width: LannaSpacing.s3 - 1),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        h.content.trim(),
+                        maxLines: 3,
+                        overflow: TextOverflow.ellipsis,
+                        style: LannaType.sm.copyWith(color: chrome.onBar),
+                      ),
+                      if (h.note?.trim().isNotEmpty == true) ...[
+                        const SizedBox(height: 4),
+                        Text(
+                          h.note!.trim(),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: LannaType.micro.copyWith(
+                            fontStyle: FontStyle.italic,
+                            color: chrome.onBarMuted,
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+                IconButton(
+                  visualDensity: VisualDensity.compact,
+                  icon: const Icon(Icons.close, size: 14),
+                  color: chrome.onBarMuted,
+                  onPressed: () => widget.onHighlightDelete?.call(h),
                 ),
               ],
             ),
@@ -245,7 +334,7 @@ class _Empty extends StatelessWidget {
     return Center(
       child: Text(
         message,
-        style: TextStyle(fontSize: 12.5, color: chrome.onBarMuted),
+        style: LannaType.sm.copyWith(color: chrome.onBarMuted),
       ),
     );
   }
@@ -266,20 +355,22 @@ class _TabToggle extends StatelessWidget {
   Widget build(BuildContext context) {
     Widget cell(String label, _Tab value) {
       final selected = tab == value;
-      return GestureDetector(
-        onTap: () => onChanged(value),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
-          decoration: BoxDecoration(
-            color: selected ? chrome.fieldActive : Colors.transparent,
-            borderRadius: BorderRadius.circular(5),
-          ),
-          child: Text(
-            label,
-            style: TextStyle(
-              fontSize: 11,
-              fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
-              color: selected ? chrome.onBar : chrome.onBarMuted,
+      return Expanded(
+        child: GestureDetector(
+          onTap: () => onChanged(value),
+          child: Container(
+            alignment: Alignment.center,
+            padding: const EdgeInsets.symmetric(vertical: LannaSpacing.s1 + 1),
+            decoration: BoxDecoration(
+              color: selected ? chrome.fieldActive : Colors.transparent,
+              borderRadius: LannaRadii.brXs,
+            ),
+            child: Text(
+              label,
+              style: LannaType.micro.copyWith(
+                fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
+                color: selected ? chrome.onBar : chrome.onBarMuted,
+              ),
             ),
           ),
         ),
@@ -290,14 +381,14 @@ class _TabToggle extends StatelessWidget {
       padding: const EdgeInsets.all(2),
       decoration: BoxDecoration(
         color: chrome.fieldBackground,
-        borderRadius: BorderRadius.circular(7),
+        borderRadius: LannaRadii.brSm,
         border: Border.all(color: chrome.panelBorder),
       ),
       child: Row(
-        mainAxisSize: MainAxisSize.min,
         children: [
           cell('Capítulos', _Tab.chapters),
           cell('Marcadores', _Tab.bookmarks),
+          cell('Notas', _Tab.notes),
         ],
       ),
     );

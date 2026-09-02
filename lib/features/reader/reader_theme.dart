@@ -2,6 +2,7 @@
 import 'package:drift/drift.dart' show Value;
 import 'package:flutter/material.dart';
 
+import '../../core/theme/app_theme.dart';
 import '../../data/local/app_database.dart';
 import 'epub_view.dart';
 
@@ -83,11 +84,10 @@ class ReaderChrome {
   final Color fieldActive;
   final Color progressTrack;
 
-  static const Color accent = Color(0xFFD9756A);
+  static const Color accent = LannaColors.accent;
 
   factory ReaderChrome.of(ReaderThemePreset preset) {
-    Color mix(double t) =>
-        Color.lerp(preset.background, preset.foreground, t)!;
+    Color mix(double t) => Color.lerp(preset.background, preset.foreground, t)!;
     return ReaderChrome(
       barBackground: preset.background,
       barBorder: mix(0.14),
