@@ -78,39 +78,109 @@ void main() {
     expect(await db.readLocations('a'), isNull);
   });
 
-  test('marcadores: añadir, ordenar por porcentaje, borrar en cascada', () async {
-    await db.upsertBook(sampleBook('a'));
+  test(
+    'marcadores: añadir, ordenar por porcentaje, borrar en cascada',
+    () async {
+      await db.upsertBook(sampleBook('a'));
 
-    expect(await db.watchBookmarks('a').first, isEmpty);
+      expect(await db.watchBookmarks('a').first, isEmpty);
 
-    await db.addBookmark(
-      BookmarksCompanion.insert(
-        id: 'm2',
-        bookId: 'a',
-        cfi: 'cfi/2',
-        percent: const Value(0.6),
-        label: const Value('Capítulo 6'),
-      ),
-    );
-    await db.addBookmark(
-      BookmarksCompanion.insert(
-        id: 'm1',
-        bookId: 'a',
-        cfi: 'cfi/1',
-        percent: const Value(0.2),
-      ),
-    );
+      await db.addBookmark(
+        BookmarksCompanion.insert(
+          id: 'm2',
+          bookId: 'a',
+          cfi: 'cfi/2',
+          percent: const Value(0.6),
+          label: const Value('Capítulo 6'),
+        ),
+      );
+      await db.addBookmark(
+        BookmarksCompanion.insert(
+          id: 'm1',
+          bookId: 'a',
+          cfi: 'cfi/1',
+          percent: const Value(0.2),
+        ),
+      );
 
-    final list = await db.watchBookmarks('a').first;
-    expect(list.map((b) => b.id), ['m1', 'm2']);
-    expect(list.last.label, 'Capítulo 6');
+      final list = await db.watchBookmarks('a').first;
+      expect(list.map((b) => b.id), ['m1', 'm2']);
+      expect(list.last.label, 'Capítulo 6');
 
-    await db.deleteBookmark('m1');
-    expect((await db.watchBookmarks('a').first).map((b) => b.id), ['m2']);
+      await db.deleteBookmark('m1');
+      expect((await db.watchBookmarks('a').first).map((b) => b.id), ['m2']);
 
-    await db.deleteBook('a');
-    expect(await db.watchBookmarks('a').first, isEmpty);
-  });
+      await db.deleteBook('a');
+      expect(await db.watchBookmarks('a').first, isEmpty);
+    },
+  );
+
+  test(
+    'resaltados: añadir, actualizar color y nota, borrar en cascada',
+    () async {
+      await db.upsertBook(sampleBook('a'));
+
+      await db.addHighlight(
+        HighlightsCompanion.insert(
+          id: 'h1',
+          bookId: 'a',
+          cfi: 'cfi/range',
+          content: const Value('un fragmento'),
+          color: const Value('yellow'),
+          percent: const Value(0.3),
+        ),
+      );
+
+      var list = await db.watchHighlights('a').first;
+      expect(list.single.content, 'un fragmento');
+      expect(list.single.color, 'yellow');
+
+      await db.updateHighlight(
+        'h1',
+        color: 'green',
+        note: const Value('mi nota'),
+      );
+      list = await db.watchHighlights('a').first;
+      expect(list.single.color, 'green');
+      expect(list.single.note, 'mi nota');
+
+      await db.deleteBook('a');
+      expect(await db.watchHighlights('a').first, isEmpty);
+    },
+  );
+
+  test(
+    'colecciones: crear, añadir libros, contar, borrar en cascada',
+    () async {
+      await db.upsertBook(sampleBook('a'));
+      await db.upsertBook(sampleBook('b'));
+      await db.createCollection('c1', 'Favoritos');
+
+      expect((await db.watchCollections().first).single.bookCount, 0);
+
+      await db.addBookToCollection('c1', 'a');
+      await db.addBookToCollection('c1', 'b');
+      await db.addBookToCollection('c1', 'a');
+
+      final list = await db.watchCollections().first;
+      expect(list.single.collection.name, 'Favoritos');
+      expect(list.single.bookCount, 2);
+      expect((await db.watchCollectionBooks('c1').first).map((x) => x.id), {
+        'a',
+        'b',
+      });
+      expect(await db.watchCollectionIdsForBook('a').first, {'c1'});
+
+      await db.removeBookFromCollection('c1', 'a');
+      expect((await db.watchCollections().first).single.bookCount, 1);
+
+      await db.deleteBook('b');
+      expect((await db.watchCollections().first).single.bookCount, 0);
+
+      await db.deleteCollection('c1');
+      expect(await db.watchCollections().first, isEmpty);
+    },
+  );
 
   test(
     'watchContinueReading: empezados y no terminados, por recencia',

@@ -13,8 +13,23 @@ class BookWithProgress {
   final ReadingProgressData progress;
 }
 
+class CollectionWithCount {
+  const CollectionWithCount(this.collection, this.bookCount);
+  final Collection collection;
+  final int bookCount;
+}
+
 @DriftDatabase(
-  tables: [Books, ReadingProgress, ReaderPrefs, BookLocations, Bookmarks],
+  tables: [
+    Books,
+    ReadingProgress,
+    ReaderPrefs,
+    BookLocations,
+    Bookmarks,
+    Collections,
+    CollectionEntries,
+    Highlights,
+  ],
 )
 class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(driftDatabase(name: 'lanna'));
@@ -22,7 +37,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 6;
+  int get schemaVersion => 8;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -44,6 +59,13 @@ class AppDatabase extends _$AppDatabase {
       }
       if (from < 6) {
         await m.createTable(bookmarks);
+      }
+      if (from < 7) {
+        await m.createTable(collections);
+        await m.createTable(collectionEntries);
+      }
+      if (from < 8) {
+        await m.createTable(highlights);
       }
     },
     beforeOpen: (details) async {
@@ -158,6 +180,116 @@ class AppDatabase extends _$AppDatabase {
 
   Future<void> deleteBookmark(String id) {
     return (delete(bookmarks)..where((b) => b.id.equals(id))).go();
+  }
+
+  Stream<List<Highlight>> watchHighlights(String bookId) {
+    return (select(highlights)
+          ..where((h) => h.bookId.equals(bookId))
+          ..orderBy([(h) => OrderingTerm.asc(h.percent)]))
+        .watch();
+  }
+
+  Future<void> addHighlight(HighlightsCompanion highlight) {
+    return into(highlights).insertOnConflictUpdate(highlight);
+  }
+
+  Future<void> updateHighlight(
+    String id, {
+    String? color,
+    Value<String?> note = const Value.absent(),
+  }) {
+    return (update(highlights)..where((h) => h.id.equals(id))).write(
+      HighlightsCompanion(
+        color: color == null ? const Value.absent() : Value(color),
+        note: note,
+      ),
+    );
+  }
+
+  Future<void> deleteHighlight(String id) {
+    return (delete(highlights)..where((h) => h.id.equals(id))).go();
+  }
+
+  Stream<List<CollectionWithCount>> watchCollections() {
+    final count = collectionEntries.bookId.count();
+    final query = select(collections).join([
+      leftOuterJoin(
+        collectionEntries,
+        collectionEntries.collectionId.equalsExp(collections.id),
+      ),
+    ]);
+    query
+      ..addColumns([count])
+      ..groupBy([collections.id])
+      ..orderBy([OrderingTerm.asc(collections.name)]);
+    return query.watch().map(
+      (rows) => rows
+          .map(
+            (r) => CollectionWithCount(
+              r.readTable(collections),
+              r.read(count) ?? 0,
+            ),
+          )
+          .toList(),
+    );
+  }
+
+  Future<Collection?> findCollection(String id) {
+    return (select(
+      collections,
+    )..where((c) => c.id.equals(id))).getSingleOrNull();
+  }
+
+  Future<void> createCollection(String id, String name) {
+    return into(collections)
+        .insert(CollectionsCompanion.insert(id: id, name: name));
+  }
+
+  Future<void> renameCollection(String id, String name) {
+    return (update(collections)..where((c) => c.id.equals(id))).write(
+      CollectionsCompanion(name: Value(name)),
+    );
+  }
+
+  Future<void> deleteCollection(String id) {
+    return (delete(collections)..where((c) => c.id.equals(id))).go();
+  }
+
+  Stream<List<Book>> watchCollectionBooks(String collectionId) {
+    final query =
+        select(books).join([
+            innerJoin(
+              collectionEntries,
+              collectionEntries.bookId.equalsExp(books.id),
+            ),
+          ])
+          ..where(collectionEntries.collectionId.equals(collectionId))
+          ..orderBy([OrderingTerm.desc(collectionEntries.addedAt)]);
+    return query.watch().map(
+      (rows) => rows.map((r) => r.readTable(books)).toList(),
+    );
+  }
+
+  Stream<Set<String>> watchCollectionIdsForBook(String bookId) {
+    return (select(collectionEntries)..where((e) => e.bookId.equals(bookId)))
+        .watch()
+        .map((rows) => rows.map((e) => e.collectionId).toSet());
+  }
+
+  Future<void> addBookToCollection(String collectionId, String bookId) {
+    return into(collectionEntries).insertOnConflictUpdate(
+      CollectionEntriesCompanion.insert(
+        collectionId: collectionId,
+        bookId: bookId,
+      ),
+    );
+  }
+
+  Future<void> removeBookFromCollection(String collectionId, String bookId) {
+    return (delete(collectionEntries)..where(
+          (e) => e.collectionId.equals(collectionId) & e.bookId.equals(bookId),
+        ))
+        .go();
   }
 
   Stream<ReaderPref?> watchReaderPrefs() {

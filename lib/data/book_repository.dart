@@ -71,6 +71,64 @@ class BookRepository {
 
   Future<void> deleteBookmark(String id) => _db.deleteBookmark(id);
 
+  Stream<List<Highlight>> watchHighlights(String bookId) =>
+      _db.watchHighlights(bookId);
+
+  Future<void> addHighlight({
+    required String bookId,
+    required String cfi,
+    required String text,
+    required String color,
+    int? chapterIndex,
+    required double percent,
+  }) => _db.addHighlight(
+    HighlightsCompanion.insert(
+      id: const Uuid().v4(),
+      bookId: bookId,
+      cfi: cfi,
+      content: Value(text),
+      color: Value(color),
+      chapterIndex: Value(chapterIndex),
+      percent: Value(percent),
+    ),
+  );
+
+  Future<void> setHighlightColor(String id, String color) =>
+      _db.updateHighlight(id, color: color);
+
+  Future<void> setHighlightNote(String id, String? note) =>
+      _db.updateHighlight(id, note: Value(note));
+
+  Future<void> deleteHighlight(String id) => _db.deleteHighlight(id);
+
+  Stream<List<CollectionWithCount>> watchCollections() =>
+      _db.watchCollections();
+
+  Future<Collection?> findCollection(String id) => _db.findCollection(id);
+
+  Future<String> createCollection(String name) async {
+    final id = const Uuid().v4();
+    await _db.createCollection(id, name.trim());
+    return id;
+  }
+
+  Future<void> renameCollection(String id, String name) =>
+      _db.renameCollection(id, name.trim());
+
+  Future<void> deleteCollection(String id) => _db.deleteCollection(id);
+
+  Stream<List<Book>> watchCollectionBooks(String id) =>
+      _db.watchCollectionBooks(id);
+
+  Stream<Set<String>> watchCollectionIdsForBook(String bookId) =>
+      _db.watchCollectionIdsForBook(bookId);
+
+  Future<void> addBookToCollection(String collectionId, String bookId) =>
+      _db.addBookToCollection(collectionId, bookId);
+
+  Future<void> removeBookFromCollection(String collectionId, String bookId) =>
+      _db.removeBookFromCollection(collectionId, bookId);
+
   Future<ImportResult> importFile(String path) => _importer.importFile(path);
 
   Future<void> deleteBook(String id) async {
@@ -119,6 +177,31 @@ final bookProgressProvider =
     StreamProvider.family<ReadingProgressData?, String>((ref, bookId) {
       return ref.watch(bookRepositoryProvider).watchProgress(bookId);
     });
+
+final highlightsProvider = StreamProvider.family<List<Highlight>, String>((
+  ref,
+  bookId,
+) {
+  return ref.watch(bookRepositoryProvider).watchHighlights(bookId);
+});
+
+final collectionsProvider = StreamProvider<List<CollectionWithCount>>((ref) {
+  return ref.watch(bookRepositoryProvider).watchCollections();
+});
+
+final collectionBooksProvider = StreamProvider.family<List<Book>, String>((
+  ref,
+  collectionId,
+) {
+  return ref.watch(bookRepositoryProvider).watchCollectionBooks(collectionId);
+});
+
+final bookCollectionsProvider = StreamProvider.family<Set<String>, String>((
+  ref,
+  bookId,
+) {
+  return ref.watch(bookRepositoryProvider).watchCollectionIdsForBook(bookId);
+});
 
 final findBookProvider = FutureProvider.family<Book?, String>((ref, bookId) {
   return ref.watch(bookRepositoryProvider).findBook(bookId);
