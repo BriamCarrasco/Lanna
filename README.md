@@ -2,6 +2,7 @@
   <img src="assets/logo/lanna.png" width="140" alt="Lanna">
 </p>
 
+
 <h1 align="center">Lanna</h1>
 
 <p align="center">Lector de EPUB y PDF open source, multiplataforma.</p>
