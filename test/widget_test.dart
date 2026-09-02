@@ -115,6 +115,27 @@ void main() {
     await tester.pump(const Duration(milliseconds: 50));
   });
 
+  testWidgets('en pantalla estrecha usa NavigationBar y no desborda', (
+    tester,
+  ) async {
+    final db = AppDatabase.forTesting(NativeDatabase.memory());
+    addTearDown(db.close);
+
+    await _pumpApp(tester, db, size: const Size(400, 860));
+
+    expect(find.byType(NavigationBar), findsOneWidget);
+    expect(find.text('Tu biblioteca está vacía'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+
+    await tester.tap(find.text('Ajustes'));
+    await tester.pumpAndSettle();
+    expect(find.text('Animación de paso de página'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(const Duration(milliseconds: 50));
+  });
+
   for (final size in const [Size(980, 800), Size(1280, 800), Size(1680, 900)]) {
     testWidgets('el grid no desborda a ${size.width.toInt()}px', (
       tester,
