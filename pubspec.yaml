@@ -23,10 +23,8 @@ dependencies:
   desktop_drop: ^0.8.4
   archive: ^4.2.0
   xml: ^7.0.1
+  html: ^0.15.6
   path: ^1.9.1
-  flutter_inappwebview: ^6.1.5
-  shelf: ^1.4.2
-  flutter_inappwebview_windows: ^0.6.0
   mime: ^2.1.0
   wakelock_plus: ^1.2.8
   pdfrx: ^2.1.4
@@ -45,7 +43,6 @@ flutter:
 
   assets:
     - assets/logo/
-    - assets/reader/
 
   fonts:
     - family: Manrope

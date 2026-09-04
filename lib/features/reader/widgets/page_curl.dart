@@ -1,148 +1,124 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-import 'dart:async';
 import 'dart:math' as math;
 import 'dart:ui' as ui;
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
+typedef PageImageSource = Future<ui.Image?> Function();
+
 class PageCurlController {
-  PageCurlController({
-    required TickerProvider vsync,
-    required this.onChange,
-    this.onSettled,
-  }) {
+  PageCurlController({required TickerProvider vsync, required this.onChange}) {
     _anim =
         AnimationController(
           vsync: vsync,
           duration: const Duration(milliseconds: 480),
         )..addStatusListener((status) {
-          if (status == AnimationStatus.completed) _finish();
+          if (status == AnimationStatus.completed) {
+            _finish();
+          } else if (status == AnimationStatus.dismissed && _cancelling) {
+            _cancelling = false;
+            final revert = _revert;
+            _revert = null;
+            revert?.call();
+            _finish();
+          }
         });
   }
 
   final VoidCallback onChange;
-  final VoidCallback? onSettled;
 
   late final AnimationController _anim;
-  ui.Image? _ready;
   ui.Image? _active;
   int _direction = 1;
   bool _fade = false;
-  Timer? _timer;
+  bool _dragging = false;
+  bool _cancelling = false;
+  VoidCallback? _revert;
 
   bool get busy => _active != null;
 
-  Future<ui.Image?> Function()? _capture;
+  bool get dragging => _dragging;
 
-  void scheduleCapture(
-    Future<ui.Image?> Function() capture, {
-    required bool enabled,
-    int delayMs = 120,
-    int attempt = 0,
-  }) {
-    _capture = enabled ? capture : null;
-    if (!enabled) {
-      _timer?.cancel();
-      _ready?.dispose();
-      _ready = null;
-      return;
-    }
-    _timer?.cancel();
-    _timer = Timer(
-      Duration(milliseconds: attempt == 0 ? delayMs : 400),
-      () async {
-        if (busy) return;
-        final image = await capture();
-        if (busy) {
-          image?.dispose();
-          return;
-        }
-        _ready?.dispose();
-        _ready = image;
-        _log('captura previa: ${_describe(image)} (intento $attempt)');
-        if (image == null && attempt < 3) {
-          scheduleCapture(
-            capture,
-            enabled: enabled,
-            delayMs: delayMs,
-            attempt: attempt + 1,
-          );
-          return;
-        }
-        onChange();
-      },
-    );
-  }
-
-  static void _log(String message) {
-    if (kDebugMode) debugPrint('[curl] $message');
-  }
-
-  static String _describe(ui.Image? image) =>
-      image == null ? 'null' : '${image.width}x${image.height}';
-
-  bool start(
-    int direction, {
-    required VoidCallback advance,
-    bool fade = false,
-  }) {
-    if (busy || _ready == null) {
-      _log('start rechazado (busy=$busy, snapshot=${_describe(_ready)})');
+  bool _adopt(ui.Image? image, int direction, {bool fade = false}) {
+    if (busy || image == null) {
+      image?.dispose();
       return false;
     }
-    _active = _ready;
-    _ready = null;
+    _active = image;
     _direction = direction;
     _fade = fade;
-    advance();
-    _anim.duration = Duration(milliseconds: fade ? 200 : 480);
-    _anim.forward(from: 0);
-    onChange();
-    _log('animando dir=$direction con ${_describe(_active)}');
     return true;
   }
 
-  void invalidate() {
-    _timer?.cancel();
-    _ready?.dispose();
-    _ready = null;
-  }
+  bool _capturing = false;
 
-  Future<bool> startOrCapture(
+  Future<bool> start(
     int direction, {
+    required PageImageSource outgoing,
     required VoidCallback advance,
     bool fade = false,
   }) async {
-    if (busy) return false;
-    if (_ready == null) {
-      final capture = _capture;
-      if (capture == null) return false;
-      _timer?.cancel();
-      ui.Image? image;
-      for (var attempt = 0; attempt < 3 && image == null; attempt++) {
-        if (attempt > 0) {
-          await Future<void>.delayed(const Duration(milliseconds: 70));
-        }
-        image = await capture();
-      }
-      _log('captura al vuelo: ${_describe(image)}');
-      if (image == null) return false;
-      if (busy) {
-        image.dispose();
-        return false;
-      }
-      _ready?.dispose();
-      _ready = image;
+    if (busy || _capturing) return false;
+    _capturing = true;
+    final image = await outgoing();
+    _capturing = false;
+    if (!_adopt(image, direction, fade: fade)) return false;
+    advance();
+    _anim.duration = Duration(milliseconds: fade ? 200 : 420);
+    _anim.forward(from: 0);
+    onChange();
+    return true;
+  }
+
+  Future<bool> beginDrag(
+    int direction, {
+    required PageImageSource outgoing,
+    required VoidCallback advance,
+    required VoidCallback revert,
+  }) async {
+    if (busy || _capturing) return false;
+    _capturing = true;
+    final image = await outgoing();
+    _capturing = false;
+    if (!_adopt(image, direction)) return false;
+    _dragging = true;
+    _cancelling = false;
+    _revert = revert;
+    advance();
+    _anim.value = 0;
+    onChange();
+    return true;
+  }
+
+  void updateDrag(double progress) {
+    if (!_dragging) return;
+    _anim.value = progress.clamp(0.0, 1.0);
+    onChange();
+  }
+
+  void endDrag({required bool complete}) {
+    if (!_dragging) return;
+    _dragging = false;
+    final remaining = complete ? 1 - _anim.value : _anim.value;
+    _anim.duration = Duration(
+      milliseconds: (remaining * 260).round().clamp(90, 260),
+    );
+    if (complete) {
+      _revert = null;
+      _anim.forward();
+    } else {
+      _cancelling = true;
+      _anim.reverse();
     }
-    return start(direction, advance: advance, fade: fade);
   }
 
   void _finish() {
-    _active?.dispose();
+    final image = _active;
     _active = null;
+    _dragging = false;
     onChange();
-    onSettled?.call();
+    if (image == null) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) => image.dispose());
   }
 
   Widget? overlay() {
@@ -168,10 +144,9 @@ class PageCurlController {
   }
 
   void dispose() {
-    _timer?.cancel();
     _anim.dispose();
-    _ready?.dispose();
     _active?.dispose();
+    _active = null;
   }
 }
 
@@ -316,15 +291,17 @@ class _PageCurlPainter extends CustomPainter {
       colors: colors,
       indices: indices,
     );
+    final shader = ui.ImageShader(
+      image,
+      TileMode.clamp,
+      TileMode.clamp,
+      Matrix4.identity().storage,
+    );
     final paint = Paint()
       ..isAntiAlias = true
-      ..shader = ui.ImageShader(
-        image,
-        TileMode.clamp,
-        TileMode.clamp,
-        Matrix4.identity().storage,
-      );
+      ..shader = shader;
     canvas.drawVertices(vertices, BlendMode.modulate, paint);
+    shader.dispose();
   }
 
   void _paintCastShadow(

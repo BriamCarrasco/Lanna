@@ -11,6 +11,7 @@ class AppearancePanel extends StatelessWidget {
     required this.settings,
     required this.onPreset,
     required this.onColumns,
+    this.bookFontAvailable = false,
     this.onFontFamily,
     this.onFontScale,
     this.onLineHeight,
@@ -19,6 +20,7 @@ class AppearancePanel extends StatelessWidget {
   final ReaderSettings settings;
   final ValueChanged<ReaderThemePreset> onPreset;
   final ValueChanged<String> onColumns;
+  final bool bookFontAvailable;
   final ValueChanged<String>? onFontFamily;
   final ValueChanged<int>? onFontScale;
   final ValueChanged<double>? onLineHeight;
@@ -79,7 +81,9 @@ class AppearancePanel extends StatelessWidget {
               label: 'Fuente',
               chrome: chrome,
               child: _Segmented(
-                options: const {'serif': 'Serif', 'sans': 'Sans'},
+                options: bookFontAvailable
+                    ? const {'serif': 'Serif', 'sans': 'Sans', 'book': 'Libro'}
+                    : const {'serif': 'Serif', 'sans': 'Sans'},
                 value: settings.fontFamily,
                 serifKey: 'serif',
                 chrome: chrome,

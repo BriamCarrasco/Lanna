@@ -1070,6 +1070,16 @@ class $ReaderPrefsTable extends ReaderPrefs
     ),
     defaultValue: const Constant(false),
   );
+  static const VerificationMeta _engineMeta = const VerificationMeta('engine');
+  @override
+  late final GeneratedColumn<String> engine = GeneratedColumn<String>(
+    'engine',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('webview'),
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -1081,6 +1091,7 @@ class $ReaderPrefsTable extends ReaderPrefs
     pageAnimation,
     edgeTaps,
     keepAwake,
+    engine,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -1148,6 +1159,12 @@ class $ReaderPrefsTable extends ReaderPrefs
         keepAwake.isAcceptableOrUnknown(data['keep_awake']!, _keepAwakeMeta),
       );
     }
+    if (data.containsKey('engine')) {
+      context.handle(
+        _engineMeta,
+        engine.isAcceptableOrUnknown(data['engine']!, _engineMeta),
+      );
+    }
     return context;
   }
 
@@ -1193,6 +1210,10 @@ class $ReaderPrefsTable extends ReaderPrefs
         DriftSqlType.bool,
         data['${effectivePrefix}keep_awake'],
       )!,
+      engine: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}engine'],
+      )!,
     );
   }
 
@@ -1212,6 +1233,7 @@ class ReaderPref extends DataClass implements Insertable<ReaderPref> {
   final String pageAnimation;
   final bool edgeTaps;
   final bool keepAwake;
+  final String engine;
   const ReaderPref({
     required this.id,
     required this.theme,
@@ -1222,6 +1244,7 @@ class ReaderPref extends DataClass implements Insertable<ReaderPref> {
     required this.pageAnimation,
     required this.edgeTaps,
     required this.keepAwake,
+    required this.engine,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -1235,6 +1258,7 @@ class ReaderPref extends DataClass implements Insertable<ReaderPref> {
     map['page_animation'] = Variable<String>(pageAnimation);
     map['edge_taps'] = Variable<bool>(edgeTaps);
     map['keep_awake'] = Variable<bool>(keepAwake);
+    map['engine'] = Variable<String>(engine);
     return map;
   }
 
@@ -1249,6 +1273,7 @@ class ReaderPref extends DataClass implements Insertable<ReaderPref> {
       pageAnimation: Value(pageAnimation),
       edgeTaps: Value(edgeTaps),
       keepAwake: Value(keepAwake),
+      engine: Value(engine),
     );
   }
 
@@ -1267,6 +1292,7 @@ class ReaderPref extends DataClass implements Insertable<ReaderPref> {
       pageAnimation: serializer.fromJson<String>(json['pageAnimation']),
       edgeTaps: serializer.fromJson<bool>(json['edgeTaps']),
       keepAwake: serializer.fromJson<bool>(json['keepAwake']),
+      engine: serializer.fromJson<String>(json['engine']),
     );
   }
   @override
@@ -1282,6 +1308,7 @@ class ReaderPref extends DataClass implements Insertable<ReaderPref> {
       'pageAnimation': serializer.toJson<String>(pageAnimation),
       'edgeTaps': serializer.toJson<bool>(edgeTaps),
       'keepAwake': serializer.toJson<bool>(keepAwake),
+      'engine': serializer.toJson<String>(engine),
     };
   }
 
@@ -1295,6 +1322,7 @@ class ReaderPref extends DataClass implements Insertable<ReaderPref> {
     String? pageAnimation,
     bool? edgeTaps,
     bool? keepAwake,
+    String? engine,
   }) => ReaderPref(
     id: id ?? this.id,
     theme: theme ?? this.theme,
@@ -1305,6 +1333,7 @@ class ReaderPref extends DataClass implements Insertable<ReaderPref> {
     pageAnimation: pageAnimation ?? this.pageAnimation,
     edgeTaps: edgeTaps ?? this.edgeTaps,
     keepAwake: keepAwake ?? this.keepAwake,
+    engine: engine ?? this.engine,
   );
   ReaderPref copyWithCompanion(ReaderPrefsCompanion data) {
     return ReaderPref(
@@ -1323,6 +1352,7 @@ class ReaderPref extends DataClass implements Insertable<ReaderPref> {
           : this.pageAnimation,
       edgeTaps: data.edgeTaps.present ? data.edgeTaps.value : this.edgeTaps,
       keepAwake: data.keepAwake.present ? data.keepAwake.value : this.keepAwake,
+      engine: data.engine.present ? data.engine.value : this.engine,
     );
   }
 
@@ -1337,7 +1367,8 @@ class ReaderPref extends DataClass implements Insertable<ReaderPref> {
           ..write('columns: $columns, ')
           ..write('pageAnimation: $pageAnimation, ')
           ..write('edgeTaps: $edgeTaps, ')
-          ..write('keepAwake: $keepAwake')
+          ..write('keepAwake: $keepAwake, ')
+          ..write('engine: $engine')
           ..write(')'))
         .toString();
   }
@@ -1353,6 +1384,7 @@ class ReaderPref extends DataClass implements Insertable<ReaderPref> {
     pageAnimation,
     edgeTaps,
     keepAwake,
+    engine,
   );
   @override
   bool operator ==(Object other) =>
@@ -1366,7 +1398,8 @@ class ReaderPref extends DataClass implements Insertable<ReaderPref> {
           other.columns == this.columns &&
           other.pageAnimation == this.pageAnimation &&
           other.edgeTaps == this.edgeTaps &&
-          other.keepAwake == this.keepAwake);
+          other.keepAwake == this.keepAwake &&
+          other.engine == this.engine);
 }
 
 class ReaderPrefsCompanion extends UpdateCompanion<ReaderPref> {
@@ -1379,6 +1412,7 @@ class ReaderPrefsCompanion extends UpdateCompanion<ReaderPref> {
   final Value<String> pageAnimation;
   final Value<bool> edgeTaps;
   final Value<bool> keepAwake;
+  final Value<String> engine;
   const ReaderPrefsCompanion({
     this.id = const Value.absent(),
     this.theme = const Value.absent(),
@@ -1389,6 +1423,7 @@ class ReaderPrefsCompanion extends UpdateCompanion<ReaderPref> {
     this.pageAnimation = const Value.absent(),
     this.edgeTaps = const Value.absent(),
     this.keepAwake = const Value.absent(),
+    this.engine = const Value.absent(),
   });
   ReaderPrefsCompanion.insert({
     this.id = const Value.absent(),
@@ -1400,6 +1435,7 @@ class ReaderPrefsCompanion extends UpdateCompanion<ReaderPref> {
     this.pageAnimation = const Value.absent(),
     this.edgeTaps = const Value.absent(),
     this.keepAwake = const Value.absent(),
+    this.engine = const Value.absent(),
   });
   static Insertable<ReaderPref> custom({
     Expression<int>? id,
@@ -1411,6 +1447,7 @@ class ReaderPrefsCompanion extends UpdateCompanion<ReaderPref> {
     Expression<String>? pageAnimation,
     Expression<bool>? edgeTaps,
     Expression<bool>? keepAwake,
+    Expression<String>? engine,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
@@ -1422,6 +1459,7 @@ class ReaderPrefsCompanion extends UpdateCompanion<ReaderPref> {
       if (pageAnimation != null) 'page_animation': pageAnimation,
       if (edgeTaps != null) 'edge_taps': edgeTaps,
       if (keepAwake != null) 'keep_awake': keepAwake,
+      if (engine != null) 'engine': engine,
     });
   }
 
@@ -1435,6 +1473,7 @@ class ReaderPrefsCompanion extends UpdateCompanion<ReaderPref> {
     Value<String>? pageAnimation,
     Value<bool>? edgeTaps,
     Value<bool>? keepAwake,
+    Value<String>? engine,
   }) {
     return ReaderPrefsCompanion(
       id: id ?? this.id,
@@ -1446,6 +1485,7 @@ class ReaderPrefsCompanion extends UpdateCompanion<ReaderPref> {
       pageAnimation: pageAnimation ?? this.pageAnimation,
       edgeTaps: edgeTaps ?? this.edgeTaps,
       keepAwake: keepAwake ?? this.keepAwake,
+      engine: engine ?? this.engine,
     );
   }
 
@@ -1479,6 +1519,9 @@ class ReaderPrefsCompanion extends UpdateCompanion<ReaderPref> {
     if (keepAwake.present) {
       map['keep_awake'] = Variable<bool>(keepAwake.value);
     }
+    if (engine.present) {
+      map['engine'] = Variable<String>(engine.value);
+    }
     return map;
   }
 
@@ -1493,7 +1536,8 @@ class ReaderPrefsCompanion extends UpdateCompanion<ReaderPref> {
           ..write('columns: $columns, ')
           ..write('pageAnimation: $pageAnimation, ')
           ..write('edgeTaps: $edgeTaps, ')
-          ..write('keepAwake: $keepAwake')
+          ..write('keepAwake: $keepAwake, ')
+          ..write('engine: $engine')
           ..write(')'))
         .toString();
   }
@@ -4488,6 +4532,7 @@ typedef $$ReaderPrefsTableCreateCompanionBuilder =
       Value<String> pageAnimation,
       Value<bool> edgeTaps,
       Value<bool> keepAwake,
+      Value<String> engine,
     });
 typedef $$ReaderPrefsTableUpdateCompanionBuilder =
     ReaderPrefsCompanion Function({
@@ -4500,6 +4545,7 @@ typedef $$ReaderPrefsTableUpdateCompanionBuilder =
       Value<String> pageAnimation,
       Value<bool> edgeTaps,
       Value<bool> keepAwake,
+      Value<String> engine,
     });
 
 class $$ReaderPrefsTableFilterComposer
@@ -4553,6 +4599,11 @@ class $$ReaderPrefsTableFilterComposer
 
   ColumnFilters<bool> get keepAwake => $composableBuilder(
     column: $table.keepAwake,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get engine => $composableBuilder(
+    column: $table.engine,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -4610,6 +4661,11 @@ class $$ReaderPrefsTableOrderingComposer
     column: $table.keepAwake,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<String> get engine => $composableBuilder(
+    column: $table.engine,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$ReaderPrefsTableAnnotationComposer
@@ -4653,6 +4709,9 @@ class $$ReaderPrefsTableAnnotationComposer
 
   GeneratedColumn<bool> get keepAwake =>
       $composableBuilder(column: $table.keepAwake, builder: (column) => column);
+
+  GeneratedColumn<String> get engine =>
+      $composableBuilder(column: $table.engine, builder: (column) => column);
 }
 
 class $$ReaderPrefsTableTableManager
@@ -4695,6 +4754,7 @@ class $$ReaderPrefsTableTableManager
                 Value<String> pageAnimation = const Value.absent(),
                 Value<bool> edgeTaps = const Value.absent(),
                 Value<bool> keepAwake = const Value.absent(),
+                Value<String> engine = const Value.absent(),
               }) => ReaderPrefsCompanion(
                 id: id,
                 theme: theme,
@@ -4705,6 +4765,7 @@ class $$ReaderPrefsTableTableManager
                 pageAnimation: pageAnimation,
                 edgeTaps: edgeTaps,
                 keepAwake: keepAwake,
+                engine: engine,
               ),
           createCompanionCallback:
               ({
@@ -4717,6 +4778,7 @@ class $$ReaderPrefsTableTableManager
                 Value<String> pageAnimation = const Value.absent(),
                 Value<bool> edgeTaps = const Value.absent(),
                 Value<bool> keepAwake = const Value.absent(),
+                Value<String> engine = const Value.absent(),
               }) => ReaderPrefsCompanion.insert(
                 id: id,
                 theme: theme,
@@ -4727,6 +4789,7 @@ class $$ReaderPrefsTableTableManager
                 pageAnimation: pageAnimation,
                 edgeTaps: edgeTaps,
                 keepAwake: keepAwake,
+                engine: engine,
               ),
           withReferenceMapper: (p0) => p0
               .map((e) => (e.readTable(table), BaseReferences(db, table, e)))

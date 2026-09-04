@@ -1,26 +1,20 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 
 import 'epub_view.dart';
-import 'platform/inappwebview_epub_view.dart';
-
-enum ReaderEngine { auto, inAppWebView, windowsWebView }
+import 'native/book_source.dart';
+import 'native/native_epub_view.dart';
 
 Widget createEpubView({
   Key? key,
-  required Uri readerUrl,
+  required NativeBookSource source,
   required EpubViewCallbacks callbacks,
-  ReaderEngine engine = ReaderEngine.auto,
-}) {
-  if (engine == ReaderEngine.windowsWebView && kDebugMode) {
-    debugPrint(
-      '[reader] fallback webview_windows no disponible; uso inappwebview',
-    );
-  }
-  return InAppWebViewEpubView(
-    key: key,
-    readerUrl: readerUrl,
-    callbacks: callbacks,
-  );
-}
+  String? initialLocator,
+  double? initialPercent,
+}) => NativeEpubView(
+  key: key,
+  source: source,
+  callbacks: callbacks,
+  initialLocator: initialLocator,
+  initialPercent: initialPercent,
+);

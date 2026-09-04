@@ -175,17 +175,14 @@ class ReaderSettings {
     keepAwake: keepAwake ?? this.keepAwake,
   );
 
-  String get cssFontFamily => switch (fontFamily) {
-    'sans' => 'Manrope, system-ui, sans-serif',
-    _ => 'Newsreader, Georgia, serif',
-  };
+  static const fontFamilies = ['serif', 'sans', 'book'];
 
   ReaderPresentation toPresentation() => ReaderPresentation(
     background: preset.cssBackground,
     foreground: preset.cssForeground,
     link: preset.cssLink,
     fontSizePercent: fontScale,
-    fontFamily: cssFontFamily,
+    fontFamily: fontFamily,
     lineHeight: lineHeight,
     columnMode: columns,
     pageAnimation: pageAnimation,

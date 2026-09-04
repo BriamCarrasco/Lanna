@@ -142,6 +142,8 @@ class ReaderPrefs extends Table {
 
   BoolColumn get keepAwake => boolean().withDefault(const Constant(false))();
 
+  TextColumn get engine => text().withDefault(const Constant('webview'))();
+
   @override
   Set<Column<Object>> get primaryKey => {id};
 }

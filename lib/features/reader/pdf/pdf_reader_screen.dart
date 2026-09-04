@@ -52,7 +52,6 @@ class _PdfReaderScreenState extends ConsumerState<PdfReaderScreen>
     onChange: () {
       if (mounted) setState(() {});
     },
-    onSettled: _scheduleCurlCapture,
   );
 
   Book? _book;
@@ -97,7 +96,6 @@ class _PdfReaderScreenState extends ConsumerState<PdfReaderScreen>
       if (s == null || !mounted) return;
       setState(() => _settings = s);
       _syncSpreadSize();
-      _scheduleCurlCapture();
       WakelockPlus.toggle(enable: s.keepAwake);
     });
     _bookmarks =
@@ -248,7 +246,6 @@ class _PdfReaderScreenState extends ConsumerState<PdfReaderScreen>
       _page = _restorePage;
       _toc = toc;
     });
-    WidgetsBinding.instance.addPostFrameCallback((_) => _scheduleCurlCapture());
   }
 
   List<EpubTocEntry> _mapOutline(List<PdfOutlineNode> nodes) => [
@@ -319,21 +316,21 @@ class _PdfReaderScreenState extends ConsumerState<PdfReaderScreen>
 
     if (anim == 'curl' || anim == 'fade') {
       if (_curl.busy) return;
-      if (_curl.start(dir, advance: jump, fade: anim == 'fade')) return;
-      unawaited(_curlTurn(dir, jump, fade: anim == 'fade', fallback: fallback));
+      unawaited(
+        _curl
+            .start(
+              dir,
+              outgoing: _captureSpread,
+              advance: jump,
+              fade: anim == 'fade',
+            )
+            .then((ok) {
+              if (!ok && mounted) fallback();
+            }),
+      );
       return;
     }
     fallback();
-  }
-
-  Future<void> _curlTurn(
-    int dir,
-    VoidCallback advance, {
-    required bool fade,
-    required VoidCallback fallback,
-  }) async {
-    final ok = await _curl.startOrCapture(dir, advance: advance, fade: fade);
-    if (!ok && mounted) fallback();
   }
 
   void _goToPage(int page) {
@@ -342,18 +339,13 @@ class _PdfReaderScreenState extends ConsumerState<PdfReaderScreen>
     controller.jumpToPage(_spreadIndexOf(page.clamp(1, _pageCount)));
   }
 
-  void _scheduleCurlCapture() {
-    _curl.scheduleCapture(
-      _captureSpread,
-      enabled: const {'curl', 'fade'}.contains(_settings.pageAnimation),
-    );
-  }
-
   Future<ui.Image?> _captureSpread() async {
     if (!mounted) return null;
     final boundary =
         _pagerKey.currentContext?.findRenderObject() as RenderRepaintBoundary?;
-    if (boundary == null || boundary.debugNeedsPaint) return null;
+    if (boundary == null || !boundary.hasSize || boundary.debugNeedsPaint) {
+      return null;
+    }
     try {
       return await boundary.toImage(
         pixelRatio: MediaQuery.devicePixelRatioOf(context),
@@ -370,7 +362,6 @@ class _PdfReaderScreenState extends ConsumerState<PdfReaderScreen>
       _page = index * _spreadSize + 1;
       _pdfSelection = null;
     });
-    _scheduleCurlCapture();
     _saveTimer?.cancel();
     _saveTimer = Timer(const Duration(milliseconds: 500), () {
       _repo.saveProgress(

@@ -18,10 +18,10 @@ import '../../data/local/app_database.dart';
 import '../../data/models/book_format.dart';
 import 'epub_view.dart';
 import 'epub_view_factory.dart';
+import 'native/book_source.dart';
 import 'reader_prepare.dart';
 import 'reader_settings_provider.dart';
 import 'reader_theme.dart';
-import 'server/reader_server.dart';
 import 'widgets/appearance_panel.dart';
 import 'widgets/page_curl.dart';
 import 'widgets/reader_bar_button.dart';
@@ -55,14 +55,12 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
     onChange: () {
       if (mounted) setState(() {});
     },
-    onSettled: _scheduleCurlCapture,
   );
 
-  ReaderServer? _server;
+  NativeBookSource? _nativeSource;
   EpubViewController? _controller;
   Book? _book;
   EpubBook? _epubBook;
-  Uri? _readerUrl;
   ReaderLocation? _location;
 
   List<EpubTocEntry> _fallbackToc = const [];
@@ -71,7 +69,6 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
   ReaderSelection? _selection;
   double _lastPercent = 0;
   String? _cachedLocations;
-  int _pageCount = 0;
 
   ReaderSettings _settings = const ReaderSettings();
 
@@ -157,12 +154,102 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
   Offset? _tapDownPos;
   DateTime? _tapDownAt;
 
+  bool get _dragCurlEnabled =>
+      _dragCurlReady &&
+      _settings.pageAnimation == 'curl' &&
+      !_showToc &&
+      !_showAppearance &&
+      !_showSearch;
+
+  double _dragProgress = 0;
+
+  bool get _atStart => _location?.atStart ?? false;
+
+  bool get _atEnd => _location?.atEnd ?? false;
+
+  double _dragTravel = 0;
+
+  void _onDragStart(DragStartDetails details) {
+    _dragTravel = 0;
+    _dragProgress = 0;
+  }
+
+  void _onDragUpdate(DragUpdateDetails details) {
+    _dragTravel += details.delta.dx;
+    if (!_dragCurlEnabled) return;
+
+    final width = MediaQuery.sizeOf(context).width;
+    if (!_curl.dragging) {
+      if (_curl.busy) return;
+      if (_dragTravel.abs() < 16) return;
+      final controller = _controller;
+      if (controller == null) return;
+      final forward = _dragTravel < 0;
+      if (forward ? _atEnd : _atStart) return;
+      unawaited(
+        _curl.beginDrag(
+          forward ? 1 : -1,
+          outgoing: controller.snapshot,
+          advance: () =>
+              unawaited(forward ? controller.next() : controller.previous()),
+          revert: () =>
+              unawaited(forward ? controller.previous() : controller.next()),
+        ),
+      );
+      return;
+    }
+
+    final travel = (_dragTravel.abs() - 16).clamp(0.0, double.infinity);
+    _dragProgress = (travel / (width * 0.7)).clamp(0.0, 1.0);
+    _curl.updateDrag(_dragProgress);
+  }
+
+  void _onDragEnd(DragEndDetails details) {
+    final velocity = details.velocity.pixelsPerSecond.dx;
+    if (_curl.dragging) {
+      _curl.endDrag(complete: _dragProgress > 0.35 || velocity.abs() > 600);
+      _dragProgress = 0;
+      _dragTravel = 0;
+      return;
+    }
+    final travel = _dragTravel;
+    _dragTravel = 0;
+    _dragProgress = 0;
+    if (_showToc || _showAppearance || _showSearch) return;
+    if (travel.abs() > 56 || velocity.abs() > 600) {
+      _turn(travel < 0 ? 1 : -1);
+    }
+  }
+
+  void _onDragCancel() {
+    if (_curl.dragging) _curl.endDrag(complete: false);
+    _dragTravel = 0;
+    _dragProgress = 0;
+  }
+
   void _onReaderPointerUp(Offset up) {
+    if (_curl.dragging || _curl.busy) {
+      _tapDownPos = null;
+      _tapDownAt = null;
+      return;
+    }
     final down = _tapDownPos;
     final at = _tapDownAt;
     _tapDownPos = null;
     _tapDownAt = null;
     if (down == null || at == null || !mounted) return;
+
+    final elapsed = DateTime.now().difference(at);
+    final delta = up - down;
+    final panelOpen = _showToc || _showAppearance || _showSearch;
+
+    if (panelOpen) {
+      if (delta.distance <= 16 &&
+          elapsed <= const Duration(milliseconds: 350)) {
+        setState(() => _showToc = _showAppearance = _showSearch = false);
+      }
+      return;
+    }
 
     final size = MediaQuery.sizeOf(context);
     final safe = MediaQuery.viewPaddingOf(context);
@@ -171,26 +258,9 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
       return;
     }
 
-    final elapsed = DateTime.now().difference(at);
-    final delta = up - down;
-    final panelOpen = _showToc || _showAppearance || _showSearch;
-
-    if (delta.distance > 16) {
-      if (!panelOpen &&
-          elapsed < const Duration(milliseconds: 600) &&
-          delta.dx.abs() > 56 &&
-          delta.dx.abs() > delta.dy.abs() * 1.5) {
-        _turn(delta.dx < 0 ? 1 : -1);
-      }
-      return;
-    }
+    if (delta.distance > 16) return;
 
     if (elapsed > const Duration(milliseconds: 350)) return;
-
-    if (panelOpen) {
-      setState(() => _showToc = _showAppearance = _showSearch = false);
-      return;
-    }
 
     final edgeRaw = size.width * 0.22;
     final edge = edgeRaw > 130 ? 130.0 : edgeRaw;
@@ -209,15 +279,15 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
   (double, double)? _lastInsets;
   Size? _lastSize;
 
-  void _pushInsets() {
+  void _pushInsets({bool force = false}) {
     final controller = _controller;
     if (controller == null || !mounted) return;
     final size = MediaQuery.sizeOf(context);
-    if (_lastSize == size) return;
+    if (_lastSize == size && !force) return;
     _lastSize = size;
     final safe = MediaQuery.viewPaddingOf(context);
     final next = (safe.top + 52.0, safe.bottom + 48.0);
-    if (_lastInsets == next) return;
+    if (_lastInsets == next && !force) return;
     _lastInsets = next;
     controller.setInsets(next.$1, next.$2);
   }
@@ -254,31 +324,30 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
       ));
     } catch (_) {}
 
-    final server = await ReaderServer.start(extractDir);
     await repo.markOpened(widget.bookId);
+    if (!mounted) return;
 
-    if (!mounted) {
-      await server.dispose();
+    if (epubBook == null) {
+      setState(() => _error = 'No se pudo leer la estructura del libro');
       return;
     }
+
     setState(() {
       _book = book;
       _epubBook = epubBook;
-      _server = server;
+      _nativeSource = NativeBookSource(root: extractDir, book: epubBook!);
+      _initialLocator = progress?.locator;
+      _initialPercent = progress?.percent;
       final safe = MediaQuery.viewPaddingOf(context);
-      final top = (safe.top + 52).round();
-      final bottom = (safe.bottom + 48).round();
-      _lastInsets = (top.toDouble(), bottom.toDouble());
+      _lastInsets = (safe.top + 52.0, safe.bottom + 48.0);
       _lastSize = MediaQuery.sizeOf(context);
-      _readerUrl = server.readerUrl(
-        opfPath: epubBook?.opfPath,
-        cfi: progress?.locator,
-        hasLocations: _cachedLocations != null,
-        insetTop: top,
-        insetBottom: bottom,
-      );
     });
   }
+
+  String? _initialLocator;
+  double? _initialPercent;
+
+  bool get _dragCurlReady => _nativeSource != null;
 
   List<EpubTocEntry> get _toc {
     final parsed = _epubBook?.toc ?? const [];
@@ -479,7 +548,6 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
     if (!mounted) return;
     if (loc.percentage != null) _lastPercent = loc.percentage!;
     setState(() => _location = loc);
-    _scheduleCurlCapture();
 
     _saveTimer?.cancel();
     _saveTimer = Timer(const Duration(milliseconds: 700), () {
@@ -496,23 +564,19 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
     if (!mounted) return;
     _controller?.applyPresentation(settings.toPresentation());
     WakelockPlus.toggle(enable: settings.keepAwake);
-    _scheduleCurlCapture();
   }
 
-  void _scheduleCurlCapture({int delayMs = 120}) {
-    _curl.scheduleCapture(
-      () async {
-        if (!mounted) return null;
-        return _controller?.snapshot();
-      },
-      enabled: _settings.pageAnimation == 'curl',
-      delayMs: delayMs,
+  Future<void> _curlTurn(
+    int dir,
+    EpubViewController controller,
+    VoidCallback advance,
+  ) async {
+    final started = await _curl.start(
+      dir,
+      outgoing: controller.snapshot,
+      advance: advance,
     );
-  }
-
-  Future<void> _curlTurn(int dir, VoidCallback advance) async {
-    final ok = await _curl.startOrCapture(dir, advance: advance);
-    if (!ok && mounted) advance();
+    if (!started && mounted) advance();
   }
 
   void _turn(int dir) {
@@ -520,13 +584,9 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
     final controller = _controller;
     if (controller == null) return;
     void advance() => dir > 0 ? controller.next() : controller.previous();
-    if (kDebugMode) {
-      debugPrint('[curl] turn dir=$dir modo=${_settings.pageAnimation}');
-    }
     if (_settings.pageAnimation == 'curl') {
       if (_curl.busy) return;
-      if (_curl.start(dir, advance: advance)) return;
-      unawaited(_curlTurn(dir, advance));
+      unawaited(_curlTurn(dir, controller, advance));
       return;
     }
     advance();
@@ -560,7 +620,6 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
     WakelockPlus.disable();
     _curl.dispose();
     _saveProgressNow();
-    _server?.dispose();
     _focusNode.dispose();
     super.dispose();
   }
@@ -595,7 +654,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
       backgroundColor: settings.preset.background,
       body: _error != null
           ? _ErrorView(message: _error!)
-          : _readerUrl == null
+          : _nativeSource == null
           ? const Center(child: CircularProgressIndicator())
           : Focus(
               focusNode: _focusNode,
@@ -605,8 +664,10 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
                 children: [
                   Positioned.fill(
                     child: createEpubView(
-                      key: ValueKey(_readerUrl.toString()),
-                      readerUrl: _readerUrl!,
+                      key: ValueKey(widget.bookId),
+                      source: _nativeSource!,
+                      initialLocator: _initialLocator,
+                      initialPercent: _initialPercent,
                       callbacks: EpubViewCallbacks(
                         onReady: (c) {
                           _controller = c;
@@ -617,7 +678,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
                             for (final h in _highlights)
                               HighlightSpec(cfi: h.cfi, color: h.color),
                           ]);
-                          _pushInsets();
+                          _pushInsets(force: true);
                           _focusNode.requestFocus();
                         },
                         onLocationChanged: _onLocation,
@@ -633,15 +694,6 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
                         onLocationsGenerated: (json) {
                           _cachedLocations = json;
                           _repo.saveLocations(widget.bookId, json);
-                        },
-                        onPageCount: (n) {
-                          if (!mounted) return;
-                          setState(() => _pageCount = n);
-                        },
-                        onRendered: () {
-                          if (!mounted) return;
-                          _curl.invalidate();
-                          _scheduleCurlCapture(delayMs: 350);
                         },
                         onSearchResults: (query, hits) {
                           if (!mounted || query != _searchQuery) return;
@@ -668,8 +720,13 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
                       ),
                     ),
                   ),
-                  if (!_showToc && !_showAppearance && !_showSearch)
-                    Positioned.fill(
+                  Positioned.fill(
+                    child: GestureDetector(
+                      behavior: HitTestBehavior.translucent,
+                      onHorizontalDragStart: _onDragStart,
+                      onHorizontalDragUpdate: _onDragUpdate,
+                      onHorizontalDragEnd: _onDragEnd,
+                      onHorizontalDragCancel: _onDragCancel,
                       child: Listener(
                         behavior: HitTestBehavior.translucent,
                         onPointerDown: (e) {
@@ -683,6 +740,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
                         },
                       ),
                     ),
+                  ),
                   ?_curl.overlay(),
                   ?_selectionToolbar(),
                   ReaderBar(
@@ -702,6 +760,8 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
                     child: _showAppearance
                         ? AppearancePanel(
                             settings: settings,
+                            bookFontAvailable:
+                                _nativeSource?.bookFontFamily != null,
                             onPreset: (p) => ref
                                 .read(readerSettingsControllerProvider)
                                 .setPreset(p),
@@ -727,7 +787,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
                             toc: _toc,
                             currentHref: _location?.href,
                             chapterCount: _chapterTotal,
-                            pageCount: _pageCount,
+                            pageCount: 0,
                             bookmarks: _bookmarks,
                             currentCfi: _location?.cfi,
                             chrome: _chrome,
