@@ -53,7 +53,7 @@ abstract final class EpubPackage {
             href: archive.resolveFromOpf(href),
             mediaType: item.getAttribute('media-type') ?? '',
             properties: (item.getAttribute('properties') ?? '')
-                .split(RegExp(r's+'))
+                .split(RegExp(r'\s+'))
                 .where((s) => s.isNotEmpty)
                 .toSet(),
           );
@@ -148,7 +148,7 @@ abstract final class EpubPackage {
     );
     if (navItem != null && archive.exists(navItem.href)) {
       final toc = _parseNavDoc(archive.xml(navItem.href), navItem.href);
-      if (toc.isNotEmpty) return toc;
+      if (toc.isNotEmpty) return _pruneToc(toc);
     }
 
     final spine = _child(pkg, 'spine');
@@ -158,10 +158,47 @@ abstract final class EpubPackage {
       (m) => m.mediaType == 'application/x-dtbncx+xml',
     );
     if (ncx != null && archive.exists(ncx.href)) {
-      return _parseNcx(archive.xml(ncx.href), ncx.href);
+      return _pruneToc(_parseNcx(archive.xml(ncx.href), ncx.href));
     }
 
     return const [];
+  }
+
+  static final _numberLabel = RegExp(r'^\d{1,4}\s*[.)]?$');
+
+  static bool _isNumberish(String label) => _numberLabel.hasMatch(label.trim());
+
+  /// Quita entradas que son solo un número de capítulo (típico de NCX que
+  /// listan «Título» y debajo «3»), pero solo si quedan entradas con título.
+  static List<EpubTocEntry> _pruneToc(List<EpubTocEntry> toc) {
+    var titled = 0;
+    void count(List<EpubTocEntry> items) {
+      for (final e in items) {
+        if (!_isNumberish(e.label)) titled++;
+        count(e.children);
+      }
+    }
+
+    count(toc);
+    if (titled == 0) return toc;
+
+    List<EpubTocEntry> prune(List<EpubTocEntry> items, String? parentLabel) {
+      final out = <EpubTocEntry>[];
+      for (final e in items) {
+        final children = prune(e.children, e.label);
+        final duplicate =
+            parentLabel != null &&
+            e.label.trim().toLowerCase() == parentLabel.trim().toLowerCase();
+        if ((_isNumberish(e.label) || duplicate) && children.isEmpty) {
+          continue;
+        }
+        out.add(EpubTocEntry(label: e.label, href: e.href, children: children));
+      }
+      return out;
+    }
+
+    final pruned = prune(toc, null);
+    return pruned.isEmpty ? toc : pruned;
   }
 
   static List<EpubTocEntry> _parseNcx(XmlDocument doc, String ncxPath) {
@@ -208,7 +245,7 @@ abstract final class EpubPackage {
           nav.getAttribute('epub:type') ??
           nav.getAttribute('type', namespaceUri: _opsNs) ??
           '';
-      if (type.split(RegExp(r's+')).contains('toc')) {
+      if (type.split(RegExp(r'\s+')).contains('toc')) {
         tocNav = nav;
         break;
       }
