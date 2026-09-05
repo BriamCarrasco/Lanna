@@ -81,6 +81,17 @@ class $BooksTable extends Books with TableInfo<$BooksTable, Book> {
     type: DriftSqlType.int,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _contentHashMeta = const VerificationMeta(
+    'contentHash',
+  );
+  @override
+  late final GeneratedColumn<String> contentHash = GeneratedColumn<String>(
+    'content_hash',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _addedAtMeta = const VerificationMeta(
     'addedAt',
   );
@@ -113,6 +124,7 @@ class $BooksTable extends Books with TableInfo<$BooksTable, Book> {
     format,
     coverPath,
     fileSizeBytes,
+    contentHash,
     addedAt,
     lastOpenedAt,
   ];
@@ -170,6 +182,15 @@ class $BooksTable extends Books with TableInfo<$BooksTable, Book> {
         ),
       );
     }
+    if (data.containsKey('content_hash')) {
+      context.handle(
+        _contentHashMeta,
+        contentHash.isAcceptableOrUnknown(
+          data['content_hash']!,
+          _contentHashMeta,
+        ),
+      );
+    }
     if (data.containsKey('added_at')) {
       context.handle(
         _addedAtMeta,
@@ -224,6 +245,10 @@ class $BooksTable extends Books with TableInfo<$BooksTable, Book> {
         DriftSqlType.int,
         data['${effectivePrefix}file_size_bytes'],
       ),
+      contentHash: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}content_hash'],
+      ),
       addedAt: attachedDatabase.typeMapping.read(
         DriftSqlType.dateTime,
         data['${effectivePrefix}added_at'],
@@ -252,6 +277,7 @@ class Book extends DataClass implements Insertable<Book> {
   final BookFormat format;
   final String? coverPath;
   final int? fileSizeBytes;
+  final String? contentHash;
   final DateTime addedAt;
   final DateTime? lastOpenedAt;
   const Book({
@@ -262,6 +288,7 @@ class Book extends DataClass implements Insertable<Book> {
     required this.format,
     this.coverPath,
     this.fileSizeBytes,
+    this.contentHash,
     required this.addedAt,
     this.lastOpenedAt,
   });
@@ -285,6 +312,9 @@ class Book extends DataClass implements Insertable<Book> {
     if (!nullToAbsent || fileSizeBytes != null) {
       map['file_size_bytes'] = Variable<int>(fileSizeBytes);
     }
+    if (!nullToAbsent || contentHash != null) {
+      map['content_hash'] = Variable<String>(contentHash);
+    }
     map['added_at'] = Variable<DateTime>(addedAt);
     if (!nullToAbsent || lastOpenedAt != null) {
       map['last_opened_at'] = Variable<DateTime>(lastOpenedAt);
@@ -307,6 +337,9 @@ class Book extends DataClass implements Insertable<Book> {
       fileSizeBytes: fileSizeBytes == null && nullToAbsent
           ? const Value.absent()
           : Value(fileSizeBytes),
+      contentHash: contentHash == null && nullToAbsent
+          ? const Value.absent()
+          : Value(contentHash),
       addedAt: Value(addedAt),
       lastOpenedAt: lastOpenedAt == null && nullToAbsent
           ? const Value.absent()
@@ -329,6 +362,7 @@ class Book extends DataClass implements Insertable<Book> {
       ),
       coverPath: serializer.fromJson<String?>(json['coverPath']),
       fileSizeBytes: serializer.fromJson<int?>(json['fileSizeBytes']),
+      contentHash: serializer.fromJson<String?>(json['contentHash']),
       addedAt: serializer.fromJson<DateTime>(json['addedAt']),
       lastOpenedAt: serializer.fromJson<DateTime?>(json['lastOpenedAt']),
     );
@@ -346,6 +380,7 @@ class Book extends DataClass implements Insertable<Book> {
       ),
       'coverPath': serializer.toJson<String?>(coverPath),
       'fileSizeBytes': serializer.toJson<int?>(fileSizeBytes),
+      'contentHash': serializer.toJson<String?>(contentHash),
       'addedAt': serializer.toJson<DateTime>(addedAt),
       'lastOpenedAt': serializer.toJson<DateTime?>(lastOpenedAt),
     };
@@ -359,6 +394,7 @@ class Book extends DataClass implements Insertable<Book> {
     BookFormat? format,
     Value<String?> coverPath = const Value.absent(),
     Value<int?> fileSizeBytes = const Value.absent(),
+    Value<String?> contentHash = const Value.absent(),
     DateTime? addedAt,
     Value<DateTime?> lastOpenedAt = const Value.absent(),
   }) => Book(
@@ -371,6 +407,7 @@ class Book extends DataClass implements Insertable<Book> {
     fileSizeBytes: fileSizeBytes.present
         ? fileSizeBytes.value
         : this.fileSizeBytes,
+    contentHash: contentHash.present ? contentHash.value : this.contentHash,
     addedAt: addedAt ?? this.addedAt,
     lastOpenedAt: lastOpenedAt.present ? lastOpenedAt.value : this.lastOpenedAt,
   );
@@ -385,6 +422,9 @@ class Book extends DataClass implements Insertable<Book> {
       fileSizeBytes: data.fileSizeBytes.present
           ? data.fileSizeBytes.value
           : this.fileSizeBytes,
+      contentHash: data.contentHash.present
+          ? data.contentHash.value
+          : this.contentHash,
       addedAt: data.addedAt.present ? data.addedAt.value : this.addedAt,
       lastOpenedAt: data.lastOpenedAt.present
           ? data.lastOpenedAt.value
@@ -402,6 +442,7 @@ class Book extends DataClass implements Insertable<Book> {
           ..write('format: $format, ')
           ..write('coverPath: $coverPath, ')
           ..write('fileSizeBytes: $fileSizeBytes, ')
+          ..write('contentHash: $contentHash, ')
           ..write('addedAt: $addedAt, ')
           ..write('lastOpenedAt: $lastOpenedAt')
           ..write(')'))
@@ -417,6 +458,7 @@ class Book extends DataClass implements Insertable<Book> {
     format,
     coverPath,
     fileSizeBytes,
+    contentHash,
     addedAt,
     lastOpenedAt,
   );
@@ -431,6 +473,7 @@ class Book extends DataClass implements Insertable<Book> {
           other.format == this.format &&
           other.coverPath == this.coverPath &&
           other.fileSizeBytes == this.fileSizeBytes &&
+          other.contentHash == this.contentHash &&
           other.addedAt == this.addedAt &&
           other.lastOpenedAt == this.lastOpenedAt);
 }
@@ -443,6 +486,7 @@ class BooksCompanion extends UpdateCompanion<Book> {
   final Value<BookFormat> format;
   final Value<String?> coverPath;
   final Value<int?> fileSizeBytes;
+  final Value<String?> contentHash;
   final Value<DateTime> addedAt;
   final Value<DateTime?> lastOpenedAt;
   final Value<int> rowid;
@@ -454,6 +498,7 @@ class BooksCompanion extends UpdateCompanion<Book> {
     this.format = const Value.absent(),
     this.coverPath = const Value.absent(),
     this.fileSizeBytes = const Value.absent(),
+    this.contentHash = const Value.absent(),
     this.addedAt = const Value.absent(),
     this.lastOpenedAt = const Value.absent(),
     this.rowid = const Value.absent(),
@@ -466,6 +511,7 @@ class BooksCompanion extends UpdateCompanion<Book> {
     required BookFormat format,
     this.coverPath = const Value.absent(),
     this.fileSizeBytes = const Value.absent(),
+    this.contentHash = const Value.absent(),
     this.addedAt = const Value.absent(),
     this.lastOpenedAt = const Value.absent(),
     this.rowid = const Value.absent(),
@@ -481,6 +527,7 @@ class BooksCompanion extends UpdateCompanion<Book> {
     Expression<String>? format,
     Expression<String>? coverPath,
     Expression<int>? fileSizeBytes,
+    Expression<String>? contentHash,
     Expression<DateTime>? addedAt,
     Expression<DateTime>? lastOpenedAt,
     Expression<int>? rowid,
@@ -493,6 +540,7 @@ class BooksCompanion extends UpdateCompanion<Book> {
       if (format != null) 'format': format,
       if (coverPath != null) 'cover_path': coverPath,
       if (fileSizeBytes != null) 'file_size_bytes': fileSizeBytes,
+      if (contentHash != null) 'content_hash': contentHash,
       if (addedAt != null) 'added_at': addedAt,
       if (lastOpenedAt != null) 'last_opened_at': lastOpenedAt,
       if (rowid != null) 'rowid': rowid,
@@ -507,6 +555,7 @@ class BooksCompanion extends UpdateCompanion<Book> {
     Value<BookFormat>? format,
     Value<String?>? coverPath,
     Value<int?>? fileSizeBytes,
+    Value<String?>? contentHash,
     Value<DateTime>? addedAt,
     Value<DateTime?>? lastOpenedAt,
     Value<int>? rowid,
@@ -519,6 +568,7 @@ class BooksCompanion extends UpdateCompanion<Book> {
       format: format ?? this.format,
       coverPath: coverPath ?? this.coverPath,
       fileSizeBytes: fileSizeBytes ?? this.fileSizeBytes,
+      contentHash: contentHash ?? this.contentHash,
       addedAt: addedAt ?? this.addedAt,
       lastOpenedAt: lastOpenedAt ?? this.lastOpenedAt,
       rowid: rowid ?? this.rowid,
@@ -551,6 +601,9 @@ class BooksCompanion extends UpdateCompanion<Book> {
     if (fileSizeBytes.present) {
       map['file_size_bytes'] = Variable<int>(fileSizeBytes.value);
     }
+    if (contentHash.present) {
+      map['content_hash'] = Variable<String>(contentHash.value);
+    }
     if (addedAt.present) {
       map['added_at'] = Variable<DateTime>(addedAt.value);
     }
@@ -573,6 +626,7 @@ class BooksCompanion extends UpdateCompanion<Book> {
           ..write('format: $format, ')
           ..write('coverPath: $coverPath, ')
           ..write('fileSizeBytes: $fileSizeBytes, ')
+          ..write('contentHash: $contentHash, ')
           ..write('addedAt: $addedAt, ')
           ..write('lastOpenedAt: $lastOpenedAt, ')
           ..write('rowid: $rowid')
@@ -1538,277 +1592,6 @@ class ReaderPrefsCompanion extends UpdateCompanion<ReaderPref> {
           ..write('edgeTaps: $edgeTaps, ')
           ..write('keepAwake: $keepAwake, ')
           ..write('engine: $engine')
-          ..write(')'))
-        .toString();
-  }
-}
-
-class $BookLocationsTable extends BookLocations
-    with TableInfo<$BookLocationsTable, BookLocation> {
-  @override
-  final GeneratedDatabase attachedDatabase;
-  final String? _alias;
-  $BookLocationsTable(this.attachedDatabase, [this._alias]);
-  static const VerificationMeta _bookIdMeta = const VerificationMeta('bookId');
-  @override
-  late final GeneratedColumn<String> bookId = GeneratedColumn<String>(
-    'book_id',
-    aliasedName,
-    false,
-    type: DriftSqlType.string,
-    requiredDuringInsert: true,
-    defaultConstraints: GeneratedColumn.constraintIsAlways(
-      'REFERENCES books (id) ON DELETE CASCADE',
-    ),
-  );
-  static const VerificationMeta _dataMeta = const VerificationMeta('data');
-  @override
-  late final GeneratedColumn<String> data = GeneratedColumn<String>(
-    'data',
-    aliasedName,
-    false,
-    type: DriftSqlType.string,
-    requiredDuringInsert: true,
-  );
-  static const VerificationMeta _generatedAtMeta = const VerificationMeta(
-    'generatedAt',
-  );
-  @override
-  late final GeneratedColumn<DateTime> generatedAt = GeneratedColumn<DateTime>(
-    'generated_at',
-    aliasedName,
-    false,
-    type: DriftSqlType.dateTime,
-    requiredDuringInsert: false,
-    defaultValue: currentDateAndTime,
-  );
-  @override
-  List<GeneratedColumn> get $columns => [bookId, data, generatedAt];
-  @override
-  String get aliasedName => _alias ?? actualTableName;
-  @override
-  String get actualTableName => $name;
-  static const String $name = 'book_locations';
-  @override
-  VerificationContext validateIntegrity(
-    Insertable<BookLocation> instance, {
-    bool isInserting = false,
-  }) {
-    final context = VerificationContext();
-    final data = instance.toColumns(true);
-    if (data.containsKey('book_id')) {
-      context.handle(
-        _bookIdMeta,
-        bookId.isAcceptableOrUnknown(data['book_id']!, _bookIdMeta),
-      );
-    } else if (isInserting) {
-      context.missing(_bookIdMeta);
-    }
-    if (data.containsKey('data')) {
-      context.handle(
-        _dataMeta,
-        this.data.isAcceptableOrUnknown(data['data']!, _dataMeta),
-      );
-    } else if (isInserting) {
-      context.missing(_dataMeta);
-    }
-    if (data.containsKey('generated_at')) {
-      context.handle(
-        _generatedAtMeta,
-        generatedAt.isAcceptableOrUnknown(
-          data['generated_at']!,
-          _generatedAtMeta,
-        ),
-      );
-    }
-    return context;
-  }
-
-  @override
-  Set<GeneratedColumn> get $primaryKey => {bookId};
-  @override
-  BookLocation map(Map<String, dynamic> data, {String? tablePrefix}) {
-    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
-    return BookLocation(
-      bookId: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}book_id'],
-      )!,
-      data: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}data'],
-      )!,
-      generatedAt: attachedDatabase.typeMapping.read(
-        DriftSqlType.dateTime,
-        data['${effectivePrefix}generated_at'],
-      )!,
-    );
-  }
-
-  @override
-  $BookLocationsTable createAlias(String alias) {
-    return $BookLocationsTable(attachedDatabase, alias);
-  }
-}
-
-class BookLocation extends DataClass implements Insertable<BookLocation> {
-  final String bookId;
-  final String data;
-  final DateTime generatedAt;
-  const BookLocation({
-    required this.bookId,
-    required this.data,
-    required this.generatedAt,
-  });
-  @override
-  Map<String, Expression> toColumns(bool nullToAbsent) {
-    final map = <String, Expression>{};
-    map['book_id'] = Variable<String>(bookId);
-    map['data'] = Variable<String>(data);
-    map['generated_at'] = Variable<DateTime>(generatedAt);
-    return map;
-  }
-
-  BookLocationsCompanion toCompanion(bool nullToAbsent) {
-    return BookLocationsCompanion(
-      bookId: Value(bookId),
-      data: Value(data),
-      generatedAt: Value(generatedAt),
-    );
-  }
-
-  factory BookLocation.fromJson(
-    Map<String, dynamic> json, {
-    ValueSerializer? serializer,
-  }) {
-    serializer ??= driftRuntimeOptions.defaultSerializer;
-    return BookLocation(
-      bookId: serializer.fromJson<String>(json['bookId']),
-      data: serializer.fromJson<String>(json['data']),
-      generatedAt: serializer.fromJson<DateTime>(json['generatedAt']),
-    );
-  }
-  @override
-  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
-    serializer ??= driftRuntimeOptions.defaultSerializer;
-    return <String, dynamic>{
-      'bookId': serializer.toJson<String>(bookId),
-      'data': serializer.toJson<String>(data),
-      'generatedAt': serializer.toJson<DateTime>(generatedAt),
-    };
-  }
-
-  BookLocation copyWith({
-    String? bookId,
-    String? data,
-    DateTime? generatedAt,
-  }) => BookLocation(
-    bookId: bookId ?? this.bookId,
-    data: data ?? this.data,
-    generatedAt: generatedAt ?? this.generatedAt,
-  );
-  BookLocation copyWithCompanion(BookLocationsCompanion data) {
-    return BookLocation(
-      bookId: data.bookId.present ? data.bookId.value : this.bookId,
-      data: data.data.present ? data.data.value : this.data,
-      generatedAt: data.generatedAt.present
-          ? data.generatedAt.value
-          : this.generatedAt,
-    );
-  }
-
-  @override
-  String toString() {
-    return (StringBuffer('BookLocation(')
-          ..write('bookId: $bookId, ')
-          ..write('data: $data, ')
-          ..write('generatedAt: $generatedAt')
-          ..write(')'))
-        .toString();
-  }
-
-  @override
-  int get hashCode => Object.hash(bookId, data, generatedAt);
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      (other is BookLocation &&
-          other.bookId == this.bookId &&
-          other.data == this.data &&
-          other.generatedAt == this.generatedAt);
-}
-
-class BookLocationsCompanion extends UpdateCompanion<BookLocation> {
-  final Value<String> bookId;
-  final Value<String> data;
-  final Value<DateTime> generatedAt;
-  final Value<int> rowid;
-  const BookLocationsCompanion({
-    this.bookId = const Value.absent(),
-    this.data = const Value.absent(),
-    this.generatedAt = const Value.absent(),
-    this.rowid = const Value.absent(),
-  });
-  BookLocationsCompanion.insert({
-    required String bookId,
-    required String data,
-    this.generatedAt = const Value.absent(),
-    this.rowid = const Value.absent(),
-  }) : bookId = Value(bookId),
-       data = Value(data);
-  static Insertable<BookLocation> custom({
-    Expression<String>? bookId,
-    Expression<String>? data,
-    Expression<DateTime>? generatedAt,
-    Expression<int>? rowid,
-  }) {
-    return RawValuesInsertable({
-      if (bookId != null) 'book_id': bookId,
-      if (data != null) 'data': data,
-      if (generatedAt != null) 'generated_at': generatedAt,
-      if (rowid != null) 'rowid': rowid,
-    });
-  }
-
-  BookLocationsCompanion copyWith({
-    Value<String>? bookId,
-    Value<String>? data,
-    Value<DateTime>? generatedAt,
-    Value<int>? rowid,
-  }) {
-    return BookLocationsCompanion(
-      bookId: bookId ?? this.bookId,
-      data: data ?? this.data,
-      generatedAt: generatedAt ?? this.generatedAt,
-      rowid: rowid ?? this.rowid,
-    );
-  }
-
-  @override
-  Map<String, Expression> toColumns(bool nullToAbsent) {
-    final map = <String, Expression>{};
-    if (bookId.present) {
-      map['book_id'] = Variable<String>(bookId.value);
-    }
-    if (data.present) {
-      map['data'] = Variable<String>(data.value);
-    }
-    if (generatedAt.present) {
-      map['generated_at'] = Variable<DateTime>(generatedAt.value);
-    }
-    if (rowid.present) {
-      map['rowid'] = Variable<int>(rowid.value);
-    }
-    return map;
-  }
-
-  @override
-  String toString() {
-    return (StringBuffer('BookLocationsCompanion(')
-          ..write('bookId: $bookId, ')
-          ..write('data: $data, ')
-          ..write('generatedAt: $generatedAt, ')
-          ..write('rowid: $rowid')
           ..write(')'))
         .toString();
   }
@@ -3368,7 +3151,6 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     this,
   );
   late final $ReaderPrefsTable readerPrefs = $ReaderPrefsTable(this);
-  late final $BookLocationsTable bookLocations = $BookLocationsTable(this);
   late final $BookmarksTable bookmarks = $BookmarksTable(this);
   late final $CollectionsTable collections = $CollectionsTable(this);
   late final $CollectionEntriesTable collectionEntries =
@@ -3382,7 +3164,6 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     books,
     readingProgress,
     readerPrefs,
-    bookLocations,
     bookmarks,
     collections,
     collectionEntries,
@@ -3396,13 +3177,6 @@ abstract class _$AppDatabase extends GeneratedDatabase {
         limitUpdateKind: UpdateKind.delete,
       ),
       result: [TableUpdate('reading_progress', kind: UpdateKind.delete)],
-    ),
-    WritePropagation(
-      on: TableUpdateQuery.onTableName(
-        'books',
-        limitUpdateKind: UpdateKind.delete,
-      ),
-      result: [TableUpdate('book_locations', kind: UpdateKind.delete)],
     ),
     WritePropagation(
       on: TableUpdateQuery.onTableName(
@@ -3443,6 +3217,7 @@ typedef $$BooksTableCreateCompanionBuilder = BooksCompanion Function({
   required BookFormat format,
   Value<String?> coverPath,
   Value<int?> fileSizeBytes,
+  Value<String?> contentHash,
   Value<DateTime> addedAt,
   Value<DateTime?> lastOpenedAt,
   Value<int> rowid,
@@ -3455,6 +3230,7 @@ typedef $$BooksTableUpdateCompanionBuilder = BooksCompanion Function({
   Value<BookFormat> format,
   Value<String?> coverPath,
   Value<int?> fileSizeBytes,
+  Value<String?> contentHash,
   Value<DateTime> addedAt,
   Value<DateTime?> lastOpenedAt,
   Value<int> rowid,
@@ -3479,24 +3255,6 @@ final class $$BooksTableReferences
     final cache = $_typedResult.readTableOrNull(
       _readingProgressRefsTable($_db),
     );
-    return ProcessedTableManager(
-      manager.$state.copyWith(prefetchedData: cache),
-    );
-  }
-
-  static MultiTypedResultKey<$BookLocationsTable, List<BookLocation>>
-  _bookLocationsRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
-    db.bookLocations,
-    aliasName: 'books__id__book_locations__book_id',
-  );
-
-  $$BookLocationsTableProcessedTableManager get bookLocationsRefs {
-    final manager = $$BookLocationsTableTableManager(
-      $_db,
-      $_db.bookLocations,
-    ).filter((f) => f.bookId.id.sqlEquals($_itemColumn<String>('id')!));
-
-    final cache = $_typedResult.readTableOrNull(_bookLocationsRefsTable($_db));
     return ProcessedTableManager(
       manager.$state.copyWith(prefetchedData: cache),
     );
@@ -3604,6 +3362,11 @@ class $$BooksTableFilterComposer extends Composer<_$AppDatabase, $BooksTable> {
     builder: (column) => ColumnFilters(column),
   );
 
+  ColumnFilters<String> get contentHash => $composableBuilder(
+    column: $table.contentHash,
+    builder: (column) => ColumnFilters(column),
+  );
+
   ColumnFilters<DateTime> get addedAt => $composableBuilder(
     column: $table.addedAt,
     builder: (column) => ColumnFilters(column),
@@ -3630,31 +3393,6 @@ class $$BooksTableFilterComposer extends Composer<_$AppDatabase, $BooksTable> {
           }) => $$ReadingProgressTableFilterComposer(
             $db: $db,
             $table: $db.readingProgress,
-            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-            joinBuilder: joinBuilder,
-            $removeJoinBuilderFromRootComposer:
-                $removeJoinBuilderFromRootComposer,
-          ),
-    );
-    return f(composer);
-  }
-
-  Expression<bool> bookLocationsRefs(
-    Expression<bool> Function($$BookLocationsTableFilterComposer f) f,
-  ) {
-    final $$BookLocationsTableFilterComposer composer = $composerBuilder(
-      composer: this,
-      getCurrentColumn: (t) => t.id,
-      referencedTable: $db.bookLocations,
-      getReferencedColumn: (t) => t.bookId,
-      builder:
-          (
-            joinBuilder, {
-            $addJoinBuilderToRootComposer,
-            $removeJoinBuilderFromRootComposer,
-          }) => $$BookLocationsTableFilterComposer(
-            $db: $db,
-            $table: $db.bookLocations,
             $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
             joinBuilder: joinBuilder,
             $removeJoinBuilderFromRootComposer:
@@ -3784,6 +3522,11 @@ class $$BooksTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get contentHash => $composableBuilder(
+    column: $table.contentHash,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<DateTime> get addedAt => $composableBuilder(
     column: $table.addedAt,
     builder: (column) => ColumnOrderings(column),
@@ -3827,6 +3570,11 @@ class $$BooksTableAnnotationComposer
     builder: (column) => column,
   );
 
+  GeneratedColumn<String> get contentHash => $composableBuilder(
+    column: $table.contentHash,
+    builder: (column) => column,
+  );
+
   GeneratedColumn<DateTime> get addedAt =>
       $composableBuilder(column: $table.addedAt, builder: (column) => column);
 
@@ -3851,31 +3599,6 @@ class $$BooksTableAnnotationComposer
           }) => $$ReadingProgressTableAnnotationComposer(
             $db: $db,
             $table: $db.readingProgress,
-            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-            joinBuilder: joinBuilder,
-            $removeJoinBuilderFromRootComposer:
-                $removeJoinBuilderFromRootComposer,
-          ),
-    );
-    return f(composer);
-  }
-
-  Expression<T> bookLocationsRefs<T extends Object>(
-    Expression<T> Function($$BookLocationsTableAnnotationComposer a) f,
-  ) {
-    final $$BookLocationsTableAnnotationComposer composer = $composerBuilder(
-      composer: this,
-      getCurrentColumn: (t) => t.id,
-      referencedTable: $db.bookLocations,
-      getReferencedColumn: (t) => t.bookId,
-      builder:
-          (
-            joinBuilder, {
-            $addJoinBuilderToRootComposer,
-            $removeJoinBuilderFromRootComposer,
-          }) => $$BookLocationsTableAnnotationComposer(
-            $db: $db,
-            $table: $db.bookLocations,
             $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
             joinBuilder: joinBuilder,
             $removeJoinBuilderFromRootComposer:
@@ -3977,7 +3700,6 @@ class $$BooksTableTableManager
           Book,
           PrefetchHooks Function({
             bool readingProgressRefs,
-            bool bookLocationsRefs,
             bool bookmarksRefs,
             bool collectionEntriesRefs,
             bool highlightsRefs,
@@ -4003,6 +3725,7 @@ class $$BooksTableTableManager
                 Value<BookFormat> format = const Value.absent(),
                 Value<String?> coverPath = const Value.absent(),
                 Value<int?> fileSizeBytes = const Value.absent(),
+                Value<String?> contentHash = const Value.absent(),
                 Value<DateTime> addedAt = const Value.absent(),
                 Value<DateTime?> lastOpenedAt = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
@@ -4014,6 +3737,7 @@ class $$BooksTableTableManager
                 format: format,
                 coverPath: coverPath,
                 fileSizeBytes: fileSizeBytes,
+                contentHash: contentHash,
                 addedAt: addedAt,
                 lastOpenedAt: lastOpenedAt,
                 rowid: rowid,
@@ -4027,6 +3751,7 @@ class $$BooksTableTableManager
                 required BookFormat format,
                 Value<String?> coverPath = const Value.absent(),
                 Value<int?> fileSizeBytes = const Value.absent(),
+                Value<String?> contentHash = const Value.absent(),
                 Value<DateTime> addedAt = const Value.absent(),
                 Value<DateTime?> lastOpenedAt = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
@@ -4038,6 +3763,7 @@ class $$BooksTableTableManager
                 format: format,
                 coverPath: coverPath,
                 fileSizeBytes: fileSizeBytes,
+                contentHash: contentHash,
                 addedAt: addedAt,
                 lastOpenedAt: lastOpenedAt,
                 rowid: rowid,
@@ -4051,7 +3777,6 @@ class $$BooksTableTableManager
           prefetchHooksCallback:
               ({
                 readingProgressRefs = false,
-                bookLocationsRefs = false,
                 bookmarksRefs = false,
                 collectionEntriesRefs = false,
                 highlightsRefs = false,
@@ -4060,7 +3785,6 @@ class $$BooksTableTableManager
                   db: db,
                   explicitlyWatchedTables: [
                     if (readingProgressRefs) db.readingProgress,
-                    if (bookLocationsRefs) db.bookLocations,
                     if (bookmarksRefs) db.bookmarks,
                     if (collectionEntriesRefs) db.collectionEntries,
                     if (highlightsRefs) db.highlights,
@@ -4083,27 +3807,6 @@ class $$BooksTableTableManager
                                 table,
                                 p0,
                               ).readingProgressRefs,
-                          referencedItemsForCurrentItem:
-                              (item, referencedItems) => referencedItems.where(
-                                (e) => e.bookId == item.id,
-                              ),
-                          typedResults: items,
-                        ),
-                      if (bookLocationsRefs)
-                        await $_getPrefetchedData<
-                          Book,
-                          $BooksTable,
-                          BookLocation
-                        >(
-                          currentTable: table,
-                          referencedTable: $$BooksTableReferences
-                              ._bookLocationsRefsTable(db),
-                          managerFromTypedResult: (p0) =>
-                              $$BooksTableReferences(
-                                db,
-                                table,
-                                p0,
-                              ).bookLocationsRefs,
                           referencedItemsForCurrentItem:
                               (item, referencedItems) => referencedItems.where(
                                 (e) => e.bookId == item.id,
@@ -4187,7 +3890,6 @@ typedef $$BooksTableProcessedTableManager =
       Book,
       PrefetchHooks Function({
         bool readingProgressRefs,
-        bool bookLocationsRefs,
         bool bookmarksRefs,
         bool collectionEntriesRefs,
         bool highlightsRefs,
@@ -4815,289 +4517,6 @@ typedef $$ReaderPrefsTableProcessedTableManager =
       ),
       ReaderPref,
       PrefetchHooks Function()
-    >;
-typedef $$BookLocationsTableCreateCompanionBuilder =
-    BookLocationsCompanion Function({
-      required String bookId,
-      required String data,
-      Value<DateTime> generatedAt,
-      Value<int> rowid,
-    });
-typedef $$BookLocationsTableUpdateCompanionBuilder =
-    BookLocationsCompanion Function({
-      Value<String> bookId,
-      Value<String> data,
-      Value<DateTime> generatedAt,
-      Value<int> rowid,
-    });
-
-final class $$BookLocationsTableReferences
-    extends BaseReferences<_$AppDatabase, $BookLocationsTable, BookLocation> {
-  $$BookLocationsTableReferences(
-    super.$_db,
-    super.$_table,
-    super.$_typedResult,
-  );
-
-  static $BooksTable _bookIdTable(_$AppDatabase db) =>
-      db.books.createAlias('book_locations__book_id__books__id');
-
-  $$BooksTableProcessedTableManager get bookId {
-    final $_column = $_itemColumn<String>('book_id')!;
-
-    final manager = $$BooksTableTableManager(
-      $_db,
-      $_db.books,
-    ).filter((f) => f.id.sqlEquals($_column));
-    final item = $_typedResult.readTableOrNull(_bookIdTable($_db));
-    if (item == null) return manager;
-    return ProcessedTableManager(
-      manager.$state.copyWith(prefetchedData: [item]),
-    );
-  }
-}
-
-class $$BookLocationsTableFilterComposer
-    extends Composer<_$AppDatabase, $BookLocationsTable> {
-  $$BookLocationsTableFilterComposer({
-    required super.$db,
-    required super.$table,
-    super.joinBuilder,
-    super.$addJoinBuilderToRootComposer,
-    super.$removeJoinBuilderFromRootComposer,
-  });
-  ColumnFilters<String> get data => $composableBuilder(
-    column: $table.data,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<DateTime> get generatedAt => $composableBuilder(
-    column: $table.generatedAt,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  $$BooksTableFilterComposer get bookId {
-    final $$BooksTableFilterComposer composer = $composerBuilder(
-      composer: this,
-      getCurrentColumn: (t) => t.bookId,
-      referencedTable: $db.books,
-      getReferencedColumn: (t) => t.id,
-      builder:
-          (
-            joinBuilder, {
-            $addJoinBuilderToRootComposer,
-            $removeJoinBuilderFromRootComposer,
-          }) => $$BooksTableFilterComposer(
-            $db: $db,
-            $table: $db.books,
-            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-            joinBuilder: joinBuilder,
-            $removeJoinBuilderFromRootComposer:
-                $removeJoinBuilderFromRootComposer,
-          ),
-    );
-    return composer;
-  }
-}
-
-class $$BookLocationsTableOrderingComposer
-    extends Composer<_$AppDatabase, $BookLocationsTable> {
-  $$BookLocationsTableOrderingComposer({
-    required super.$db,
-    required super.$table,
-    super.joinBuilder,
-    super.$addJoinBuilderToRootComposer,
-    super.$removeJoinBuilderFromRootComposer,
-  });
-  ColumnOrderings<String> get data => $composableBuilder(
-    column: $table.data,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<DateTime> get generatedAt => $composableBuilder(
-    column: $table.generatedAt,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  $$BooksTableOrderingComposer get bookId {
-    final $$BooksTableOrderingComposer composer = $composerBuilder(
-      composer: this,
-      getCurrentColumn: (t) => t.bookId,
-      referencedTable: $db.books,
-      getReferencedColumn: (t) => t.id,
-      builder:
-          (
-            joinBuilder, {
-            $addJoinBuilderToRootComposer,
-            $removeJoinBuilderFromRootComposer,
-          }) => $$BooksTableOrderingComposer(
-            $db: $db,
-            $table: $db.books,
-            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-            joinBuilder: joinBuilder,
-            $removeJoinBuilderFromRootComposer:
-                $removeJoinBuilderFromRootComposer,
-          ),
-    );
-    return composer;
-  }
-}
-
-class $$BookLocationsTableAnnotationComposer
-    extends Composer<_$AppDatabase, $BookLocationsTable> {
-  $$BookLocationsTableAnnotationComposer({
-    required super.$db,
-    required super.$table,
-    super.joinBuilder,
-    super.$addJoinBuilderToRootComposer,
-    super.$removeJoinBuilderFromRootComposer,
-  });
-  GeneratedColumn<String> get data =>
-      $composableBuilder(column: $table.data, builder: (column) => column);
-
-  GeneratedColumn<DateTime> get generatedAt => $composableBuilder(
-    column: $table.generatedAt,
-    builder: (column) => column,
-  );
-
-  $$BooksTableAnnotationComposer get bookId {
-    final $$BooksTableAnnotationComposer composer = $composerBuilder(
-      composer: this,
-      getCurrentColumn: (t) => t.bookId,
-      referencedTable: $db.books,
-      getReferencedColumn: (t) => t.id,
-      builder:
-          (
-            joinBuilder, {
-            $addJoinBuilderToRootComposer,
-            $removeJoinBuilderFromRootComposer,
-          }) => $$BooksTableAnnotationComposer(
-            $db: $db,
-            $table: $db.books,
-            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-            joinBuilder: joinBuilder,
-            $removeJoinBuilderFromRootComposer:
-                $removeJoinBuilderFromRootComposer,
-          ),
-    );
-    return composer;
-  }
-}
-
-class $$BookLocationsTableTableManager
-    extends
-        RootTableManager<
-          _$AppDatabase,
-          $BookLocationsTable,
-          BookLocation,
-          $$BookLocationsTableFilterComposer,
-          $$BookLocationsTableOrderingComposer,
-          $$BookLocationsTableAnnotationComposer,
-          $$BookLocationsTableCreateCompanionBuilder,
-          $$BookLocationsTableUpdateCompanionBuilder,
-          (BookLocation, $$BookLocationsTableReferences),
-          BookLocation,
-          PrefetchHooks Function({bool bookId})
-        > {
-  $$BookLocationsTableTableManager(_$AppDatabase db, $BookLocationsTable table)
-    : super(
-        TableManagerState(
-          db: db,
-          table: table,
-          createFilteringComposer: () =>
-              $$BookLocationsTableFilterComposer($db: db, $table: table),
-          createOrderingComposer: () =>
-              $$BookLocationsTableOrderingComposer($db: db, $table: table),
-          createComputedFieldComposer: () =>
-              $$BookLocationsTableAnnotationComposer($db: db, $table: table),
-          updateCompanionCallback:
-              ({
-                Value<String> bookId = const Value.absent(),
-                Value<String> data = const Value.absent(),
-                Value<DateTime> generatedAt = const Value.absent(),
-                Value<int> rowid = const Value.absent(),
-              }) => BookLocationsCompanion(
-                bookId: bookId,
-                data: data,
-                generatedAt: generatedAt,
-                rowid: rowid,
-              ),
-          createCompanionCallback:
-              ({
-                required String bookId,
-                required String data,
-                Value<DateTime> generatedAt = const Value.absent(),
-                Value<int> rowid = const Value.absent(),
-              }) => BookLocationsCompanion.insert(
-                bookId: bookId,
-                data: data,
-                generatedAt: generatedAt,
-                rowid: rowid,
-              ),
-          withReferenceMapper: (p0) => p0
-              .map(
-                (e) => (
-                  e.readTable(table),
-                  $$BookLocationsTableReferences(db, table, e),
-                ),
-              )
-              .toList(),
-          prefetchHooksCallback: ({bookId = false}) {
-            return PrefetchHooks(
-              db: db,
-              explicitlyWatchedTables: [],
-              addJoins:
-                  <
-                    T extends TableManagerState<
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic
-                    >
-                  >(state) {
-                    if (bookId) {
-                      state = state.withJoin(
-                        currentTable: table,
-                        currentColumn: table.bookId,
-                        referencedTable: $$BookLocationsTableReferences
-                            ._bookIdTable(db),
-                        referencedColumn: $$BookLocationsTableReferences
-                            ._bookIdTable(db)
-                            .id,
-                      ) as T;
-                    }
-
-                    return state;
-                  },
-              getPrefetchedDataCallback: (items) async {
-                return [];
-              },
-            );
-          },
-        ),
-      );
-}
-
-typedef $$BookLocationsTableProcessedTableManager =
-    ProcessedTableManager<
-      _$AppDatabase,
-      $BookLocationsTable,
-      BookLocation,
-      $$BookLocationsTableFilterComposer,
-      $$BookLocationsTableOrderingComposer,
-      $$BookLocationsTableAnnotationComposer,
-      $$BookLocationsTableCreateCompanionBuilder,
-      $$BookLocationsTableUpdateCompanionBuilder,
-      (BookLocation, $$BookLocationsTableReferences),
-      BookLocation,
-      PrefetchHooks Function({bool bookId})
     >;
 typedef $$BookmarksTableCreateCompanionBuilder = BookmarksCompanion Function({
   required String id,
@@ -6500,8 +5919,6 @@ class $AppDatabaseManager {
       $$ReadingProgressTableTableManager(_db, _db.readingProgress);
   $$ReaderPrefsTableTableManager get readerPrefs =>
       $$ReaderPrefsTableTableManager(_db, _db.readerPrefs);
-  $$BookLocationsTableTableManager get bookLocations =>
-      $$BookLocationsTableTableManager(_db, _db.bookLocations);
   $$BookmarksTableTableManager get bookmarks =>
       $$BookmarksTableTableManager(_db, _db.bookmarks);
   $$CollectionsTableTableManager get collections =>

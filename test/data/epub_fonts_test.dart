@@ -58,7 +58,7 @@ void main() {
     expect(sheet.preferred, 'Comun');
   });
 
-  test('ignora formatos que Flutter no sabe cargar', () {
+  test('acepta woff y prefiere el primer formato que sabe abrir', () {
     final sheet = EpubFonts.parse({
       'st.css': '''
         @font-face {
@@ -72,8 +72,19 @@ void main() {
       ''',
     });
 
-    expect(sheet.families, {'Mixta'});
-    expect(sheet.faces.single.href, 'b.otf');
+    expect(sheet.families, {'SoloWoff', 'Mixta'});
+    expect(sheet.faces.map((f) => f.href), ['a.woff', 'b.otf']);
+    expect(sheet.skippedFormat, isFalse);
+  });
+
+  test('una cara solo en woff2 se descarta y se deja constancia', () {
+    final sheet = EpubFonts.parse({
+      'st.css':
+          '@font-face { font-family: "X"; src: url(a.woff2) format("woff2"); }',
+    });
+
+    expect(sheet.isEmpty, isTrue);
+    expect(sheet.skippedFormat, isTrue);
   });
 
   test('ignora fuentes incrustadas como data URI', () {

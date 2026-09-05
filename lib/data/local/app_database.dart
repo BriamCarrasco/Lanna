@@ -24,7 +24,6 @@ class CollectionWithCount {
     Books,
     ReadingProgress,
     ReaderPrefs,
-    BookLocations,
     Bookmarks,
     Collections,
     CollectionEntries,
@@ -37,7 +36,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 9;
+  int get schemaVersion => 11;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -48,9 +47,6 @@ class AppDatabase extends _$AppDatabase {
       }
       if (from < 3) {
         await m.addColumn(readerPrefs, readerPrefs.columns);
-      }
-      if (from < 4) {
-        await m.createTable(bookLocations);
       }
       if (from < 5) {
         await m.addColumn(readerPrefs, readerPrefs.pageAnimation);
@@ -69,6 +65,12 @@ class AppDatabase extends _$AppDatabase {
       }
       if (from < 9) {
         await m.addColumn(readerPrefs, readerPrefs.engine);
+      }
+      if (from < 10) {
+        await customStatement('DROP TABLE IF EXISTS book_locations');
+      }
+      if (from < 11) {
+        await m.addColumn(books, books.contentHash);
       }
     },
     beforeOpen: (details) async {
@@ -110,6 +112,12 @@ class AppDatabase extends _$AppDatabase {
     return (select(books)..where((b) => b.id.equals(id))).getSingleOrNull();
   }
 
+  Future<Book?> findBookByHash(String hash) {
+    return (select(
+      books,
+    )..where((b) => b.contentHash.equals(hash))).getSingleOrNull();
+  }
+
   Future<void> upsertBook(BooksCompanion book) {
     return into(books).insertOnConflictUpdate(book);
   }
@@ -149,23 +157,6 @@ class AppDatabase extends _$AppDatabase {
         percent: Value(percent),
         chapterIndex: Value(chapterIndex),
         updatedAt: Value(DateTime.now()),
-      ),
-    );
-  }
-
-  Future<String?> readLocations(String bookId) async {
-    final row = await (select(
-      bookLocations,
-    )..where((l) => l.bookId.equals(bookId))).getSingleOrNull();
-    return row?.data;
-  }
-
-  Future<void> saveLocations(String bookId, String data) {
-    return into(bookLocations).insertOnConflictUpdate(
-      BookLocationsCompanion.insert(
-        bookId: bookId,
-        data: data,
-        generatedAt: Value(DateTime.now()),
       ),
     );
   }

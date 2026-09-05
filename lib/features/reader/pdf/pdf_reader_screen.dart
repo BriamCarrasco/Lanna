@@ -198,6 +198,7 @@ class _PdfReaderScreenState extends ConsumerState<PdfReaderScreen>
   Future<void> _load() async {
     final repo = ref.read(bookRepositoryProvider);
     final book = await repo.findBook(widget.bookId);
+    if (!mounted) return;
     if (book == null) {
       setState(() => _error = 'El libro no está en la biblioteca');
       return;
@@ -231,10 +232,20 @@ class _PdfReaderScreenState extends ConsumerState<PdfReaderScreen>
       return;
     }
 
+    if (document.pages.isEmpty) {
+      unawaited(document.dispose());
+      setState(() => _error = 'El PDF no tiene páginas');
+      return;
+    }
+
     List<EpubTocEntry> toc = const [];
     try {
       toc = _mapOutline(await document.loadOutline());
     } catch (_) {}
+    if (!mounted) {
+      unawaited(document.dispose());
+      return;
+    }
 
     if (_settings.keepAwake) unawaited(WakelockPlus.enable());
 
@@ -301,7 +312,7 @@ class _PdfReaderScreenState extends ConsumerState<PdfReaderScreen>
     if (target == _spreadIndex) return;
 
     final anim = _settings.pageAnimation;
-    void jump() => controller.jumpToPage(target);
+    Future<void> jump() async => controller.jumpToPage(target);
     void fallback() {
       if (anim == 'none') {
         controller.jumpToPage(target);

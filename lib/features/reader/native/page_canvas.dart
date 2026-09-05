@@ -1,4 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
+import 'dart:math' as math;
+
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
@@ -73,12 +75,13 @@ class NativePage extends StatefulWidget {
 class _NativePageState extends State<NativePage> {
   final List<SelectionListenerNotifier> _notifiers = [];
   final List<GlobalKey> _keys = [];
-  final List<TapGestureRecognizer> _taps = [];
+  final Map<String, TapGestureRecognizer> _taps = {};
 
   @override
   void initState() {
     super.initState();
     _buildNotifiers();
+    _syncTaps();
   }
 
   @override
@@ -88,11 +91,16 @@ class _NativePageState extends State<NativePage> {
       _disposeNotifiers();
       _buildNotifiers();
     }
+    _syncTaps();
   }
 
   @override
   void dispose() {
     _disposeNotifiers();
+    for (final tap in _taps.values) {
+      tap.dispose();
+    }
+    _taps.clear();
     super.dispose();
   }
 
@@ -110,12 +118,24 @@ class _NativePageState extends State<NativePage> {
       notifier.removeListener(_onSelectionChanged);
       notifier.dispose();
     }
-    for (final tap in _taps) {
-      tap.dispose();
-    }
-    _taps.clear();
     _notifiers.clear();
     _keys.clear();
+  }
+
+  void _syncTaps() {
+    final wanted = {for (final h in widget.highlights) h.cfi};
+    for (final cfi in _taps.keys.toList()) {
+      if (wanted.contains(cfi)) continue;
+      _taps.remove(cfi)!.dispose();
+    }
+    for (final cfi in wanted) {
+      _taps.putIfAbsent(
+        cfi,
+        () =>
+            TapGestureRecognizer()
+              ..onTap = () => widget.onHighlightTap?.call(cfi),
+      );
+    }
   }
 
   PageHighlight? _highlightAt(int offset) {
@@ -144,13 +164,6 @@ class _NativePageState extends State<NativePage> {
       }
     }
     return result;
-  }
-
-  TapGestureRecognizer _tapFor(String cfi) {
-    final recognizer = TapGestureRecognizer()
-      ..onTap = () => widget.onHighlightTap?.call(cfi);
-    _taps.add(recognizer);
-    return recognizer;
   }
 
   void _onSelectionChanged() {
@@ -221,20 +234,30 @@ class _NativePageState extends State<NativePage> {
         children: [
           for (var i = 0; i < widget.page.fragments.length; i++)
             Positioned(
-              left: _fullBleed(i)
-                  ? 0
-                  : widget.page.fragments[i].column *
-                        (metrics.columnWidth + metrics.columnGap),
+              left: _fullBleed(i) ? 0 : _leftOf(widget.page.fragments[i]),
               top: widget.page.fragments[i].top,
               width: _fullBleed(i)
                   ? metrics.size.width - metrics.padding.horizontal
-                  : metrics.columnWidth,
+                  : metrics.columnWidth -
+                        widget.style.listInset(widget.page.fragments[i].block),
               height: widget.page.fragments[i].height,
               child: _fragment(widget.page.fragments[i], i),
             ),
         ],
       ),
     );
+  }
+
+  double _leftOf(PageFragment fragment) {
+    final metrics = widget.metrics;
+    final slot = metrics.columnWidth + metrics.columnGap;
+    final column = widget.source.rtl
+        ? metrics.columns - 1 - fragment.column
+        : fragment.column;
+    final inset = widget.source.rtl
+        ? 0.0
+        : widget.style.listInset(fragment.block);
+    return column * slot + inset;
   }
 
   bool _fullBleed(int index) {
@@ -255,28 +278,59 @@ class _NativePageState extends State<NativePage> {
         );
       case BlockKind.image:
         return _image(fragment);
-      default:
-        return SelectionListener(
-          selectionNotifier: _notifiers[index],
-          child: Text.rich(
-            TextSpan(
-              children: [
-                for (final run in _splitByHighlights(fragment.runs))
-                  _span(fragment, run),
-              ],
+      case BlockKind.listItem:
+        return Row(
+          textDirection: directionOf(fragment.block),
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            SizedBox(
+              width: widget.style.listGutter(fragment.block),
+              child: fragment.continuesBefore
+                  ? null
+                  : SelectionContainer.disabled(
+                      child: Text(
+                        widget.style.markerFor(fragment.block),
+                        textAlign: TextAlign.end,
+                        textDirection: directionOf(fragment.block),
+                        textScaler: TextScaler.noScaling,
+                        style: widget.style
+                            .baseStyleFor(fragment.block)
+                            .copyWith(
+                              color: widget.foreground.withValues(alpha: 0.7),
+                            ),
+                      ),
+                    ),
             ),
-            key: _keys[index],
-            textAlign: widget.style.alignFor(fragment.block),
-            textScaler: TextScaler.noScaling,
-            strutStyle: StrutStyle(
-              fontFamily: widget.style.baseStyleFor(fragment.block).fontFamily,
-              fontSize: widget.style.sizeFor(fragment.block),
-              height: widget.style.lineHeight,
-              forceStrutHeight: true,
-            ),
-          ),
+            Expanded(child: _text(fragment, index)),
+          ],
         );
+      default:
+        return _text(fragment, index);
     }
+  }
+
+  Widget _text(PageFragment fragment, int index) {
+    return SelectionListener(
+      selectionNotifier: _notifiers[index],
+      child: Text.rich(
+        TextSpan(
+          children: [
+            for (final run in _splitByHighlights(fragment.runs))
+              _span(fragment, run),
+          ],
+        ),
+        key: _keys[index],
+        textAlign: widget.style.alignFor(fragment.block),
+        textDirection: directionOf(fragment.block),
+        textScaler: TextScaler.noScaling,
+        strutStyle: StrutStyle(
+          fontFamily: widget.style.baseStyleFor(fragment.block).fontFamily,
+          fontSize: widget.style.sizeFor(fragment.block),
+          height: widget.style.lineHeight,
+          forceStrutHeight: true,
+        ),
+      ),
+    );
   }
 
   TextSpan _span(PageFragment fragment, InlineRun run) {
@@ -286,7 +340,7 @@ class _NativePageState extends State<NativePage> {
         : _highlightColors[highlight.color] ?? _highlightColors['yellow']!;
     return TextSpan(
       text: run.text,
-      recognizer: highlight == null ? null : _tapFor(highlight.cfi),
+      recognizer: highlight == null ? null : _taps[highlight.cfi],
       style: widget.style
           .styleForRun(fragment.block, run)
           .copyWith(
@@ -302,8 +356,7 @@ class _NativePageState extends State<NativePage> {
     final src = fragment.block.src;
     final size = fragment.imageSize;
     if (src == null || size == null) return const SizedBox.shrink();
-    final file = widget.source.fileFor(src);
-    if (!file.existsSync()) {
+    if (!widget.source.hasFile(src)) {
       return Center(
         child: Text(
           fragment.block.alt ?? '',
@@ -314,11 +367,13 @@ class _NativePageState extends State<NativePage> {
         ),
       );
     }
+    final ratio = MediaQuery.devicePixelRatioOf(context);
     return Center(
       child: Image.file(
-        file,
+        widget.source.fileFor(src),
         width: size.width,
         height: size.height,
+        cacheWidth: math.max(1, (size.width * ratio).round()),
         fit: BoxFit.contain,
         filterQuality: FilterQuality.medium,
       ),

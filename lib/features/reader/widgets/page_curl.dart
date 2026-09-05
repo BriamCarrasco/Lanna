@@ -1,10 +1,13 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
+import 'dart:async';
 import 'dart:math' as math;
+import 'dart:typed_data';
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 
 typedef PageImageSource = Future<ui.Image?> Function();
+typedef PageTurn = Future<void> Function();
 
 class PageCurlController {
   PageCurlController({required TickerProvider vsync, required this.onChange}) {
@@ -14,13 +17,12 @@ class PageCurlController {
           duration: const Duration(milliseconds: 480),
         )..addStatusListener((status) {
           if (status == AnimationStatus.completed) {
-            _finish();
+            unawaited(_settle(null));
           } else if (status == AnimationStatus.dismissed && _cancelling) {
             _cancelling = false;
             final revert = _revert;
             _revert = null;
-            revert?.call();
-            _finish();
+            unawaited(_settle(revert));
           }
         });
   }
@@ -33,7 +35,8 @@ class PageCurlController {
   bool _fade = false;
   bool _dragging = false;
   bool _cancelling = false;
-  VoidCallback? _revert;
+  PageTurn? _revert;
+  Future<void>? _pending;
 
   bool get busy => _active != null;
 
@@ -55,7 +58,7 @@ class PageCurlController {
   Future<bool> start(
     int direction, {
     required PageImageSource outgoing,
-    required VoidCallback advance,
+    required PageTurn advance,
     bool fade = false,
   }) async {
     if (busy || _capturing) return false;
@@ -63,7 +66,7 @@ class PageCurlController {
     final image = await outgoing();
     _capturing = false;
     if (!_adopt(image, direction, fade: fade)) return false;
-    advance();
+    _pending = advance();
     _anim.duration = Duration(milliseconds: fade ? 200 : 420);
     _anim.forward(from: 0);
     onChange();
@@ -73,8 +76,8 @@ class PageCurlController {
   Future<bool> beginDrag(
     int direction, {
     required PageImageSource outgoing,
-    required VoidCallback advance,
-    required VoidCallback revert,
+    required PageTurn advance,
+    required PageTurn revert,
   }) async {
     if (busy || _capturing) return false;
     _capturing = true;
@@ -84,7 +87,7 @@ class PageCurlController {
     _dragging = true;
     _cancelling = false;
     _revert = revert;
-    advance();
+    _pending = advance();
     _anim.value = 0;
     onChange();
     return true;
@@ -110,6 +113,22 @@ class PageCurlController {
       _cancelling = true;
       _anim.reverse();
     }
+  }
+
+  Future<void> _settle(PageTurn? revert) async {
+    final pending = _pending;
+    _pending = null;
+    if (pending != null) {
+      try {
+        await pending;
+      } catch (_) {}
+    }
+    if (revert != null) {
+      try {
+        await revert();
+      } catch (_) {}
+    }
+    _finish();
   }
 
   void _finish() {
@@ -193,6 +212,28 @@ class _PageCurlPainter extends CustomPainter {
   static const _cols = 20;
   static const _rows = 26;
 
+  static final Int32List _indices = _buildIndices();
+
+  static Int32List _buildIndices() {
+    final out = Int32List(_rows * _cols * 6);
+    var k = 0;
+    for (var j = 0; j < _rows; j++) {
+      for (var i = 0; i < _cols; i++) {
+        final a = j * (_cols + 1) + i;
+        final b = a + 1;
+        final c = a + _cols + 1;
+        final d = c + 1;
+        out[k++] = a;
+        out[k++] = c;
+        out[k++] = b;
+        out[k++] = b;
+        out[k++] = c;
+        out[k++] = d;
+      }
+    }
+    return out;
+  }
+
   @override
   void paint(Canvas canvas, Size size) {
     final w = size.width;
@@ -273,23 +314,12 @@ class _PageCurlPainter extends CustomPainter {
       }
     }
 
-    final indices = <int>[];
-    for (var j = 0; j < _rows; j++) {
-      for (var i = 0; i < _cols; i++) {
-        final a = j * (_cols + 1) + i;
-        final b = a + 1;
-        final c = a + _cols + 1;
-        final d = c + 1;
-        indices.addAll([a, c, b, b, c, d]);
-      }
-    }
-
     final vertices = ui.Vertices(
       ui.VertexMode.triangles,
       positions,
       textureCoordinates: texCoords,
       colors: colors,
-      indices: indices,
+      indices: _indices,
     );
     final shader = ui.ImageShader(
       image,
@@ -302,6 +332,7 @@ class _PageCurlPainter extends CustomPainter {
       ..shader = shader;
     canvas.drawVertices(vertices, BlendMode.modulate, paint);
     shader.dispose();
+    vertices.dispose();
   }
 
   void _paintCastShadow(

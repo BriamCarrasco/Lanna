@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 import 'package:path/path.dart' as p;
 
+import 'epub_paths.dart';
+
 class FontFace {
   const FontFace({
     required this.family,
@@ -20,10 +22,15 @@ class FontFace {
 }
 
 class EpubFontSheet {
-  const EpubFontSheet({required this.faces, required this.preferred});
+  const EpubFontSheet({
+    required this.faces,
+    required this.preferred,
+    this.skippedFormat = false,
+  });
 
   final List<FontFace> faces;
   final String? preferred;
+  final bool skippedFormat;
 
   bool get isEmpty => faces.isEmpty;
 
@@ -31,7 +38,9 @@ class EpubFontSheet {
 }
 
 abstract final class EpubFonts {
-  static const _supported = {'.ttf', '.otf', '.ttc'};
+  static const _supported = {'.ttf', '.otf', '.ttc', '.woff'};
+
+  static const unsupported = {'.woff2', '.eot', '.svg'};
 
   static final _faceBlock = RegExp(
     r'@font-face\s*\{([^}]*)\}',
@@ -45,6 +54,7 @@ abstract final class EpubFonts {
   );
 
   static EpubFontSheet parse(Map<String, String> stylesheets) {
+    _skipped = false;
     final faces = <FontFace>[];
     final declared = <String>[];
 
@@ -55,7 +65,11 @@ abstract final class EpubFonts {
     });
 
     if (faces.isEmpty) {
-      return const EpubFontSheet(faces: [], preferred: null);
+      return EpubFontSheet(
+        faces: const [],
+        preferred: null,
+        skippedFormat: _skipped,
+      );
     }
 
     final available = {for (final f in faces) f.family};
@@ -81,8 +95,14 @@ abstract final class EpubFonts {
       preferred = ranked.first.key;
     }
 
-    return EpubFontSheet(faces: faces, preferred: preferred);
+    return EpubFontSheet(
+      faces: faces,
+      preferred: preferred,
+      skippedFormat: _skipped,
+    );
   }
+
+  static bool _skipped = false;
 
   static List<FontFace> _facesIn(String css, String cssHref) {
     final result = <FontFace>[];
@@ -110,6 +130,9 @@ abstract final class EpubFonts {
         }
       }
 
+      if (source == null && family != null && _hasUnsupported(body)) {
+        _skipped = true;
+      }
       if (family == null || family.isEmpty || source == null) continue;
       result.add(
         FontFace(
@@ -131,6 +154,16 @@ abstract final class EpubFonts {
       if (_supported.contains(ext)) return url;
     }
     return null;
+  }
+
+  static bool _hasUnsupported(String value) {
+    for (final match in _url.allMatches(value)) {
+      final url = match.group(1)!.trim();
+      if (url.startsWith('data:')) continue;
+      final ext = p.extension(url.split('?').first).toLowerCase();
+      if (unsupported.contains(ext)) return true;
+    }
+    return false;
   }
 
   static String? _readingFamily(String css) {
@@ -183,7 +216,7 @@ abstract final class EpubFonts {
       value.trim().replaceAll('"', '').replaceAll("'", '').trim();
 
   static String _resolve(String src, String cssHref) {
-    final decoded = Uri.decodeFull(src.split('#').first.split('?').first);
+    final decoded = decodeHref(src.split('#').first.split('?').first);
     return p.url.normalize(p.url.join(p.url.dirname(cssHref), decoded));
   }
 }

@@ -8,6 +8,8 @@ import 'package:path/path.dart' as p;
 import '../../../data/epub/epub_book.dart';
 import '../../../data/epub/epub_document.dart';
 import '../../../data/epub/epub_fonts.dart';
+import '../../../data/epub/epub_paths.dart';
+import '../../../data/epub/woff.dart';
 
 class NativeBookSource {
   NativeBookSource({required this.root, required this.book});
@@ -19,16 +21,23 @@ class NativeBookSource {
 
   final Map<int, EpubDocument> _documents = {};
   final Map<String, Size> _imageSizes = {};
+  final Map<int, int> _lengths = {};
 
   List<int>? _prefix;
   int _total = 0;
 
   int get chapterCount => spine.length;
 
+  bool get rtl => book.rtl;
+
   String? _bookFont;
   bool _fontsLoaded = false;
 
   String? get bookFontFamily => _bookFont;
+
+  bool _fontFormatUnsupported = false;
+
+  bool get bookFontUnsupported => _bookFont == null && _fontFormatUnsupported;
 
   Future<void> loadFonts() async {
     if (_fontsLoaded) return;
@@ -47,6 +56,7 @@ class NativeBookSource {
     if (sheets.isEmpty) return;
 
     final sheet = EpubFonts.parse(sheets);
+    _fontFormatUnsupported = sheet.skippedFormat;
     if (sheet.isEmpty) return;
 
     final byFamily = <String, List<FontFace>>{};
@@ -61,7 +71,16 @@ class NativeBookSource {
       for (final face in entry.value) {
         final file = fileFor(face.href);
         if (!file.existsSync()) continue;
-        loader.addFont(file.readAsBytes().then((b) => ByteData.view(b.buffer)));
+        loader.addFont(
+          file.readAsBytes().then((b) {
+            final sfnt = Woff.toSfnt(b) ?? b;
+            return ByteData.view(
+              sfnt.buffer,
+              sfnt.offsetInBytes,
+              sfnt.lengthInBytes,
+            );
+          }),
+        );
         added++;
       }
       if (added == 0) continue;
@@ -78,6 +97,14 @@ class NativeBookSource {
 
   EpubDocument? cached(int chapter) => _documents[chapter];
 
+  bool isCached(int chapter) => _documents.containsKey(chapter);
+
+  void release(int chapter) => _documents.remove(chapter);
+
+  void keepNear(int chapter, {int radius = 2}) {
+    _documents.removeWhere((i, _) => (i - chapter).abs() > radius);
+  }
+
   Future<EpubDocument> document(int chapter) async {
     final existing = _documents[chapter];
     if (existing != null) return existing;
@@ -89,13 +116,20 @@ class NativeBookSource {
       bytes,
       spineIndex: chapter,
       href: item.href,
+      rtl: book.rtl,
     );
     _documents[chapter] = parsed;
+    _lengths[chapter] = parsed.length;
     await _measureImages(parsed);
     return parsed;
   }
 
   Size? imageSize(String src) => _imageSizes[src];
+
+  final Map<String, bool> _present = {};
+
+  bool hasFile(String href) =>
+      _present.putIfAbsent(href, () => fileFor(href).existsSync());
 
   Future<void> _measureImages(EpubDocument document) async {
     for (final block in document.blocks) {
@@ -152,7 +186,7 @@ class NativeBookSource {
   }
 
   int? chapterForHref(String href) {
-    var path = Uri.decodeFull(href.split('#').first).replaceAll('\\', '/');
+    var path = decodeHref(href.split('#').first).replaceAll('\\', '/');
     if (path.isEmpty) return null;
     path = p.url.normalize(path);
     final needle = path.startsWith('/') ? path.substring(1) : path;
@@ -176,6 +210,29 @@ class NativeBookSource {
     ];
     // Solo aceptar el nombre de archivo si es inequívoco.
     return matches.length == 1 ? matches.first : null;
+  }
+
+  static const _charsPerMinute = 1100;
+
+  int? remainingMinutes(int chapter, int offset) {
+    if (_lengths.isEmpty) return null;
+    var chars = 0;
+    var bytes = 0;
+    for (final entry in _lengths.entries) {
+      chars += entry.value;
+      bytes += weightOf(entry.key);
+    }
+    if (chars <= 0 || bytes <= 0) return null;
+    final perByte = chars / bytes;
+
+    final here = _lengths[chapter];
+    final ahead = here == null ? 0 : (here - offset).clamp(0, here);
+    final bytesAfter = (totalWeight - weightBefore(chapter) - weightOf(chapter))
+        .clamp(0, totalWeight);
+    final remaining = ahead + bytesAfter * perByte;
+    if (remaining <= 0) return 0;
+    final minutes = remaining / _charsPerMinute;
+    return minutes < 1 ? 1 : minutes.round();
   }
 
   double percentageAt(int chapter, int offset, int length) {

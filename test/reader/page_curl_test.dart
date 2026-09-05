@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
+import 'dart:async';
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
@@ -37,7 +38,7 @@ void main() {
     final started = await curl.start(
       1,
       outgoing: pageImage,
-      advance: () => advanced++,
+      advance: () async => advanced++,
     );
 
     expect(started, isTrue);
@@ -60,7 +61,7 @@ void main() {
     final started = await curl.start(
       1,
       outgoing: () async => null,
-      advance: () => advanced++,
+      advance: () async => advanced++,
     );
 
     expect(started, isFalse);
@@ -82,8 +83,16 @@ void main() {
       return pageImage();
     }
 
-    final first = curl.start(1, outgoing: source, advance: () => advanced++);
-    final second = curl.start(1, outgoing: source, advance: () => advanced++);
+    final first = curl.start(
+      1,
+      outgoing: source,
+      advance: () async => advanced++,
+    );
+    final second = curl.start(
+      1,
+      outgoing: source,
+      advance: () async => advanced++,
+    );
 
     expect(await first, isTrue);
     expect(await second, isFalse);
@@ -101,8 +110,8 @@ void main() {
     final started = await curl.beginDrag(
       1,
       outgoing: pageImage,
-      advance: () => advanced++,
-      revert: () => reverted++,
+      advance: () async => advanced++,
+      revert: () async => reverted++,
     );
 
     expect(started, isTrue);
@@ -127,8 +136,8 @@ void main() {
     await curl.beginDrag(
       1,
       outgoing: pageImage,
-      advance: () => advanced++,
-      revert: () => reverted++,
+      advance: () async => advanced++,
+      revert: () async => reverted++,
     );
     curl.updateDrag(0.2);
     await tester.pump();
@@ -139,6 +148,36 @@ void main() {
     expect(reverted, 1);
     expect(curl.busy, isFalse);
     expect(curl.dragging, isFalse);
+  });
+
+  testWidgets('deshacer espera a que el avance lento termine', (tester) async {
+    final curl = await host(tester);
+    final orden = <String>[];
+    final lento = Completer<void>();
+
+    await curl.beginDrag(
+      1,
+      outgoing: pageImage,
+      advance: () async {
+        await lento.future;
+        orden.add('avance');
+      },
+      revert: () async => orden.add('deshacer'),
+    );
+
+    curl.updateDrag(0.2);
+    await tester.pump();
+    curl.endDrag(complete: false);
+    await tester.pumpAndSettle();
+
+    expect(orden, isEmpty, reason: 'deshizo antes de que avanzara');
+    expect(curl.busy, isTrue, reason: 'soltó el giro a medias');
+
+    lento.complete();
+    await tester.pumpAndSettle();
+
+    expect(orden, ['avance', 'deshacer']);
+    expect(curl.busy, isFalse);
   });
 
   testWidgets('updateDrag y endDrag fuera de un arrastre no hacen nada', (
@@ -156,7 +195,7 @@ void main() {
   testWidgets('el modo fundido no usa la malla del curl', (tester) async {
     final curl = await host(tester);
 
-    await curl.start(1, outgoing: pageImage, advance: () {}, fade: true);
+    await curl.start(1, outgoing: pageImage, advance: () async {}, fade: true);
     await tester.pump();
 
     expect(find.byType(PageCurl), findsNothing);

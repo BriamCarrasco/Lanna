@@ -29,6 +29,7 @@ dependencies:
   wakelock_plus: ^1.2.8
   pdfrx: ^2.1.4
   url_launcher: ^6.3.0
+  crypto: ^3.0.7
 dev_dependencies:
   flutter_test:
     sdk: flutter

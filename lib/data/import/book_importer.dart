@@ -2,12 +2,15 @@
 import 'dart:io';
 import 'dart:ui' as ui;
 
+import 'package:crypto/crypto.dart';
 import 'package:drift/drift.dart';
+import 'package:flutter/foundation.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:pdfrx/pdfrx.dart';
 import 'package:uuid/uuid.dart';
 
+import '../epub/epub_book.dart';
 import '../epub/epub_package.dart';
 import '../local/app_database.dart';
 import '../models/book_format.dart';
@@ -32,6 +35,14 @@ class ImportFailed extends ImportResult {
   final Object error;
 }
 
+EpubMetadata readEpubMetadata(String path) =>
+    EpubPackage.parse(File(path).readAsBytesSync()).metadata;
+
+Future<String> hashFile(String path) async {
+  final digest = await sha256.bind(File(path).openRead()).first;
+  return digest.toString();
+}
+
 class BookImporter {
   BookImporter(this._db);
 
@@ -54,6 +65,12 @@ class BookImporter {
       }
       final format = ext == '.pdf' ? BookFormat.pdf : BookFormat.epub;
 
+      final hash = await hashFile(path);
+      final duplicate = await _db.findBookByHash(hash);
+      if (duplicate != null) {
+        return ImportSkipped(fileName, 'Ya está en la biblioteca');
+      }
+
       final id = _uuid.v4();
       final dirs = await _ensureDirs();
 
@@ -63,7 +80,7 @@ class BookImporter {
 
       if (format == BookFormat.epub) {
         try {
-          final meta = EpubPackage.parse(await source.readAsBytes()).metadata;
+          final meta = await compute(readEpubMetadata, source.path);
           title = meta.title;
           author = meta.author;
           if (meta.coverBytes != null) {
@@ -94,6 +111,7 @@ class BookImporter {
         author: Value(author),
         coverPath: Value(coverPath),
         fileSizeBytes: Value(await storedFile.length()),
+        contentHash: Value(hash),
       );
       await _db.upsertBook(companion);
 

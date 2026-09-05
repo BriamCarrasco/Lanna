@@ -8,6 +8,9 @@ import '../../../data/epub/epub_document.dart';
 
 typedef ImageSizeResolver = Size? Function(String src);
 
+ui.TextDirection directionOf(DocBlock block) =>
+    block.rtl ? ui.TextDirection.rtl : ui.TextDirection.ltr;
+
 String? fontFamilyFromCss(String? css) {
   if (css == null) return null;
   for (final part in css.split(',')) {
@@ -100,12 +103,12 @@ class PaginationStyle {
     if (block.kind == BlockKind.preformatted) return TextAlign.left;
     return switch (block.align) {
       BlockAlign.center => TextAlign.center,
-      BlockAlign.end => TextAlign.right,
+      BlockAlign.end => TextAlign.end,
       BlockAlign.justify => TextAlign.justify,
       BlockAlign.start =>
         justify && block.kind == BlockKind.paragraph
             ? TextAlign.justify
-            : TextAlign.left,
+            : TextAlign.start,
     };
   }
 
@@ -123,6 +126,25 @@ class PaginationStyle {
   }
 
   double get separatorHeight => fontSize * 1.4;
+
+  double listInset(DocBlock block) => block.kind == BlockKind.listItem
+      ? fontSize * 1.2 * (math.max(1, block.level) - 1)
+      : 0;
+
+  double listGutter(DocBlock block) =>
+      block.kind == BlockKind.listItem ? fontSize * 1.7 : 0;
+
+  double textIndent(DocBlock block) => listInset(block) + listGutter(block);
+
+  String markerFor(DocBlock block) {
+    if (block.kind != BlockKind.listItem) return '';
+    if (block.listOrdered) return '${block.listIndex}.';
+    return switch (math.max(1, block.level)) {
+      1 => '•',
+      2 => '◦',
+      _ => '▪',
+    };
+  }
 
   String get key => '$fontFamily|$monoFamily|$fontSize|$lineHeight|$justify';
 }
@@ -200,7 +222,8 @@ class PageLayout {
 
   bool get isEmpty => fragments.isEmpty;
 
-  bool contains(int offset) => offset >= start && offset < end;
+  bool contains(int offset) =>
+      offset >= start && (offset < end || (start == end && offset == start));
 
   @override
   String toString() => 'PageLayout($index, $start..$end)';
@@ -256,12 +279,16 @@ class Paginator {
     required this.metrics,
     this.images,
     this.textScaler = TextScaler.noScaling,
+    this.chunkChars = defaultChunkChars,
   });
+
+  static const int defaultChunkChars = 4000;
 
   final PaginationStyle style;
   final PaginationMetrics metrics;
   final ImageSizeResolver? images;
   final TextScaler textScaler;
+  final int chunkChars;
 
   PaginationJob jobFor(EpubDocument document) => PaginationJob(
     document: document,
@@ -269,6 +296,7 @@ class Paginator {
     metrics: metrics,
     images: images,
     textScaler: textScaler,
+    chunkChars: chunkChars,
   );
 
   DocumentPagination paginate(EpubDocument document) =>
@@ -302,6 +330,7 @@ class PaginationJob {
     required this.metrics,
     this.images,
     this.textScaler = TextScaler.noScaling,
+    this.chunkChars = Paginator.defaultChunkChars,
   });
 
   final EpubDocument document;
@@ -309,6 +338,7 @@ class PaginationJob {
   final PaginationMetrics metrics;
   final ImageSizeResolver? images;
   final TextScaler textScaler;
+  final int chunkChars;
 
   final List<PageLayout> _pages = [];
   final List<PageFragment> _fragments = [];
@@ -350,6 +380,17 @@ class PaginationJob {
       if (cursor == null) {
         if (_blockIndex >= document.blocks.length) {
           _closePage();
+          if (_pages.isEmpty) {
+            _pages.add(
+              PageLayout(
+                index: 0,
+                spineIndex: document.spineIndex,
+                start: 0,
+                end: document.length,
+                fragments: const [],
+              ),
+            );
+          }
           _finished = true;
           return;
         }
@@ -515,6 +556,12 @@ class PaginationJob {
     return Size(intrinsic.width * scale, intrinsic.height * scale);
   }
 
+  static int _safeCut(String text, int at) {
+    if (at <= 0 || at >= text.length) return at;
+    final unit = text.codeUnitAt(at);
+    return (unit >= 0xDC00 && unit <= 0xDFFF) ? at - 1 : at;
+  }
+
   void _ensureLines(_BlockCursor cursor, int wanted) {
     final text = cursor.block.text;
     while (!cursor.measured && cursor.lines.length < wanted) {
@@ -523,17 +570,41 @@ class PaginationJob {
         break;
       }
       final breakAt = text.indexOf('\n', cursor.segmentStart);
-      final segmentEnd = breakAt == -1 ? text.length : breakAt;
+      final hardEnd = breakAt == -1 ? text.length : breakAt;
+
+      var segmentEnd = hardEnd;
+      var chunked = false;
+      if (hardEnd - cursor.segmentStart > chunkChars) {
+        final cut = _safeCut(text, cursor.segmentStart + chunkChars);
+        if (cut > cursor.segmentStart && cut < hardEnd) {
+          segmentEnd = cut;
+          chunked = true;
+        }
+      }
+
+      final before = cursor.lines.length;
       _measureSegment(
         cursor.block,
         cursor.block.start + cursor.segmentStart,
         cursor.block.start + segmentEnd,
         cursor.lines,
       );
+      final added = cursor.lines.length - before;
+
+      if (chunked) {
+        if (added > 1) {
+          final tail = cursor.lines.removeLast();
+          cursor.segmentStart = tail.start - cursor.block.start;
+        } else {
+          cursor.segmentStart = segmentEnd;
+        }
+        continue;
+      }
+
       if (breakAt == -1) {
         cursor.measured = true;
       } else {
-        cursor.segmentStart = segmentEnd + 1;
+        cursor.segmentStart = hardEnd + 1;
       }
     }
   }
@@ -554,7 +625,7 @@ class PaginationJob {
             TextSpan(text: run.text, style: style.styleForRun(block, run)),
         ],
       ),
-      textDirection: ui.TextDirection.ltr,
+      textDirection: directionOf(block),
       textAlign: style.alignFor(block),
       textScaler: textScaler,
       strutStyle: StrutStyle(
@@ -563,7 +634,7 @@ class PaginationJob {
         height: style.lineHeight,
         forceStrutHeight: true,
       ),
-    )..layout(maxWidth: columnWidth);
+    )..layout(maxWidth: math.max(1, columnWidth - style.textIndent(block)));
 
     final metrics = painter.computeLineMetrics();
     final before = out.length;

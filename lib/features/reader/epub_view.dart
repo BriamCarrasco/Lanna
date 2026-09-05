@@ -88,8 +88,6 @@ abstract class EpubViewController {
   Future<void> goToPercentage(double percentage);
   Future<void> applyPresentation(ReaderPresentation presentation);
 
-  Future<void> loadLocations(String json);
-
   Future<void> search(String query);
 
   Future<ui.Image?> snapshot();
@@ -107,11 +105,9 @@ class EpubViewCallbacks {
     this.onReady,
     this.onLocationChanged,
     this.onTocLoaded,
-    this.onLocationsGenerated,
     this.onPageCount,
     this.onSearchResults,
     this.onRendered,
-    this.onTurnRequest,
     this.onTextSelected,
     this.onSelectionCleared,
     this.onHighlightTapped,
@@ -121,13 +117,9 @@ class EpubViewCallbacks {
   final void Function(EpubViewController controller)? onReady;
   final void Function(ReaderLocation location)? onLocationChanged;
   final void Function(List<TocEntry> toc)? onTocLoaded;
-
-  final void Function(String json)? onLocationsGenerated;
-
   final void Function(int total)? onPageCount;
   final void Function()? onRendered;
   final void Function(String query, List<SearchHit> hits)? onSearchResults;
-  final void Function(int direction)? onTurnRequest;
   final void Function(ReaderSelection selection)? onTextSelected;
   final void Function()? onSelectionCleared;
   final void Function(String cfi)? onHighlightTapped;

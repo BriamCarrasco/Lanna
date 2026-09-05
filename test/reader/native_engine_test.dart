@@ -9,6 +9,7 @@ import 'package:lanna/data/epub/epub_book.dart';
 import 'package:lanna/features/reader/epub_view.dart';
 import 'package:lanna/features/reader/native/book_source.dart';
 import 'package:lanna/features/reader/native/native_epub_view.dart';
+import 'package:lanna/features/reader/native/page_canvas.dart';
 
 void main() {
   late Directory root;
@@ -45,7 +46,11 @@ void main() {
     await settle(tester);
   }
 
-  NativeBookSource sourceWith(List<String> bodies, {List<EpubTocEntry>? toc}) {
+  NativeBookSource sourceWith(
+    List<String> bodies, {
+    List<EpubTocEntry>? toc,
+    bool rtl = false,
+  }) {
     final manifest = <ManifestItem>[];
     final spine = <SpineItem>[];
     for (var i = 0; i < bodies.length; i++) {
@@ -70,6 +75,7 @@ void main() {
         manifest: manifest,
         spine: spine,
         toc: toc ?? const [EpubTocEntry(label: 'Uno', href: 'cap0.xhtml')],
+        rtl: rtl,
       ),
     );
   }
@@ -92,6 +98,7 @@ void main() {
       onPageCount: callbacks?.onPageCount,
       onSearchResults: callbacks?.onSearchResults,
       onHighlightTapped: callbacks?.onHighlightTapped,
+      onError: callbacks?.onError,
     );
 
     await tester.pumpWidget(
@@ -118,6 +125,10 @@ void main() {
     await settle(tester);
     expect(controller, isNotNull, reason: 'el motor no llegó a estar listo');
     return controller!;
+  }
+
+  void breakChapter(int index) {
+    File('${root.path}/cap$index.xhtml').deleteSync();
   }
 
   testWidgets('pinta la primera página y avisa del índice', (tester) async {
@@ -565,6 +576,11 @@ void main() {
       final s = src(['Text/a b.xhtml'], const []);
       expect(s.chapterForHref('./Text/a%20b.xhtml'), 0);
     });
+
+    test('un % suelto no lanza: se toma la ruta tal cual', () {
+      final s = src(['Text/a%b.xhtml', 'Text/otro.xhtml'], const []);
+      expect(s.chapterForHref('Text/a%b.xhtml'), 0);
+    });
   });
 
   group('navegación por el índice', () {
@@ -727,6 +743,506 @@ void main() {
         );
       }
     });
+  });
+
+  group('lectura de derecha a izquierda', () {
+    testWidgets('con dos columnas, la primera queda a la derecha', (
+      tester,
+    ) async {
+      tester.view.physicalSize = const Size(1000, 700);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      Future<List<double>> izquierdasCon({required bool rtl}) async {
+        await tester.pumpWidget(const SizedBox.shrink());
+        final source = sourceWith([
+          '<p>${'كان يا مكان في قديم ' * 60}</p>',
+        ], rtl: rtl);
+        await mount(tester, source, size: const Size(900, 600));
+        final page = tester.widget<NativePage>(find.byType(NativePage));
+        expect(page.metrics.columns, 2);
+        return tester
+            .widgetList<Positioned>(find.byType(Positioned))
+            .map((p) => p.left ?? 0)
+            .toList();
+      }
+
+      final llr = await izquierdasCon(rtl: false);
+      final lrtl = await izquierdasCon(rtl: true);
+
+      expect(llr.first, lessThan(llr.last));
+      expect(
+        lrtl.first,
+        greaterThan(lrtl.last),
+        reason: 'en rtl la primera columna debería ir a la derecha',
+      );
+    });
+
+    testWidgets('el texto se pinta con dirección rtl', (tester) async {
+      final source = sourceWith(['<p>كان يا مكان في قديم</p>'], rtl: true);
+      await mount(tester, source);
+
+      final textos = tester
+          .widgetList<Text>(find.byType(Text))
+          .where((t) => t.textSpan != null)
+          .toList();
+      expect(textos, isNotEmpty);
+      expect(textos.first.textDirection, TextDirection.rtl);
+    });
+
+    testWidgets('next sigue avanzando en el orden del spine', (tester) async {
+      final locations = <ReaderLocation>[];
+      final source = sourceWith([
+        '<p>كان يا مكان في قديم</p>',
+        '<p>كان يا مكان في قديم</p>',
+      ], rtl: true);
+      final controller = await mount(
+        tester,
+        source,
+        callbacks: EpubViewCallbacks(onLocationChanged: locations.add),
+      );
+
+      await act(tester, () => controller.next());
+      expect(locations.last.chapterIndex, 1);
+      await act(tester, () => controller.previous());
+      expect(locations.last.chapterIndex, 0);
+    });
+  });
+
+  group('fidelidad', () {
+    testWidgets('una lista pinta su marcador una sola vez', (tester) async {
+      final source = sourceWith([
+        '<ol><li>alfa</li><li>beta</li></ol><ul><li>gamma</li></ul>',
+      ]);
+      await mount(tester, source);
+
+      final textos = tester
+          .widgetList<Text>(find.byType(Text))
+          .map((w) => w.data)
+          .whereType<String>()
+          .toList();
+
+      expect(textos, contains('1.'));
+      expect(textos, contains('2.'));
+      expect(textos, contains('•'));
+      expect(textos.where((t) => t == '1.'), hasLength(1));
+    });
+
+    testWidgets('el marcador no entra en la selección', (tester) async {
+      final selections = <ReaderSelection>[];
+      final source = sourceWith(['<ul><li>${words(30)}</li></ul>']);
+      await mount(
+        tester,
+        source,
+        callbacks: EpubViewCallbacks(onTextSelected: selections.add),
+      );
+      final document = await source.document(0);
+
+      final texto = find.byType(Text).at(1);
+      final caja = tester.getRect(texto);
+      final gesto = await tester.startGesture(
+        caja.centerLeft + const Offset(2, 0),
+      );
+      await tester.pump(const Duration(milliseconds: 600));
+      await gesto.moveTo(caja.center);
+      await tester.pump();
+      await gesto.up();
+      await settle(tester);
+
+      if (selections.isNotEmpty) {
+        final sel = selections.last;
+        expect(
+          document.text.contains(sel.text),
+          isTrue,
+          reason: 'la selección trajo texto ajeno al documento',
+        );
+      }
+    });
+
+    testWidgets('el tiempo restante baja al avanzar', (tester) async {
+      final locations = <ReaderLocation>[];
+      final source = sourceWith([
+        for (var i = 0; i < 4; i++) '<p>${words(400)}</p>',
+      ]);
+      final controller = await mount(
+        tester,
+        source,
+        callbacks: EpubViewCallbacks(onLocationChanged: locations.add),
+      );
+
+      final alPrincipio = locations.last.remainingMinutes;
+      expect(alPrincipio, isNotNull);
+      expect(alPrincipio, greaterThan(0));
+
+      await act(tester, () => controller.goToPercentage(0.95));
+
+      expect(locations.last.remainingMinutes, lessThan(alPrincipio!));
+    });
+
+    testWidgets('el número de páginas llega al final de paginar', (
+      tester,
+    ) async {
+      final counts = <int>[];
+      final source = sourceWith(['<p>${words(700)}</p>']);
+      await mount(
+        tester,
+        source,
+        callbacks: EpubViewCallbacks(onPageCount: counts.add),
+      );
+
+      expect(counts, isNotEmpty);
+      expect(counts.last, greaterThan(1));
+    });
+  });
+
+  group('memoria', () {
+    testWidgets('la búsqueda suelta los capítulos que cargó', (tester) async {
+      final results = <List<SearchHit>>[];
+      final source = sourceWith([
+        '<p>${words(60)}</p>',
+        '<p>${words(60)} pistacho</p>',
+        '<p>${words(60)} pistacho</p>',
+      ]);
+      final controller = await mount(
+        tester,
+        source,
+        callbacks: EpubViewCallbacks(onSearchResults: (_, h) => results.add(h)),
+      );
+
+      expect(source.isCached(2), isFalse);
+
+      await tester.runAsync(() => controller.search('pistacho'));
+      await settle(tester);
+
+      expect(results.last, hasLength(2));
+      expect(
+        source.isCached(0),
+        isTrue,
+        reason: 'soltó el capítulo que se está leyendo',
+      );
+      expect(
+        source.isCached(2),
+        isFalse,
+        reason: 'la búsqueda retuvo el libro entero',
+      );
+    });
+
+    testWidgets('alejarse libera los capítulos lejanos', (tester) async {
+      final source = sourceWith([
+        for (var i = 0; i < 6; i++) '<p>${words(40)}</p>',
+      ]);
+      final controller = await mount(tester, source);
+
+      for (var i = 1; i < 6; i++) {
+        await act(tester, () => controller.goToCfi('spine:$i#0'));
+      }
+
+      expect(source.isCached(5), isTrue);
+      expect(
+        source.isCached(0),
+        isFalse,
+        reason: 'el primer capítulo sigue en memoria',
+      );
+    });
+  });
+
+  group('geometría', () {
+    testWidgets('estrechar el hueco recompone y conserva la posición', (
+      tester,
+    ) async {
+      final locations = <ReaderLocation>[];
+      final counts = <int>[];
+      final source = sourceWith(['<p>${words(500)}</p>']);
+      final size = ValueNotifier(const Size(600, 600));
+      addTearDown(size.dispose);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Center(
+              child: ValueListenableBuilder<Size>(
+                valueListenable: size,
+                builder: (context, value, _) => SizedBox(
+                  width: value.width,
+                  height: value.height,
+                  child: MediaQuery(
+                    data: MediaQueryData(size: value),
+                    child: NativeEpubView(
+                      source: source,
+                      callbacks: EpubViewCallbacks(
+                        onLocationChanged: locations.add,
+                        onPageCount: counts.add,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await settle(tester);
+
+      final anchoTotal = counts.last;
+      final offset = ReaderLocator.parse(locations.last.cfi)!.offset;
+
+      size.value = const Size(260, 600);
+      await settle(tester);
+      await settle(tester);
+
+      expect(tester.takeException(), isNull);
+      expect(
+        counts.last,
+        greaterThan(anchoTotal),
+        reason: 'estrechar la ventana no volvió a paginar',
+      );
+      expect(
+        ReaderLocator.parse(locations.last.cfi)!.offset,
+        offset,
+        reason: 'se perdió la posición al recomponer',
+      );
+    });
+
+    testWidgets('un capítulo vacío tiene página y deja pasar', (tester) async {
+      final locations = <ReaderLocation>[];
+      final source = sourceWith([
+        '<p>${words(30)}</p>',
+        '   ',
+        '<p>${words(30)}</p>',
+      ]);
+      final controller = await mount(
+        tester,
+        source,
+        callbacks: EpubViewCallbacks(onLocationChanged: locations.add),
+      );
+
+      await act(tester, () => controller.goToCfi('spine:1#0'));
+      expect(locations.last.chapterIndex, 1);
+
+      await act(tester, () => controller.next());
+      expect(
+        locations.last.chapterIndex,
+        2,
+        reason: 'el capítulo vacío no deja avanzar',
+      );
+    });
+  });
+
+  group('fluidez', () {
+    ReaderPresentation presentation({
+      String background = '#000000',
+      int fontSizePercent = 100,
+      String columnMode = 'single',
+      bool edgeTaps = true,
+    }) => ReaderPresentation(
+      background: background,
+      foreground: '#FFFFFF',
+      fontSizePercent: fontSizePercent,
+      lineHeight: 1.6,
+      columnMode: columnMode,
+      edgeTaps: edgeTaps,
+    );
+
+    testWidgets('un ajuste que no toca la composición no repagina', (
+      tester,
+    ) async {
+      final counts = <int>[];
+      final source = sourceWith(['<p>${words(600)}</p>']);
+      final controller = await mount(
+        tester,
+        source,
+        callbacks: EpubViewCallbacks(onPageCount: counts.add),
+      );
+      await act(tester, () => controller.applyPresentation(presentation()));
+      final baseline = counts.length;
+      expect(baseline, greaterThan(0), reason: 'no llegó a paginar');
+
+      await act(
+        tester,
+        () => controller.applyPresentation(
+          presentation(background: '#112233', edgeTaps: false),
+        ),
+      );
+
+      expect(
+        counts.length,
+        baseline,
+        reason: 'cambiar solo color y toques de borde volvió a paginar',
+      );
+    });
+
+    testWidgets('cambiar el cuerpo de letra sí repagina', (tester) async {
+      final counts = <int>[];
+      final source = sourceWith(['<p>${words(600)}</p>']);
+      final controller = await mount(
+        tester,
+        source,
+        callbacks: EpubViewCallbacks(onPageCount: counts.add),
+      );
+      await act(tester, () => controller.applyPresentation(presentation()));
+      final baseline = counts.length;
+
+      await act(
+        tester,
+        () => controller.applyPresentation(presentation(fontSizePercent: 160)),
+      );
+
+      expect(counts.length, greaterThan(baseline));
+      expect(counts.last, greaterThan(counts[baseline - 1]));
+    });
+
+    testWidgets('una navegación nueva descarta la anterior a medias', (
+      tester,
+    ) async {
+      final locations = <ReaderLocation>[];
+      final source = sourceWith([
+        '<p>${words(900)}</p>',
+        '<p>${words(900)}</p>',
+        '<p>${words(900)}</p>',
+      ]);
+      final controller = await mount(
+        tester,
+        source,
+        callbacks: EpubViewCallbacks(onLocationChanged: locations.add),
+      );
+
+      unawaited(
+        controller.goToCfi(
+          const ReaderLocator(chapter: 1, offset: 4000).toString(),
+        ),
+      );
+      unawaited(
+        controller.goToCfi(
+          const ReaderLocator(chapter: 2, offset: 0).toString(),
+        ),
+      );
+      await settle(tester);
+
+      expect(tester.takeException(), isNull);
+      expect(
+        locations.last.chapterIndex,
+        2,
+        reason: 'ganó la navegación vieja',
+      );
+    });
+
+    testWidgets('atEnd solo es cierto cuando la paginación terminó', (
+      tester,
+    ) async {
+      final locations = <ReaderLocation>[];
+      final source = sourceWith([
+        '<p>${words(40)}</p>',
+        '<p>${words(900)}</p>',
+      ]);
+      final controller = await mount(
+        tester,
+        source,
+        callbacks: EpubViewCallbacks(onLocationChanged: locations.add),
+      );
+
+      await act(tester, () => controller.goToPercentage(1.0));
+
+      expect(locations.last.chapterIndex, 1);
+      expect(
+        locations.last.atEnd,
+        isTrue,
+        reason: 'el final del libro no se reportó tras paginar',
+      );
+    });
+
+    testWidgets('repintar con resaltados no acumula reconocedores', (
+      tester,
+    ) async {
+      final taps = <String>[];
+      final source = sourceWith(['<p>${words(40)}</p>']);
+      final controller = await mount(
+        tester,
+        source,
+        callbacks: EpubViewCallbacks(onHighlightTapped: taps.add),
+      );
+      final cfi = const ReaderLocator(
+        chapter: 0,
+        offset: 5,
+        end: 20,
+      ).toString();
+
+      await act(
+        tester,
+        () => controller.applyHighlights([
+          HighlightSpec(cfi: cfi, color: 'yellow'),
+        ]),
+      );
+
+      TextSpan? tinted() {
+        for (final widget in tester.widgetList<Text>(find.byType(Text))) {
+          final span = widget.textSpan;
+          if (span is! TextSpan) continue;
+          for (final child in span.children ?? const <InlineSpan>[]) {
+            if (child is TextSpan && child.style?.backgroundColor != null) {
+              return child;
+            }
+          }
+        }
+        return null;
+      }
+
+      final first = tinted()?.recognizer;
+      expect(first, isNotNull, reason: 'el resaltado no trae reconocedor');
+
+      for (var i = 0; i < 5; i++) {
+        await act(
+          tester,
+          () => controller.applyHighlights([
+            HighlightSpec(cfi: cfi, color: 'yellow'),
+          ]),
+        );
+      }
+
+      expect(
+        tinted()?.recognizer,
+        same(first),
+        reason: 'cada repintado creó un reconocedor nuevo',
+      );
+
+      (first! as TapGestureRecognizer).onTap!();
+      expect(taps, [cfi]);
+    });
+  });
+
+  testWidgets('un capítulo ilegible avisa en vez de quedarse mudo', (
+    tester,
+  ) async {
+    final errors = <String>[];
+    final source = sourceWith(['<p>${words(40)}</p>', '<p>${words(40)}</p>']);
+    breakChapter(0);
+
+    await mount(
+      tester,
+      source,
+      callbacks: EpubViewCallbacks(onError: errors.add),
+    );
+
+    expect(tester.takeException(), isNull);
+    expect(errors, isNotEmpty, reason: 'el fallo no llegó a la pantalla');
+    expect(errors.first, contains('capítulo 1'));
+  });
+
+  testWidgets('si el capítulo guardado falla, cae al primero', (tester) async {
+    final errors = <String>[];
+    final source = sourceWith(['<p>${words(40)}</p>', '<p>${words(40)}</p>']);
+    breakChapter(1);
+
+    final controller = await mount(
+      tester,
+      source,
+      locator: 'spine:1#0',
+      callbacks: EpubViewCallbacks(onError: errors.add),
+    );
+
+    expect(errors, isNotEmpty);
+    expect(controller, isNotNull);
+    expect(find.byType(Text), findsWidgets, reason: 'no pintó el capítulo 1');
   });
 
   testWidgets('un documento vacío no rompe el motor', (tester) async {

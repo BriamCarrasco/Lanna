@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 import 'dart:async';
 import 'dart:io';
+import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -29,6 +30,35 @@ import 'widgets/reader_scrubber.dart';
 import 'widgets/reader_transitions.dart';
 import 'widgets/search_panel.dart';
 import 'widgets/toc_drawer.dart';
+
+@visibleForTesting
+int foldFor(int logical, {required bool rtl}) => rtl ? -logical : logical;
+
+@visibleForTesting
+int turnForTravel(double travel, {required bool rtl}) =>
+    (rtl ? travel > 0 : travel < 0) ? 1 : -1;
+
+@visibleForTesting
+int turnForEdge({required bool leading, required bool rtl}) =>
+    leading == rtl ? 1 : -1;
+
+@visibleForTesting
+Offset selectionToolbarOrigin({
+  required Rect selection,
+  required Size viewport,
+  required Size toolbar,
+}) {
+  final maxLeft = math.max(8.0, viewport.width - toolbar.width - 8);
+  final left = (selection.center.dx - toolbar.width / 2)
+      .clamp(8.0, maxLeft)
+      .toDouble();
+  var top = selection.top - toolbar.height - 10;
+  if (top < 60) {
+    final maxTop = math.max(60.0, viewport.height - toolbar.height - 50);
+    top = (selection.bottom + 10).clamp(60.0, maxTop).toDouble();
+  }
+  return Offset(left, top);
+}
 
 const _highlightColors = <String, Color>{
   'yellow': Color(0xFFFFE14D),
@@ -68,7 +98,6 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
   List<Highlight> _highlights = const [];
   ReaderSelection? _selection;
   double _lastPercent = 0;
-  String? _cachedLocations;
 
   ReaderSettings _settings = const ReaderSettings();
 
@@ -78,6 +107,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
   bool _showToc = false;
   bool _showSearch = false;
 
+  int _pageCount = 0;
   List<SearchHit> _searchHits = const [];
   bool _searchBusy = false;
   String _searchQuery = '';
@@ -184,16 +214,14 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
       if (_dragTravel.abs() < 16) return;
       final controller = _controller;
       if (controller == null) return;
-      final forward = _dragTravel < 0;
+      final forward = _rtl ? _dragTravel > 0 : _dragTravel < 0;
       if (forward ? _atEnd : _atStart) return;
       unawaited(
         _curl.beginDrag(
-          forward ? 1 : -1,
+          _foldFor(forward ? 1 : -1),
           outgoing: controller.snapshot,
-          advance: () =>
-              unawaited(forward ? controller.next() : controller.previous()),
-          revert: () =>
-              unawaited(forward ? controller.previous() : controller.next()),
+          advance: () => forward ? controller.next() : controller.previous(),
+          revert: () => forward ? controller.previous() : controller.next(),
         ),
       );
       return;
@@ -217,7 +245,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
     _dragProgress = 0;
     if (_showToc || _showAppearance || _showSearch) return;
     if (travel.abs() > 56 || velocity.abs() > 600) {
-      _turn(travel < 0 ? 1 : -1);
+      _turn(_turnFor(travel));
     }
   }
 
@@ -265,11 +293,11 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
     final edgeRaw = size.width * 0.22;
     final edge = edgeRaw > 130 ? 130.0 : edgeRaw;
     if (_settings.edgeTaps && up.dx < edge) {
-      _turn(-1);
+      _turn(turnForEdge(leading: true, rtl: _rtl));
       return;
     }
     if (_settings.edgeTaps && up.dx > size.width - edge) {
-      _turn(1);
+      _turn(turnForEdge(leading: false, rtl: _rtl));
       return;
     }
     setState(() => _chromeVisible = !_chromeVisible);
@@ -277,14 +305,10 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
   }
 
   (double, double)? _lastInsets;
-  Size? _lastSize;
 
   void _pushInsets({bool force = false}) {
     final controller = _controller;
     if (controller == null || !mounted) return;
-    final size = MediaQuery.sizeOf(context);
-    if (_lastSize == size && !force) return;
-    _lastSize = size;
     final safe = MediaQuery.viewPaddingOf(context);
     final next = (safe.top + 52.0, safe.bottom + 48.0);
     if (_lastInsets == next && !force) return;
@@ -295,6 +319,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
   Future<void> _open() async {
     final repo = ref.read(bookRepositoryProvider);
     final book = await repo.findBook(widget.bookId);
+    if (!mounted) return;
     if (book == null) {
       setState(() => _error = 'El libro no está en la biblioteca');
       return;
@@ -311,7 +336,6 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
 
     final progress = await repo.readProgress(widget.bookId);
     _lastPercent = progress?.percent ?? 0;
-    _cachedLocations = await repo.readLocations(widget.bookId);
 
     final cache = await getApplicationCacheDirectory();
     final extractDir = Directory(p.join(cache.path, 'reader', widget.bookId));
@@ -319,7 +343,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
     EpubBook? epubBook;
     try {
       epubBook = await compute(prepareEpub, (
-        bytes: await file.readAsBytes(),
+        path: file.path,
         extractDir: extractDir.path,
       ));
     } catch (_) {}
@@ -340,7 +364,6 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
       _initialPercent = progress?.percent;
       final safe = MediaQuery.viewPaddingOf(context);
       _lastInsets = (safe.top + 52.0, safe.bottom + 48.0);
-      _lastSize = MediaQuery.sizeOf(context);
     });
   }
 
@@ -348,6 +371,12 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
   double? _initialPercent;
 
   bool get _dragCurlReady => _nativeSource != null;
+
+  bool get _rtl => _nativeSource?.rtl ?? false;
+
+  int _foldFor(int logical) => foldFor(logical, rtl: _rtl);
+
+  int _turnFor(double travel) => turnForTravel(travel, rtl: _rtl);
 
   List<EpubTocEntry> get _toc {
     final parsed = _epubBook?.toc ?? const [];
@@ -569,27 +598,28 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
   Future<void> _curlTurn(
     int dir,
     EpubViewController controller,
-    VoidCallback advance,
+    PageTurn advance,
   ) async {
     final started = await _curl.start(
       dir,
       outgoing: controller.snapshot,
       advance: advance,
     );
-    if (!started && mounted) advance();
+    if (!started && mounted) unawaited(advance());
   }
 
   void _turn(int dir) {
     if (_showToc || _showAppearance || _showSearch) return;
     final controller = _controller;
     if (controller == null) return;
-    void advance() => dir > 0 ? controller.next() : controller.previous();
+    Future<void> advance() =>
+        dir > 0 ? controller.next() : controller.previous();
     if (_settings.pageAnimation == 'curl') {
       if (_curl.busy) return;
-      unawaited(_curlTurn(dir, controller, advance));
+      unawaited(_curlTurn(_foldFor(dir), controller, advance));
       return;
     }
-    advance();
+    unawaited(advance());
   }
 
   void _runSearch(String query) {
@@ -672,8 +702,6 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
                         onReady: (c) {
                           _controller = c;
                           _applySettings(settings);
-                          final cached = _cachedLocations;
-                          if (cached != null) c.loadLocations(cached);
                           c.applyHighlights([
                             for (final h in _highlights)
                               HighlightSpec(cfi: h.cfi, color: h.color),
@@ -691,9 +719,9 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
                             ];
                           });
                         },
-                        onLocationsGenerated: (json) {
-                          _cachedLocations = json;
-                          _repo.saveLocations(widget.bookId, json);
+                        onPageCount: (total) {
+                          if (!mounted || total == _pageCount) return;
+                          setState(() => _pageCount = total);
                         },
                         onSearchResults: (query, hits) {
                           if (!mounted || query != _searchQuery) return;
@@ -702,7 +730,6 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
                             _searchBusy = false;
                           });
                         },
-                        onTurnRequest: _turn,
                         onTextSelected: (sel) {
                           if (!mounted) return;
                           setState(() => _selection = sel);
@@ -762,6 +789,8 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
                             settings: settings,
                             bookFontAvailable:
                                 _nativeSource?.bookFontFamily != null,
+                            bookFontUnsupported:
+                                _nativeSource?.bookFontUnsupported ?? false,
                             onPreset: (p) => ref
                                 .read(readerSettingsControllerProvider)
                                 .setPreset(p),
@@ -787,7 +816,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
                             toc: _toc,
                             currentHref: _location?.href,
                             chapterCount: _chapterTotal,
-                            pageCount: 0,
+                            pageCount: _pageCount,
                             bookmarks: _bookmarks,
                             currentCfi: _location?.cfi,
                             chrome: _chrome,
@@ -852,18 +881,14 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
     final size = MediaQuery.sizeOf(context);
     const toolbarWidth = 236.0;
     const toolbarHeight = 44.0;
-    final left = (sel.rect.center.dx - toolbarWidth / 2)
-        .clamp(8.0, size.width - toolbarWidth - 8)
-        .toDouble();
-    var top = sel.rect.top - toolbarHeight - 10;
-    if (top < 60) {
-      top = (sel.rect.bottom + 10)
-          .clamp(60.0, size.height - toolbarHeight - 50)
-          .toDouble();
-    }
+    final origin = selectionToolbarOrigin(
+      selection: sel.rect,
+      viewport: size,
+      toolbar: const Size(toolbarWidth, toolbarHeight),
+    );
     return Positioned(
-      left: left,
-      top: top,
+      left: origin.dx,
+      top: origin.dy,
       child: Material(
         color: Colors.transparent,
         child: TweenAnimationBuilder<double>(
@@ -1073,9 +1098,15 @@ class _ErrorView extends StatelessWidget {
         children: [
           const Icon(Icons.error_outline, color: LannaColors.textMuted),
           const SizedBox(height: LannaSpacing.s3),
-          Text(
-            message,
-            style: LannaType.md.copyWith(color: LannaColors.textMuted),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: LannaSpacing.s6),
+            child: Text(
+              message,
+              textAlign: TextAlign.center,
+              maxLines: 6,
+              overflow: TextOverflow.ellipsis,
+              style: LannaType.md.copyWith(color: LannaColors.textMuted),
+            ),
           ),
           const SizedBox(height: LannaSpacing.s4),
           TextButton(

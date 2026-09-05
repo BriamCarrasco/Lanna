@@ -5,8 +5,12 @@ import 'package:archive/archive.dart';
 import 'package:path/path.dart' as p;
 
 abstract final class EpubExtractor {
+  static const markerName = '.lanna-complete';
+
   static void extract(Archive archive, Directory dest) {
-    if (dest.existsSync() && dest.listSync().isNotEmpty) return;
+    final marker = File(p.join(dest.path, markerName));
+    if (marker.existsSync()) return;
+
     dest.createSync(recursive: true);
     final root = dest.path;
 
@@ -21,5 +25,7 @@ abstract final class EpubExtractor {
       out.parent.createSync(recursive: true);
       out.writeAsBytesSync(file.content as List<int>);
     }
+
+    marker.writeAsStringSync('');
   }
 }

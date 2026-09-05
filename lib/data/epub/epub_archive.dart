@@ -6,6 +6,8 @@ import 'package:archive/archive.dart';
 import 'package:path/path.dart' as p;
 import 'package:xml/xml.dart';
 
+import 'epub_paths.dart';
+
 class EpubArchive {
   EpubArchive._(this._archive, this.opfPath);
 
@@ -47,24 +49,31 @@ class EpubArchive {
   }
 
   String resolveFromOpf(String href) {
-    final decoded = Uri.decodeFull(href.split('#').first);
+    final decoded = decodeHref(href.split('#').first);
     return p.normalize(p.join(rootDir, decoded)).replaceAll('\\', '/');
   }
 
   Iterable<String> get paths =>
       _archive.files.where((f) => f.isFile).map((f) => f.name);
 
+  late final ({Map<String, ArchiveFile> exact, Map<String, ArchiveFile> lower})
+  _index = _buildIndex();
+
+  ({Map<String, ArchiveFile> exact, Map<String, ArchiveFile> lower})
+  _buildIndex() {
+    final exact = <String, ArchiveFile>{};
+    final lower = <String, ArchiveFile>{};
+    for (final f in _archive.files) {
+      if (!f.isFile) continue;
+      exact.putIfAbsent(f.name, () => f);
+      lower.putIfAbsent(f.name.toLowerCase(), () => f);
+    }
+    return (exact: exact, lower: lower);
+  }
+
   ArchiveFile? _file(String path) {
     final normalized = path.replaceAll('\\', '/');
-    for (final f in _archive.files) {
-      if (f.isFile && f.name == normalized) return f;
-    }
-    for (final f in _archive.files) {
-      if (f.isFile && f.name.toLowerCase() == normalized.toLowerCase()) {
-        return f;
-      }
-    }
-    return null;
+    return _index.exact[normalized] ?? _index.lower[normalized.toLowerCase()];
   }
 
   static String _findOpfPath(Archive archive) {

@@ -65,19 +65,6 @@ void main() {
     expect(await db.watchProgress('a').first, isNull);
   });
 
-  test('cache de locations: guardar y leer, upsert por libro', () async {
-    await db.upsertBook(sampleBook('a'));
-
-    expect(await db.readLocations('a'), isNull);
-    await db.saveLocations('a', '["cfi1","cfi2"]');
-    await db.saveLocations('a', '["cfi1","cfi2","cfi3"]');
-
-    expect(await db.readLocations('a'), '["cfi1","cfi2","cfi3"]');
-
-    await db.deleteBook('a');
-    expect(await db.readLocations('a'), isNull);
-  });
-
   test(
     'marcadores: añadir, ordenar por porcentaje, borrar en cascada',
     () async {

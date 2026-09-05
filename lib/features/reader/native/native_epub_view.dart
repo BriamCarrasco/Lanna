@@ -63,25 +63,34 @@ class _NativeEpubViewState extends State<NativeEpubView>
 
   Future<void> _boot() async {
     if (!mounted) return;
-    await widget.source.loadFonts();
+    try {
+      await widget.source.loadFonts();
+    } catch (_) {}
     if (!mounted) return;
     _applyMetrics();
+
     final locator = ReaderLocator.parse(widget.initialLocator);
-    if (locator != null) {
-      await _openChapter(locator.chapter, offset: locator.offset);
-    } else {
-      final percent = widget.initialPercent ?? 0;
-      if (percent > 0.001) {
-        await _goToPercentage(percent);
-      } else {
-        await _openChapter(0);
-      }
-    }
+    final percent = widget.initialPercent ?? 0;
+    final resuming = locator != null || percent > 0.001;
+
+    var opened = locator != null
+        ? await _openChapter(locator.chapter, offset: locator.offset)
+        : resuming
+        ? await _goToPercentage(percent)
+        : await _openChapter(0);
     if (!mounted) return;
+    if (!opened && resuming) opened = await _openChapter(0);
+    if (!mounted) return;
+
     setState(() => _ready = true);
     widget.callbacks.onReady?.call(this);
     _emitToc();
     _emitLocation();
+  }
+
+  void _fail(String context, Object error) {
+    if (!mounted) return;
+    widget.callbacks.onError?.call('$context\n$error');
   }
 
   void _emitToc() {
@@ -97,8 +106,36 @@ class _NativeEpubViewState extends State<NativeEpubView>
     if (toc.isNotEmpty) widget.callbacks.onTocLoaded?.call(toc);
   }
 
+  Size _viewport = Size.zero;
+  Timer? _resize;
+
+  String get _layoutKey => '${_style.key}#${_metrics.key}';
+
+  void _onViewport(Size size) {
+    if (size.isEmpty || size == _viewport) return;
+    _viewport = size;
+    if (!_ready) return;
+    _resize?.cancel();
+    _resize = Timer(
+      const Duration(milliseconds: 150),
+      () => unawaited(_relayout()),
+    );
+  }
+
+  Future<void> _relayout() async {
+    if (!mounted) return;
+    final offset = _offset;
+    final chapter = _chapter;
+    final before = _layoutKey;
+    _applyMetrics();
+    if (_layoutKey == before) return;
+    _jobs.clear();
+    await _openChapter(chapter, offset: offset);
+    _settle();
+  }
+
   void _applyMetrics() {
-    final size = MediaQuery.sizeOf(context);
+    final size = _viewport;
     final columns = switch (_columnMode) {
       'single' => 1,
       'double' => 2,
@@ -123,37 +160,73 @@ class _NativeEpubViewState extends State<NativeEpubView>
     return job;
   }
 
-  Future<void> _openChapter(
+  int _navToken = 0;
+
+  Future<bool> _openChapter(
     int chapter, {
     int offset = 0,
     bool last = false,
   }) async {
+    final token = ++_navToken;
+    if (widget.source.chapterCount == 0) {
+      _fail('El libro no tiene capítulos legibles', 'spine vacío');
+      return false;
+    }
     final clamped = chapter.clamp(0, widget.source.chapterCount - 1);
-    final document = await widget.source.document(clamped);
-    if (!mounted) return;
+    final EpubDocument document;
+    try {
+      document = await widget.source.document(clamped);
+    } catch (error) {
+      _fail('No se pudo leer el capítulo ${clamped + 1}', error);
+      return false;
+    }
+    if (!mounted || token != _navToken) return false;
 
     final job = _jobFor(clamped, document);
-    if (last) {
-      job.run();
-    } else {
-      // Paginar hasta que la página que contiene `offset` esté cerrada:
-      // sin eso pageForOffset devuelve la última página conocida, una antes.
-      while (!job.isDone) {
-        final pages = job.pages;
-        if (pages.isNotEmpty && pages.last.end > offset) break;
-        job.step(budget: const Duration(milliseconds: 6));
-      }
-    }
+    // Paginar hasta que la página que contiene `offset` esté cerrada:
+    // sin eso pageForOffset devuelve la última página conocida, una antes.
+    final reached = await _paginate(
+      job,
+      token,
+      until: last
+          ? null
+          : () {
+              final pages = job.pages;
+              return pages.isNotEmpty && pages.last.end > offset;
+            },
+    );
+    if (!reached) return false;
 
     final page = last
-        ? (job.pageCount - 1).clamp(0, job.pageCount)
+        ? job.pageCount - 1
         : job.snapshot().pageForOffset(offset);
 
     setState(() {
       _chapter = clamped;
       _page = page.clamp(0, job.pageCount > 0 ? job.pageCount - 1 : 0);
     });
+    _evictFar();
     _startPump();
+    return true;
+  }
+
+  void _evictFar() {
+    _jobs.removeWhere((i, _) => (i - _chapter).abs() > 1);
+    widget.source.keepNear(_chapter);
+  }
+
+  Future<bool> _paginate(
+    PaginationJob job,
+    int token, {
+    bool Function()? until,
+  }) async {
+    while (!job.isDone && !(until?.call() ?? false)) {
+      job.step(budget: const Duration(milliseconds: 6));
+      if (job.isDone || (until?.call() ?? false)) break;
+      await SchedulerBinding.instance.endOfFrame;
+      if (!mounted || token != _navToken) return false;
+    }
+    return true;
   }
 
   void _startPump() {
@@ -168,15 +241,17 @@ class _NativeEpubViewState extends State<NativeEpubView>
       if (job == null || job.isDone) break;
       await SchedulerBinding.instance.endOfFrame;
       if (!mounted) break;
+      final before = _current;
       job.step(budget: const Duration(milliseconds: 6));
       if (!mounted) break;
-      setState(() {});
+      if (!identical(_current, before)) setState(() {});
     }
     _pumping = false;
     if (mounted) {
       final job = _jobs[_chapter];
       if (job != null && job.isDone) {
         widget.callbacks.onPageCount?.call(job.pageCount);
+        _emitLocation();
       }
     }
   }
@@ -210,6 +285,7 @@ class _NativeEpubViewState extends State<NativeEpubView>
           document.length,
         ),
         chapterIndex: _chapter,
+        remainingMinutes: widget.source.remainingMinutes(_chapter, _offset),
         atStart: atStart,
         atEnd: atEnd,
       ),
@@ -225,8 +301,10 @@ class _NativeEpubViewState extends State<NativeEpubView>
   Future<void> next() async {
     final job = _job;
     if (job == null) return;
-    while (!job.isDone && job.pageCount <= _page + 1) {
-      job.step(budget: const Duration(milliseconds: 6));
+    final token = _navToken;
+    final target = _page + 1;
+    if (!await _paginate(job, token, until: () => job.pageCount > target)) {
+      return;
     }
     if (_page + 1 < job.pageCount) {
       setState(() => _page++);
@@ -264,7 +342,13 @@ class _NativeEpubViewState extends State<NativeEpubView>
 
     final chapter = widget.source.chapterForHref(cfi);
     if (chapter == null) return;
-    final document = await widget.source.document(chapter);
+    final EpubDocument document;
+    try {
+      document = await widget.source.document(chapter);
+    } catch (error) {
+      _fail('No se pudo leer el capítulo ${chapter + 1}', error);
+      return;
+    }
     if (!mounted) return;
     final hash = cfi.indexOf('#');
     final anchor = hash < 0 ? null : cfi.substring(hash + 1);
@@ -278,11 +362,21 @@ class _NativeEpubViewState extends State<NativeEpubView>
     _settle();
   }
 
-  Future<void> _goToPercentage(double percentage) async {
+  Future<bool> _goToPercentage(double percentage) async {
+    if (widget.source.chapterCount == 0) {
+      _fail('El libro no tiene capítulos legibles', 'spine vacío');
+      return false;
+    }
     final (chapter, within) = widget.source.locate(percentage);
-    final document = await widget.source.document(chapter);
-    if (!mounted) return;
-    await _openChapter(chapter, offset: (document.length * within).round());
+    final EpubDocument document;
+    try {
+      document = await widget.source.document(chapter);
+    } catch (error) {
+      _fail('No se pudo leer el capítulo ${chapter + 1}', error);
+      return false;
+    }
+    if (!mounted) return false;
+    return _openChapter(chapter, offset: (document.length * within).round());
   }
 
   @override
@@ -293,6 +387,8 @@ class _NativeEpubViewState extends State<NativeEpubView>
     _background = _parseColor(presentation.background, _background);
     _foreground = _parseColor(presentation.foreground, _foreground);
     _link = _parseColor(presentation.link, _link);
+
+    final before = _layoutKey;
     _columnMode = presentation.columnMode;
     _style = PaginationStyle(
       fontFamily: _resolveFamily(presentation.fontFamily),
@@ -301,6 +397,12 @@ class _NativeEpubViewState extends State<NativeEpubView>
       lineHeight: presentation.lineHeight,
     );
     _applyMetrics();
+
+    if (_layoutKey == before) {
+      if (mounted) setState(() {});
+      return;
+    }
+
     _jobs.clear();
     await _openChapter(chapter, offset: offset);
     _settle();
@@ -309,13 +411,9 @@ class _NativeEpubViewState extends State<NativeEpubView>
   @override
   Future<void> setInsets(double top, double bottom) async {
     if (_insetTop == top && _insetBottom == bottom) return;
-    final offset = _offset;
-    final chapter = _chapter;
     _insetTop = top;
     _insetBottom = bottom;
-    _applyMetrics();
-    _jobs.clear();
-    await _openChapter(chapter, offset: offset);
+    await _relayout();
   }
 
   @override
@@ -333,9 +431,6 @@ class _NativeEpubViewState extends State<NativeEpubView>
   }
 
   @override
-  Future<void> loadLocations(String json) async {}
-
-  @override
   Future<void> search(String query) async {
     final needle = query.trim();
     if (needle.length < 2) {
@@ -349,7 +444,15 @@ class _NativeEpubViewState extends State<NativeEpubView>
 
     for (var chapter = 0; chapter < widget.source.chapterCount; chapter++) {
       if (!mounted || token != _searchToken) return;
-      final document = await widget.source.document(chapter);
+      final borrowed = !widget.source.isCached(chapter);
+      final EpubDocument document;
+      try {
+        document = await widget.source.document(chapter);
+      } catch (_) {
+        continue;
+      }
+      if (!mounted || token != _searchToken) return;
+
       final haystack = document.text.toLowerCase();
       var from = 0;
       while (hits.length < 400) {
@@ -363,6 +466,7 @@ class _NativeEpubViewState extends State<NativeEpubView>
         );
         from = at + needle.length;
       }
+      if (borrowed && chapter != _chapter) widget.source.release(chapter);
       if (hits.length >= 400) break;
       await Future<void>.delayed(Duration.zero);
     }
@@ -468,6 +572,15 @@ class _NativeEpubViewState extends State<NativeEpubView>
 
   @override
   Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        _onViewport(constraints.biggest);
+        return _content();
+      },
+    );
+  }
+
+  Widget _content() {
     final page = _current;
     return RepaintBoundary(
       key: _boundary,
@@ -493,6 +606,12 @@ class _NativeEpubViewState extends State<NativeEpubView>
         ),
       ),
     );
+  }
+
+  @override
+  void dispose() {
+    _resize?.cancel();
+    super.dispose();
   }
 
   bool get isReady => _ready;

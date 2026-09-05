@@ -18,6 +18,8 @@ class Books extends Table {
 
   IntColumn get fileSizeBytes => integer().nullable()();
 
+  TextColumn get contentHash => text().nullable()();
+
   DateTimeColumn get addedAt => dateTime().withDefault(currentDateAndTime)();
 
   DateTimeColumn get lastOpenedAt => dateTime().nullable()();
@@ -37,19 +39,6 @@ class ReadingProgress extends Table {
   IntColumn get chapterIndex => integer().nullable()();
 
   DateTimeColumn get updatedAt => dateTime().withDefault(currentDateAndTime)();
-
-  @override
-  Set<Column<Object>> get primaryKey => {bookId};
-}
-
-class BookLocations extends Table {
-  TextColumn get bookId =>
-      text().references(Books, #id, onDelete: KeyAction.cascade)();
-
-  TextColumn get data => text()();
-
-  DateTimeColumn get generatedAt =>
-      dateTime().withDefault(currentDateAndTime)();
 
   @override
   Set<Column<Object>> get primaryKey => {bookId};

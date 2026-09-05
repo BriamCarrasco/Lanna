@@ -341,5 +341,61 @@ void main() {
       expect(doc.length, 0);
       expect(doc.blockAt(0), isNull);
     });
+
+    test('respeta el charset declarado en la cabecera XML', () {
+      final bytes = Uint8List.fromList([
+        ...latin1.encode(
+          '<?xml version="1.0" encoding="ISO-8859-1"?>'
+          '<html><body><p>Caña de azúcar</p></body></html>',
+        ),
+      ]);
+
+      final doc = EpubDocumentParser.parseBytes(
+        bytes,
+        spineIndex: 0,
+        href: 'a.xhtml',
+      );
+
+      expect(doc.blocks.single.text, 'Caña de azúcar');
+    });
+
+    test('respeta el charset de un meta windows-1252', () {
+      final body =
+          '<html><head><meta charset="windows-1252"></head>'
+          '<body><p>X</p></body></html>';
+      final bytes = Uint8List.fromList([
+        ...latin1.encode(body.replaceFirst('X', '@')),
+      ]);
+      bytes[bytes.indexOf(0x40)] = 0x93;
+
+      final doc = EpubDocumentParser.parseBytes(
+        bytes,
+        spineIndex: 0,
+        href: 'a.xhtml',
+      );
+
+      expect(doc.blocks.single.text, '“');
+    });
+
+    test('sin declaración sigue asumiendo UTF-8', () {
+      final doc = EpubDocumentParser.parseBytes(
+        Uint8List.fromList(utf8.encode('<p>Caña</p>')),
+        spineIndex: 0,
+        href: 'a.xhtml',
+      );
+
+      expect(doc.blocks.single.text, 'Caña');
+    });
+
+    test('una ruta con % suelto no tumba el capítulo', () {
+      final doc = parse('<p>Antes</p><img src="cap%20a%b.png"/><p>Después</p>');
+
+      expect(doc.blocks.map((b) => b.kind), [
+        BlockKind.paragraph,
+        BlockKind.image,
+        BlockKind.paragraph,
+      ]);
+      expect(doc.blocks[1].src, 'OEBPS/text/cap%20a%b.png');
+    });
   });
 }

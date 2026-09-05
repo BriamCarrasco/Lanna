@@ -6,6 +6,7 @@ import 'package:xml/xml.dart';
 
 import 'epub_archive.dart';
 import 'epub_book.dart';
+import 'epub_paths.dart';
 
 abstract final class EpubPackage {
   static const _dcNs = 'http://purl.org/dc/elements/1.1/';
@@ -33,6 +34,7 @@ abstract final class EpubPackage {
       manifest: manifest,
       spine: spine,
       toc: toc,
+      rtl: _isRtl(pkg),
     );
   }
 
@@ -60,6 +62,12 @@ abstract final class EpubPackage {
         })
         .whereType<ManifestItem>()
         .toList();
+  }
+
+  static bool _isRtl(XmlElement pkg) {
+    final spine = _child(pkg, 'spine');
+    final declared = spine?.getAttribute('page-progression-direction');
+    return declared?.toLowerCase().trim() == 'rtl';
   }
 
   static List<SpineItem> _parseSpine(
@@ -280,7 +288,7 @@ abstract final class EpubPackage {
   }
 
   static String _resolve(String baseDir, String href) {
-    final decoded = Uri.decodeFull(href);
+    final decoded = decodeHref(href);
     final hashIndex = decoded.indexOf('#');
     final path = hashIndex >= 0 ? decoded.substring(0, hashIndex) : decoded;
     final fragment = hashIndex >= 0 ? decoded.substring(hashIndex) : '';

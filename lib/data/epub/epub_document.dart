@@ -6,6 +6,8 @@ import 'package:html/dom.dart' as dom;
 import 'package:html/parser.dart' as html_parser;
 import 'package:path/path.dart' as p;
 
+import 'epub_paths.dart';
+
 const String objectReplacement = '￼';
 
 enum BlockKind {
@@ -55,6 +57,7 @@ class DocBlock {
     this.alt,
     this.listOrdered = false,
     this.listIndex = 0,
+    this.rtl = false,
   });
 
   final BlockKind kind;
@@ -68,6 +71,7 @@ class DocBlock {
   final String? alt;
   final bool listOrdered;
   final int listIndex;
+  final bool rtl;
 
   bool get isEmpty => end == start;
 
@@ -84,6 +88,7 @@ class EpubDocument {
     required this.blocks,
     required this.anchors,
     required this.length,
+    this.rtl = false,
   });
 
   final int spineIndex;
@@ -91,6 +96,7 @@ class EpubDocument {
   final List<DocBlock> blocks;
   final Map<String, int> anchors;
   final int length;
+  final bool rtl;
 
   late final String text = _buildText();
 
@@ -122,16 +128,20 @@ abstract final class EpubDocumentParser {
     Uint8List bytes, {
     required int spineIndex,
     required String href,
-  }) => parse(_decode(bytes), spineIndex: spineIndex, href: href);
+    bool rtl = false,
+  }) => parse(_decode(bytes), spineIndex: spineIndex, href: href, rtl: rtl);
 
   static EpubDocument parse(
     String source, {
     required int spineIndex,
     required String href,
+    bool rtl = false,
   }) {
     final document = html_parser.parse(source);
-    final builder = _Builder(href);
-    final body = document.body ?? document.documentElement;
+    final root = document.documentElement;
+    final body = document.body ?? root;
+    final declared = _dirOf(root) ?? _dirOf(document.body);
+    final builder = _Builder(href, declared ?? rtl);
     if (body != null) builder.visit(body);
     builder.flush();
     return EpubDocument(
@@ -140,18 +150,78 @@ abstract final class EpubDocumentParser {
       blocks: List.unmodifiable(builder.blocks),
       anchors: Map.unmodifiable(builder.anchors),
       length: builder.offset,
+      rtl: declared ?? rtl,
     );
   }
 
+  static bool? _dirOf(dom.Element? node) =>
+      switch (node?.attributes['dir']?.toLowerCase().trim()) {
+        'rtl' => true,
+        'ltr' => false,
+        _ => null,
+      };
+
   static String _decode(Uint8List bytes) {
-    var data = bytes;
-    if (data.length >= 3 &&
-        data[0] == 0xEF &&
-        data[1] == 0xBB &&
-        data[2] == 0xBF) {
-      data = data.sublist(3);
+    if (bytes.length >= 3 &&
+        bytes[0] == 0xEF &&
+        bytes[1] == 0xBB &&
+        bytes[2] == 0xBF) {
+      return utf8.decode(bytes.sublist(3), allowMalformed: true);
     }
-    return utf8.decode(data, allowMalformed: true);
+    if (bytes.length >= 2 && bytes[0] == 0xFF && bytes[1] == 0xFE) {
+      return _utf16(bytes, 2, littleEndian: true);
+    }
+    if (bytes.length >= 2 && bytes[0] == 0xFE && bytes[1] == 0xFF) {
+      return _utf16(bytes, 2, littleEndian: false);
+    }
+
+    return switch (declaredEncoding(bytes)) {
+      'iso-8859-1' || 'latin1' || 'iso8859-1' => latin1.decode(bytes),
+      'windows-1252' || 'cp1252' => _cp1252(bytes),
+      _ => utf8.decode(bytes, allowMalformed: true),
+    };
+  }
+
+  static final _encodingPattern = RegExp(
+    r'''(?:encoding|charset)\s*=\s*["']?\s*([A-Za-z0-9_-]+)''',
+    caseSensitive: false,
+  );
+
+  static String? declaredEncoding(Uint8List bytes) {
+    final head = latin1.decode(
+      bytes.sublist(0, bytes.length < 1024 ? bytes.length : 1024),
+      allowInvalid: true,
+    );
+    final match = _encodingPattern.firstMatch(head);
+    return match?.group(1)?.toLowerCase();
+  }
+
+  static const _cp1252High = [
+    0x20AC, 0x0081, 0x201A, 0x0192, 0x201E, 0x2026, 0x2020, 0x2021, //
+    0x02C6, 0x2030, 0x0160, 0x2039, 0x0152, 0x008D, 0x017D, 0x008F,
+    0x0090, 0x2018, 0x2019, 0x201C, 0x201D, 0x2022, 0x2013, 0x2014,
+    0x02DC, 0x2122, 0x0161, 0x203A, 0x0153, 0x009D, 0x017E, 0x0178,
+  ];
+
+  static String _cp1252(Uint8List bytes) => String.fromCharCodes([
+    for (final b in bytes)
+      if (b >= 0x80 && b <= 0x9F) _cp1252High[b - 0x80] else b,
+  ]);
+
+  static String _utf16(
+    Uint8List bytes,
+    int from, {
+    required bool littleEndian,
+  }) {
+    final units = <int>[];
+    for (var i = from; i + 1 < bytes.length; i += 2) {
+      units.add(
+        littleEndian
+            ? bytes[i] | (bytes[i + 1] << 8)
+            : (bytes[i] << 8) | bytes[i + 1],
+      );
+    }
+    return String.fromCharCodes(units);
   }
 }
 
@@ -268,9 +338,10 @@ const _markTags = {
 };
 
 class _Builder {
-  _Builder(this.docHref);
+  _Builder(this.docHref, this._rtl);
 
   final String docHref;
+  bool _rtl;
   final List<DocBlock> blocks = [];
   final Map<String, int> anchors = {};
 
@@ -390,14 +461,18 @@ class _Builder {
 
     if (_containers.contains(tag) || _promotable.contains(tag)) {
       final align = _alignOf(node);
-      if (align == null) {
+      final dir = EpubDocumentParser._dirOf(node);
+      if (align == null && dir == null) {
         _visitChildren(node);
         return;
       }
-      final previous = _align;
-      _align = align;
+      final previousAlign = _align;
+      final previousRtl = _rtl;
+      _align = align ?? _align;
+      _rtl = dir ?? _rtl;
       _visitChildren(node);
-      _align = previous;
+      _align = previousAlign;
+      _rtl = previousRtl;
       return;
     }
 
@@ -447,6 +522,8 @@ class _Builder {
     final savedOrdered = _listOrdered;
     final savedIndex = _listIndex;
     final savedPre = _preserveSpace;
+    final savedRtl = _rtl;
+    _rtl = EpubDocumentParser._dirOf(node) ?? _rtl;
 
     _kind = switch (tag) {
       'h1' || 'h2' || 'h3' || 'h4' || 'h5' || 'h6' => BlockKind.heading,
@@ -485,6 +562,7 @@ class _Builder {
     _listOrdered = savedOrdered;
     _listIndex = savedIndex;
     _preserveSpace = savedPre;
+    _rtl = savedRtl;
   }
 
   void _emitImage(dom.Element node, String? id) {
@@ -502,6 +580,7 @@ class _Builder {
         alt: node.attributes['alt'],
         align: BlockAlign.center,
         id: id,
+        rtl: _rtl,
         runs: [InlineRun(text: objectReplacement, start: start)],
       ),
     );
@@ -580,6 +659,7 @@ class _Builder {
         id: _blockId,
         listOrdered: _listOrdered,
         listIndex: _listIndex,
+        rtl: _rtl,
       ),
     );
     _blockId = null;
@@ -647,7 +727,7 @@ class _Builder {
         src.startsWith('https://')) {
       return src;
     }
-    final decoded = Uri.decodeFull(src.split('#').first);
+    final decoded = decodeHref(src.split('#').first);
     return p.url.normalize(p.url.join(p.url.dirname(docHref), decoded));
   }
 }

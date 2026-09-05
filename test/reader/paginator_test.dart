@@ -22,10 +22,12 @@ void main() {
     int columns = 1,
     double fontSize = 18,
     ImageSizeResolver? images,
+    int chunkChars = Paginator.defaultChunkChars,
   }) => Paginator(
     style: PaginationStyle(fontSize: fontSize),
     metrics: PaginationMetrics(size: size, columns: columns),
     images: images,
+    chunkChars: chunkChars,
   ).paginate(document);
 
   void expectContiguous(EpubDocument document, DocumentPagination result) {
@@ -64,11 +66,20 @@ void main() {
       expectContiguous(document, result);
     });
 
-    test('un documento vacío no produce páginas', () {
+    test('un documento vacío produce una página vacía', () {
       final result = paginate(doc('   '));
 
-      expect(result.pages, isEmpty);
+      expect(result.pageCount, 1);
+      expect(result.pages.single.fragments, isEmpty);
       expect(result.pageForOffset(0), 0);
+    });
+
+    test('una página degenerada contiene su propio desplazamiento', () {
+      final result = paginate(doc('<hr/>'));
+
+      expect(result.pageCount, 1);
+      final page = result.pages.single;
+      expect(page.contains(page.start), isTrue);
     });
 
     test('un documento corto cabe en una página', () {
@@ -78,6 +89,106 @@ void main() {
       expect(result.pageCount, 1);
       expect(result.pages.single.start, 0);
       expect(result.pages.single.end, document.length);
+    });
+  });
+
+  group('listas', () {
+    test('la sangría crece con el anidamiento', () {
+      final document = doc(
+        '<ul><li>uno</li><li>dos<ul><li>hondo</li></ul></li></ul>',
+      );
+      const style = PaginationStyle(fontSize: 18);
+      final items = document.blocks
+          .where((b) => b.kind == BlockKind.listItem)
+          .toList();
+
+      expect(items.map((b) => b.level), [1, 1, 2]);
+      expect(style.listInset(items[0]), 0);
+      expect(style.listInset(items[2]), greaterThan(0));
+      expect(style.listGutter(items[0]), greaterThan(0));
+    });
+
+    test('los marcadores distinguen orden y nivel', () {
+      final document = doc(
+        '<ol><li>uno</li><li>dos</li></ol>'
+        '<ul><li>viñeta<ul><li>hondo</li></ul></li></ul>',
+      );
+      const style = PaginationStyle(fontSize: 18);
+      final items = document.blocks
+          .where((b) => b.kind == BlockKind.listItem)
+          .toList();
+
+      expect(style.markerFor(items[0]), '1.');
+      expect(style.markerFor(items[1]), '2.');
+      expect(style.markerFor(items[2]), '•');
+      expect(style.markerFor(items[3]), '◦');
+    });
+
+    test('un párrafo no lleva sangría de lista', () {
+      final block = doc('<p>hola</p>').blocks.single;
+      const style = PaginationStyle(fontSize: 18);
+
+      expect(style.textIndent(block), 0);
+      expect(style.markerFor(block), '');
+    });
+
+    test('la sangría acorta la línea, así que hace falta más alto', () {
+      final texto = words(60);
+      final llano = paginate(doc('<p>$texto</p>'));
+      final anidado = paginate(
+        doc('<ul><li><ul><li><ul><li>$texto</li></ul></li></ul></li></ul>'),
+      );
+
+      expect(
+        anidado.pages.first.end,
+        lessThan(llano.pages.first.end),
+        reason: 'con menos ancho debería caber menos texto por página',
+      );
+      expect(anidado.pageCount, greaterThanOrEqualTo(llano.pageCount));
+    });
+  });
+
+  group('trozos de medición', () {
+    test('trocear no cambia dónde caen las páginas', () {
+      final document = doc('<p>${words(3000)}</p>');
+      expect(document.length, greaterThan(20000));
+
+      final entero = paginate(document, chunkChars: 1 << 30);
+      final troceado = paginate(document, chunkChars: 500);
+
+      expect(troceado.pageCount, entero.pageCount);
+      for (var i = 0; i < entero.pageCount; i++) {
+        expect(
+          [troceado.pages[i].start, troceado.pages[i].end],
+          [entero.pages[i].start, entero.pages[i].end],
+          reason: 'la página $i no coincide',
+        );
+      }
+    });
+
+    test('un párrafo enorme se sigue cubriendo entero', () {
+      final document = doc('<p>${words(3000)}</p>');
+      expectContiguous(document, paginate(document, chunkChars: 300));
+    });
+
+    test('los cortes de trozo no parten palabras', () {
+      final document = doc('<p>${words(3000)}</p>');
+      final result = paginate(document, chunkChars: 500);
+      final text = document.text;
+
+      for (final page in result.pages) {
+        for (final fragment in page.fragments) {
+          if (fragment.start > 0) {
+            expect(
+              text[fragment.start - 1] == ' ' || text[fragment.start] == ' ',
+              isTrue,
+              reason:
+                  'el fragmento arranca a mitad de palabra en '
+                  '\${fragment.start}',
+            );
+          }
+        }
+      }
     });
   });
 

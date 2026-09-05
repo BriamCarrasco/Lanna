@@ -44,11 +44,6 @@ class BookRepository {
 
   Future<void> markOpened(String bookId) => _db.touchLastOpened(bookId);
 
-  Future<String?> readLocations(String bookId) => _db.readLocations(bookId);
-
-  Future<void> saveLocations(String bookId, String data) =>
-      _db.saveLocations(bookId, data);
-
   Stream<List<Bookmark>> watchBookmarks(String bookId) =>
       _db.watchBookmarks(bookId);
 

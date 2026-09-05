@@ -77,6 +77,7 @@ class EpubBook {
     required this.manifest,
     required this.spine,
     required this.toc,
+    this.rtl = false,
   });
 
   final String opfPath;
@@ -84,6 +85,7 @@ class EpubBook {
   final List<ManifestItem> manifest;
   final List<SpineItem> spine;
   final List<EpubTocEntry> toc;
+  final bool rtl;
 
   ManifestItem? itemById(String id) {
     for (final item in manifest) {

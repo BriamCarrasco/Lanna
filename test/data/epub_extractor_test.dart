@@ -36,9 +36,10 @@ void main() {
     ]);
   });
 
-  test('no vuelve a extraer si el destino ya tiene contenido', () {
+  test('no vuelve a extraer si la extracción anterior terminó', () {
     final dest = Directory(p.join(tmp.path, 'book'))
       ..createSync(recursive: true);
+    File(p.join(dest.path, EpubExtractor.markerName)).writeAsStringSync('');
     File(p.join(dest.path, 'marcador.txt')).writeAsStringSync('intacto');
 
     EpubExtractor.extract(
@@ -50,6 +51,35 @@ void main() {
     expect(
       File(p.join(dest.path, 'marcador.txt')).readAsStringSync(),
       'intacto',
+    );
+  });
+
+  test('reextrae si la extracción anterior quedó a medias', () {
+    final dest = Directory(p.join(tmp.path, 'book'))
+      ..createSync(recursive: true);
+    File(p.join(dest.path, 'a-medias.txt')).writeAsStringSync('parcial');
+
+    EpubExtractor.extract(
+      Archive()..addFile(ArchiveFile.string('OEBPS/c1.xhtml', 'completo')),
+      dest,
+    );
+
+    expect(
+      File(p.join(dest.path, 'OEBPS', 'c1.xhtml')).readAsStringSync(),
+      'completo',
+    );
+  });
+
+  test('deja el marcador al terminar', () {
+    final dest = Directory(p.join(tmp.path, 'book'));
+    EpubExtractor.extract(
+      Archive()..addFile(ArchiveFile.string('a.txt', 'x')),
+      dest,
+    );
+
+    expect(
+      File(p.join(dest.path, EpubExtractor.markerName)).existsSync(),
+      isTrue,
     );
   });
 

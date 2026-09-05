@@ -12,6 +12,7 @@ class AppearancePanel extends StatelessWidget {
     required this.onPreset,
     required this.onColumns,
     this.bookFontAvailable = false,
+    this.bookFontUnsupported = false,
     this.onFontFamily,
     this.onFontScale,
     this.onLineHeight,
@@ -21,6 +22,7 @@ class AppearancePanel extends StatelessWidget {
   final ValueChanged<ReaderThemePreset> onPreset;
   final ValueChanged<String> onColumns;
   final bool bookFontAvailable;
+  final bool bookFontUnsupported;
   final ValueChanged<String>? onFontFamily;
   final ValueChanged<int>? onFontScale;
   final ValueChanged<double>? onLineHeight;
@@ -90,6 +92,14 @@ class AppearancePanel extends StatelessWidget {
                 onChanged: onFontFamily!,
               ),
             ),
+            if (bookFontUnsupported) ...[
+              const SizedBox(height: LannaSpacing.s2),
+              Text(
+                'Este libro trae su fuente en un formato que Lanna todavía '
+                'no puede abrir (WOFF2).',
+                style: LannaType.sm.copyWith(color: chrome.onBarMuted),
+              ),
+            ],
             const SizedBox(height: LannaSpacing.s3),
             _Row(
               label: 'Tamaño',
