@@ -333,7 +333,7 @@ class _PdfReaderScreenState extends ConsumerState<PdfReaderScreen>
               dir,
               outgoing: _captureSpread,
               advance: jump,
-              fade: anim == 'fade',
+              mode: anim == 'fade' ? PageTransition.fade : PageTransition.curl,
             )
             .then((ok) {
               if (!ok && mounted) fallback();

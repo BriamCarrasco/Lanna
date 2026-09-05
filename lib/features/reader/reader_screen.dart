@@ -184,9 +184,12 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
   Offset? _tapDownPos;
   DateTime? _tapDownAt;
 
+  PageTransition? get _transition =>
+      PageTransition.forSetting(_settings.pageAnimation);
+
   bool get _dragCurlEnabled =>
       _dragCurlReady &&
-      _settings.pageAnimation == 'curl' &&
+      (_transition?.tracksDrag ?? false) &&
       !_showToc &&
       !_showAppearance &&
       !_showSearch;
@@ -219,6 +222,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
       unawaited(
         _curl.beginDrag(
           _foldFor(forward ? 1 : -1),
+          mode: _transition ?? PageTransition.curl,
           outgoing: controller.snapshot,
           advance: () => forward ? controller.next() : controller.previous(),
           revert: () => forward ? controller.previous() : controller.next(),
@@ -595,13 +599,15 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
     WakelockPlus.toggle(enable: settings.keepAwake);
   }
 
-  Future<void> _curlTurn(
+  Future<void> _animatedTurn(
     int dir,
+    PageTransition mode,
     EpubViewController controller,
     PageTurn advance,
   ) async {
     final started = await _curl.start(
       dir,
+      mode: mode,
       outgoing: controller.snapshot,
       advance: advance,
     );
@@ -614,9 +620,10 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
     if (controller == null) return;
     Future<void> advance() =>
         dir > 0 ? controller.next() : controller.previous();
-    if (_settings.pageAnimation == 'curl') {
+    final mode = _transition;
+    if (mode != null) {
       if (_curl.busy) return;
-      unawaited(_curlTurn(_foldFor(dir), controller, advance));
+      unawaited(_animatedTurn(_foldFor(dir), mode, controller, advance));
       return;
     }
     unawaited(advance());
@@ -693,57 +700,60 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
               child: Stack(
                 children: [
                   Positioned.fill(
-                    child: createEpubView(
-                      key: ValueKey(widget.bookId),
-                      source: _nativeSource!,
-                      initialLocator: _initialLocator,
-                      initialPercent: _initialPercent,
-                      callbacks: EpubViewCallbacks(
-                        onReady: (c) {
-                          _controller = c;
-                          _applySettings(settings);
-                          c.applyHighlights([
-                            for (final h in _highlights)
-                              HighlightSpec(cfi: h.cfi, color: h.color),
-                          ]);
-                          _pushInsets(force: true);
-                          _focusNode.requestFocus();
-                        },
-                        onLocationChanged: _onLocation,
-                        onTocLoaded: (toc) {
-                          if (!mounted) return;
-                          setState(() {
-                            _fallbackToc = [
-                              for (final e in toc)
-                                EpubTocEntry(label: e.label, href: e.href),
-                            ];
-                          });
-                        },
-                        onPageCount: (total) {
-                          if (!mounted || total == _pageCount) return;
-                          setState(() => _pageCount = total);
-                        },
-                        onSearchResults: (query, hits) {
-                          if (!mounted || query != _searchQuery) return;
-                          setState(() {
-                            _searchHits = hits;
-                            _searchBusy = false;
-                          });
-                        },
-                        onTextSelected: (sel) {
-                          if (!mounted) return;
-                          setState(() => _selection = sel);
-                        },
-                        onSelectionCleared: () {
-                          if (mounted && _selection != null) {
-                            setState(() => _selection = null);
-                          }
-                        },
-                        onHighlightTapped: _openHighlight,
-                        onError: (m) {
-                          if (!mounted) return;
-                          setState(() => _error = m);
-                        },
+                    child: FractionalTranslation(
+                      translation: Offset(_curl.incomingShift, 0),
+                      child: createEpubView(
+                        key: ValueKey(widget.bookId),
+                        source: _nativeSource!,
+                        initialLocator: _initialLocator,
+                        initialPercent: _initialPercent,
+                        callbacks: EpubViewCallbacks(
+                          onReady: (c) {
+                            _controller = c;
+                            _applySettings(settings);
+                            c.applyHighlights([
+                              for (final h in _highlights)
+                                HighlightSpec(cfi: h.cfi, color: h.color),
+                            ]);
+                            _pushInsets(force: true);
+                            _focusNode.requestFocus();
+                          },
+                          onLocationChanged: _onLocation,
+                          onTocLoaded: (toc) {
+                            if (!mounted) return;
+                            setState(() {
+                              _fallbackToc = [
+                                for (final e in toc)
+                                  EpubTocEntry(label: e.label, href: e.href),
+                              ];
+                            });
+                          },
+                          onPageCount: (total) {
+                            if (!mounted || total == _pageCount) return;
+                            setState(() => _pageCount = total);
+                          },
+                          onSearchResults: (query, hits) {
+                            if (!mounted || query != _searchQuery) return;
+                            setState(() {
+                              _searchHits = hits;
+                              _searchBusy = false;
+                            });
+                          },
+                          onTextSelected: (sel) {
+                            if (!mounted) return;
+                            setState(() => _selection = sel);
+                          },
+                          onSelectionCleared: () {
+                            if (mounted && _selection != null) {
+                              setState(() => _selection = null);
+                            }
+                          },
+                          onHighlightTapped: _openHighlight,
+                          onError: (m) {
+                            if (!mounted) return;
+                            setState(() => _error = m);
+                          },
+                        ),
                       ),
                     ),
                   ),

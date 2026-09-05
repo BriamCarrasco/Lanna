@@ -4,6 +4,7 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:lanna/features/reader/reader_theme.dart';
 import 'package:lanna/features/reader/widgets/page_curl.dart';
 
 void main() {
@@ -192,10 +193,114 @@ void main() {
     expect(curl.dragging, isFalse);
   });
 
+  testWidgets('el modo deslizado mueve la página saliente', (tester) async {
+    final curl = await host(tester);
+
+    await curl.start(
+      1,
+      outgoing: pageImage,
+      advance: () async {},
+      mode: PageTransition.slide,
+    );
+    await tester.pump();
+
+    expect(find.byType(PageCurl), findsNothing);
+    expect(find.byType(FractionalTranslation), findsOneWidget);
+
+    await tester.pump(const Duration(milliseconds: 130));
+    final medio = tester
+        .widget<FractionalTranslation>(find.byType(FractionalTranslation))
+        .translation
+        .dx;
+    expect(medio, lessThan(0), reason: 'hacia delante sale por la izquierda');
+
+    await tester.pumpAndSettle();
+    expect(curl.busy, isFalse);
+  });
+
+  testWidgets('hacia atrás el deslizado va al otro lado', (tester) async {
+    final curl = await host(tester);
+
+    await curl.start(
+      -1,
+      outgoing: pageImage,
+      advance: () async {},
+      mode: PageTransition.slide,
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 130));
+
+    final medio = tester
+        .widget<FractionalTranslation>(find.byType(FractionalTranslation))
+        .translation
+        .dx;
+    expect(medio, greaterThan(0));
+
+    await tester.pumpAndSettle();
+  });
+
+  testWidgets('la entrante solo se desplaza en modo deslizado', (tester) async {
+    final curl = await host(tester);
+    expect(curl.incomingShift, 0);
+
+    await curl.start(
+      1,
+      outgoing: pageImage,
+      advance: () async {},
+      mode: PageTransition.slide,
+    );
+    await tester.pump();
+    expect(curl.incomingShift, closeTo(1, 0.05));
+
+    await tester.pumpAndSettle();
+    expect(curl.incomingShift, 0);
+
+    await curl.start(
+      1,
+      outgoing: pageImage,
+      advance: () async {},
+      mode: PageTransition.curl,
+    );
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(curl.incomingShift, 0, reason: 'el curl no debe mover la entrante');
+    await tester.pumpAndSettle();
+  });
+
+  test('ningún ajuste de animación se queda sin cablear', () {
+    for (final ajuste in ReaderSettings.pageAnimations) {
+      if (ajuste == 'none') {
+        expect(PageTransition.forSetting(ajuste), isNull);
+        continue;
+      }
+      expect(
+        PageTransition.forSetting(ajuste),
+        isNotNull,
+        reason: 'el ajuste "$ajuste" no anima nada',
+      );
+    }
+  });
+
+  test('cada ajuste mapea a su transición', () {
+    expect(PageTransition.forSetting('curl'), PageTransition.curl);
+    expect(PageTransition.forSetting('slide'), PageTransition.slide);
+    expect(PageTransition.forSetting('fade'), PageTransition.fade);
+    expect(PageTransition.forSetting('none'), isNull);
+    expect(PageTransition.forSetting('otra cosa'), isNull);
+
+    expect(PageTransition.curl.tracksDrag, isTrue);
+    expect(PageTransition.slide.tracksDrag, isTrue);
+    expect(PageTransition.fade.tracksDrag, isFalse);
+  });
+
   testWidgets('el modo fundido no usa la malla del curl', (tester) async {
     final curl = await host(tester);
 
-    await curl.start(1, outgoing: pageImage, advance: () async {}, fade: true);
+    await curl.start(
+      1,
+      outgoing: pageImage,
+      advance: () async {},
+      mode: PageTransition.fade,
+    );
     await tester.pump();
 
     expect(find.byType(PageCurl), findsNothing);

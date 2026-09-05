@@ -9,6 +9,25 @@ import 'package:flutter/material.dart';
 typedef PageImageSource = Future<ui.Image?> Function();
 typedef PageTurn = Future<void> Function();
 
+enum PageTransition {
+  curl(420),
+  slide(260),
+  fade(200);
+
+  const PageTransition(this.millis);
+
+  final int millis;
+
+  static PageTransition? forSetting(String value) => switch (value) {
+    'curl' => PageTransition.curl,
+    'slide' => PageTransition.slide,
+    'fade' => PageTransition.fade,
+    _ => null,
+  };
+
+  bool get tracksDrag => this != PageTransition.fade;
+}
+
 class PageCurlController {
   PageCurlController({required TickerProvider vsync, required this.onChange}) {
     _anim =
@@ -32,7 +51,7 @@ class PageCurlController {
   late final AnimationController _anim;
   ui.Image? _active;
   int _direction = 1;
-  bool _fade = false;
+  PageTransition _mode = PageTransition.curl;
   bool _dragging = false;
   bool _cancelling = false;
   PageTurn? _revert;
@@ -42,16 +61,20 @@ class PageCurlController {
 
   bool get dragging => _dragging;
 
-  bool _adopt(ui.Image? image, int direction, {bool fade = false}) {
+  bool _adopt(ui.Image? image, int direction, PageTransition mode) {
     if (busy || image == null) {
       image?.dispose();
       return false;
     }
     _active = image;
     _direction = direction;
-    _fade = fade;
+    _mode = mode;
     return true;
   }
+
+  double get incomingShift => _active == null || _mode != PageTransition.slide
+      ? 0
+      : _direction * (1 - _anim.value);
 
   bool _capturing = false;
 
@@ -59,15 +82,15 @@ class PageCurlController {
     int direction, {
     required PageImageSource outgoing,
     required PageTurn advance,
-    bool fade = false,
+    PageTransition mode = PageTransition.curl,
   }) async {
     if (busy || _capturing) return false;
     _capturing = true;
     final image = await outgoing();
     _capturing = false;
-    if (!_adopt(image, direction, fade: fade)) return false;
+    if (!_adopt(image, direction, mode)) return false;
     _pending = advance();
-    _anim.duration = Duration(milliseconds: fade ? 200 : 420);
+    _anim.duration = Duration(milliseconds: mode.millis);
     _anim.forward(from: 0);
     onChange();
     return true;
@@ -78,12 +101,13 @@ class PageCurlController {
     required PageImageSource outgoing,
     required PageTurn advance,
     required PageTurn revert,
+    PageTransition mode = PageTransition.curl,
   }) async {
     if (busy || _capturing) return false;
     _capturing = true;
     final image = await outgoing();
     _capturing = false;
-    if (!_adopt(image, direction)) return false;
+    if (!_adopt(image, direction, mode)) return false;
     _dragging = true;
     _cancelling = false;
     _revert = revert;
@@ -147,16 +171,21 @@ class PageCurlController {
       child: IgnorePointer(
         child: AnimatedBuilder(
           animation: _anim,
-          builder: (context, _) => _fade
-              ? Opacity(
-                  opacity: (1 - _anim.value).clamp(0.0, 1.0),
-                  child: RawImage(image: image, fit: BoxFit.fill),
-                )
-              : PageCurl(
-                  image: image,
-                  progress: _anim.value,
-                  direction: _direction,
-                ),
+          builder: (context, _) => switch (_mode) {
+            PageTransition.fade => Opacity(
+              opacity: (1 - _anim.value).clamp(0.0, 1.0),
+              child: RawImage(image: image, fit: BoxFit.fill),
+            ),
+            PageTransition.slide => FractionalTranslation(
+              translation: Offset(-_direction * _anim.value, 0),
+              child: RawImage(image: image, fit: BoxFit.fill),
+            ),
+            PageTransition.curl => PageCurl(
+              image: image,
+              progress: _anim.value,
+              direction: _direction,
+            ),
+          },
         ),
       ),
     );
