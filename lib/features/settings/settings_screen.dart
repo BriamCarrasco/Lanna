@@ -72,7 +72,6 @@ class SettingsScreen extends ConsumerWidget {
                         stack: compact,
                         trailing: _Segmented(
                           options: const {
-                            'curl': 'Curl',
                             'slide': 'Deslizar',
                             'fade': 'Desvanecer',
                             'none': 'Ninguna',

@@ -115,7 +115,12 @@ class ReaderSettings {
   });
 
   static const lineHeights = [1.45, 1.7, 2.0];
-  static const pageAnimations = ['curl', 'slide', 'fade', 'none'];
+  static const pageAnimations = ['slide', 'fade', 'none'];
+
+  static const parkedAnimations = ['curl'];
+
+  static String sanitizeAnimation(String value) =>
+      pageAnimations.contains(value) ? value : 'slide';
 
   final ReaderThemePreset preset;
   final int fontScale;
@@ -138,7 +143,7 @@ class ReaderSettings {
       fontFamily: row.fontFamily,
       lineHeight: row.lineHeight,
       columns: row.columns,
-      pageAnimation: row.pageAnimation,
+      pageAnimation: sanitizeAnimation(row.pageAnimation),
       edgeTaps: row.edgeTaps,
       keepAwake: row.keepAwake,
     );
@@ -170,7 +175,7 @@ class ReaderSettings {
     fontFamily: fontFamily ?? this.fontFamily,
     lineHeight: lineHeight ?? this.lineHeight,
     columns: columns ?? this.columns,
-    pageAnimation: pageAnimation ?? this.pageAnimation,
+    pageAnimation: sanitizeAnimation(pageAnimation ?? this.pageAnimation),
     edgeTaps: edgeTaps ?? this.edgeTaps,
     keepAwake: keepAwake ?? this.keepAwake,
   );

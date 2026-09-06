@@ -32,6 +32,9 @@ import 'widgets/search_panel.dart';
 import 'widgets/toc_drawer.dart';
 
 @visibleForTesting
+const Key readerIncomingKey = ValueKey('reader-incoming');
+
+@visibleForTesting
 int foldFor(int logical, {required bool rtl}) => rtl ? -logical : logical;
 
 @visibleForTesting
@@ -83,7 +86,9 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
   late final PageCurlController _curl = PageCurlController(
     vsync: this,
     onChange: () {
-      if (mounted) setState(() {});
+      if (!mounted) return;
+      unawaited(_controller?.setAnimating(_curl.busy) ?? Future.value());
+      setState(() {});
     },
   );
 
@@ -150,6 +155,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
       final list = next.valueOrNull;
       if (list == null || !mounted) return;
       setState(() => _highlights = list);
+      _refreshSnapshot();
     }, fireImmediately: true);
     _syncSystemUi();
     _open();
@@ -577,8 +583,24 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
     return result;
   }
 
+  Timer? _primeTimer;
+
+  /// La instantanea de la pagina se prepara cuando el lector lleva un momento
+  /// quieto, no al empezar el giro: el readback de GPU cuesta un frame.
+  void _refreshSnapshot() {
+    _curl.invalidate();
+    _primeTimer?.cancel();
+    if (PageTransition.forSetting(_settings.pageAnimation) == null) return;
+    _primeTimer = Timer(const Duration(milliseconds: 250), () {
+      final controller = _controller;
+      if (!mounted || controller == null || _curl.busy) return;
+      unawaited(_curl.prime(controller.snapshot));
+    });
+  }
+
   void _onLocation(ReaderLocation loc) {
     if (!mounted) return;
+    _refreshSnapshot();
     if (loc.percentage != null) _lastPercent = loc.percentage!;
     setState(() => _location = loc);
 
@@ -595,6 +617,12 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
 
   void _applySettings(ReaderSettings settings) {
     if (!mounted) return;
+    _refreshSnapshot();
+    _curl.paper = Color.lerp(
+      settings.preset.background,
+      settings.preset.foreground,
+      0.06,
+    )!;
     _controller?.applyPresentation(settings.toPresentation());
     WakelockPlus.toggle(enable: settings.keepAwake);
   }
@@ -655,7 +683,9 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
     _bookmarksSub?.close();
     _highlightsSub?.close();
     WakelockPlus.disable();
+    _primeTimer?.cancel();
     _curl.dispose();
+    _saveTimer?.cancel();
     _saveProgressNow();
     _focusNode.dispose();
     super.dispose();
@@ -700,8 +730,13 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
               child: Stack(
                 children: [
                   Positioned.fill(
-                    child: FractionalTranslation(
-                      translation: Offset(_curl.incomingShift, 0),
+                    child: AnimatedBuilder(
+                      animation: _curl.animation,
+                      builder: (context, child) => FractionalTranslation(
+                        key: readerIncomingKey,
+                        translation: Offset(_curl.incomingShift, 0),
+                        child: child,
+                      ),
                       child: createEpubView(
                         key: ValueKey(widget.bookId),
                         source: _nativeSource!,
@@ -742,6 +777,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
                           onTextSelected: (sel) {
                             if (!mounted) return;
                             setState(() => _selection = sel);
+                            _refreshSnapshot();
                           },
                           onSelectionCleared: () {
                             if (mounted && _selection != null) {

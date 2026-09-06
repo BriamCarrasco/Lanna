@@ -219,9 +219,10 @@ class _NativeEpubViewState extends State<NativeEpubView>
     PaginationJob job,
     int token, {
     bool Function()? until,
+    Duration budget = const Duration(milliseconds: 6),
   }) async {
     while (!job.isDone && !(until?.call() ?? false)) {
-      job.step(budget: const Duration(milliseconds: 6));
+      job.step(budget: budget);
       if (job.isDone || (until?.call() ?? false)) break;
       await SchedulerBinding.instance.endOfFrame;
       if (!mounted || token != _navToken) return false;
@@ -241,6 +242,7 @@ class _NativeEpubViewState extends State<NativeEpubView>
       if (job == null || job.isDone) break;
       await SchedulerBinding.instance.endOfFrame;
       if (!mounted) break;
+      if (_animating) break;
       final before = _current;
       job.step(budget: const Duration(milliseconds: 6));
       if (!mounted) break;
@@ -275,6 +277,7 @@ class _NativeEpubViewState extends State<NativeEpubView>
         _chapter == widget.source.chapterCount - 1 &&
         job.isDone &&
         _page >= job.pageCount - 1;
+    _schedulePrefetch();
     widget.callbacks.onLocationChanged?.call(
       ReaderLocation(
         cfi: ReaderLocator(chapter: _chapter, offset: _offset).toString(),
@@ -290,6 +293,46 @@ class _NativeEpubViewState extends State<NativeEpubView>
         atEnd: atEnd,
       ),
     );
+  }
+
+  Timer? _prefetchTimer;
+  int _prefetchRound = 0;
+
+  /// Trae los capitulos vecinos cuando el lector lleva un rato quieto. Abrir
+  /// uno cuesta ~17 ms de parseo: dentro de un giro eso es un frame perdido.
+  void _schedulePrefetch() {
+    _prefetchTimer?.cancel();
+    _prefetchTimer = Timer(
+      const Duration(milliseconds: 400),
+      () => unawaited(_prefetch(++_prefetchRound)),
+    );
+  }
+
+  Future<void> _prefetch(int round) async {
+    final token = _navToken;
+    for (final n in [_chapter + 1, _chapter - 1]) {
+      if (!mounted || round != _prefetchRound || token != _navToken) return;
+      if (_animating) return;
+      if (n < 0 || n >= widget.source.chapterCount) continue;
+      if (_jobs[n]?.pageCount != null && _jobs[n]!.pageCount > 0) continue;
+
+      final EpubDocument document;
+      try {
+        document = await widget.source.document(n);
+      } catch (_) {
+        continue;
+      }
+      if (!mounted || round != _prefetchRound || token != _navToken) return;
+
+      final job = _jobFor(n, document);
+      final ready = await _paginate(
+        job,
+        token,
+        until: () => job.pageCount > 0,
+        budget: const Duration(milliseconds: 3),
+      );
+      if (!ready) return;
+    }
   }
 
   void _settle() {
@@ -406,6 +449,15 @@ class _NativeEpubViewState extends State<NativeEpubView>
     _jobs.clear();
     await _openChapter(chapter, offset: offset);
     _settle();
+  }
+
+  bool _animating = false;
+
+  @override
+  Future<void> setAnimating(bool value) async {
+    if (_animating == value) return;
+    _animating = value;
+    if (!value) _startPump();
   }
 
   @override
@@ -610,6 +662,7 @@ class _NativeEpubViewState extends State<NativeEpubView>
 
   @override
   void dispose() {
+    _prefetchTimer?.cancel();
     _resize?.cancel();
     super.dispose();
   }

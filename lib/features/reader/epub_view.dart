@@ -98,6 +98,10 @@ abstract class EpubViewController {
   Future<void> clearSelection();
 
   Future<void> setInsets(double top, double bottom);
+
+  /// Avisa de que hay una transicion en curso. Mientras dure, el motor
+  /// no adelanta trabajo de fondo: el frame es para la animacion.
+  Future<void> setAnimating(bool value);
 }
 
 class EpubViewCallbacks {

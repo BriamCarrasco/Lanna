@@ -26,6 +26,8 @@ enum PageTransition {
   };
 
   bool get tracksDrag => this != PageTransition.fade;
+
+  Key get overlayKey => ValueKey('page-transition-$name');
 }
 
 class PageCurlController {
@@ -48,6 +50,10 @@ class PageCurlController {
 
   final VoidCallback onChange;
 
+  /// Color del dorso de la hoja al plegarse. Lo fija el lector desde su tema:
+  /// un dorso claro sobre fondo oscuro delata la animacion.
+  Color paper = const Color(0xFFF2EDE4);
+
   late final AnimationController _anim;
   ui.Image? _active;
   int _direction = 1;
@@ -56,6 +62,11 @@ class PageCurlController {
   bool _cancelling = false;
   PageTurn? _revert;
   Future<void>? _pending;
+
+  /// Fuente de verdad de la transicion. Quien dependa del progreso escucha
+  /// esto en vez de reconstruirse: durante el arrastre la pagina de debajo no
+  /// cambia de contenido y no tiene por que volver a construirse.
+  Listenable get animation => _anim;
 
   bool get busy => _active != null;
 
@@ -77,6 +88,57 @@ class PageCurlController {
       : _direction * (1 - _anim.value);
 
   bool _capturing = false;
+  ui.Image? _primed;
+  ui.ImageShader? _primedShader;
+  ui.ImageShader? _shader;
+
+  /// El shader se compila y sube la textura al crearse: tambien se prepara
+  /// en reposo para que el primer frame del giro no lo pague.
+  ui.ImageShader? get shader => _shader;
+
+  static ui.ImageShader _shaderFor(ui.Image image) => ui.ImageShader(
+    image,
+    TileMode.clamp,
+    TileMode.clamp,
+    Matrix4.identity().storage,
+  );
+
+  /// Captura la pagina de salida mientras el lector esta quieto. El readback
+  /// de GPU cuesta un frame y no puede pagarse al empezar el giro.
+  Future<void> prime(PageImageSource outgoing) async {
+    if (busy || _capturing || _primed != null) return;
+    _capturing = true;
+    final image = await outgoing();
+    _capturing = false;
+    if (busy || image == null) {
+      image?.dispose();
+      return;
+    }
+    _primed = image;
+    _primedShader = _shaderFor(image);
+  }
+
+  void invalidate() {
+    _primed?.dispose();
+    _primed = null;
+    _primedShader?.dispose();
+    _primedShader = null;
+  }
+
+  Future<ui.Image?> _obtain(PageImageSource outgoing) async {
+    final ready = _primed;
+    if (ready != null) {
+      _primed = null;
+      _shader = _primedShader;
+      _primedShader = null;
+      return ready;
+    }
+    _capturing = true;
+    final image = await outgoing();
+    _capturing = false;
+    if (image != null) _shader = _shaderFor(image);
+    return image;
+  }
 
   Future<bool> start(
     int direction, {
@@ -85,9 +147,7 @@ class PageCurlController {
     PageTransition mode = PageTransition.curl,
   }) async {
     if (busy || _capturing) return false;
-    _capturing = true;
-    final image = await outgoing();
-    _capturing = false;
+    final image = await _obtain(outgoing);
     if (!_adopt(image, direction, mode)) return false;
     _pending = advance();
     _anim.duration = Duration(milliseconds: mode.millis);
@@ -104,9 +164,7 @@ class PageCurlController {
     PageTransition mode = PageTransition.curl,
   }) async {
     if (busy || _capturing) return false;
-    _capturing = true;
-    final image = await outgoing();
-    _capturing = false;
+    final image = await _obtain(outgoing);
     if (!_adopt(image, direction, mode)) return false;
     _dragging = true;
     _cancelling = false;
@@ -120,7 +178,6 @@ class PageCurlController {
   void updateDrag(double progress) {
     if (!_dragging) return;
     _anim.value = progress.clamp(0.0, 1.0);
-    onChange();
   }
 
   void endDrag({required bool complete}) {
@@ -158,6 +215,8 @@ class PageCurlController {
   void _finish() {
     final image = _active;
     _active = null;
+    _shader?.dispose();
+    _shader = null;
     _dragging = false;
     onChange();
     if (image == null) return;
@@ -168,6 +227,7 @@ class PageCurlController {
     final image = _active;
     if (image == null) return null;
     return Positioned.fill(
+      key: _mode.overlayKey,
       child: IgnorePointer(
         child: AnimatedBuilder(
           animation: _anim,
@@ -182,8 +242,10 @@ class PageCurlController {
             ),
             PageTransition.curl => PageCurl(
               image: image,
+              shader: _shader,
               progress: _anim.value,
               direction: _direction,
+              paper: paper,
             ),
           },
         ),
@@ -195,20 +257,68 @@ class PageCurlController {
     _anim.dispose();
     _active?.dispose();
     _active = null;
+    invalidate();
   }
 }
 
-class PageCurl extends StatelessWidget {
+class PageCurl extends StatefulWidget {
   const PageCurl({
     super.key,
     required this.image,
     required this.progress,
     required this.direction,
+    this.shader,
+    this.paper = const Color(0xFFF2EDE4),
   });
 
   final ui.Image image;
   final double progress;
   final int direction;
+  final ui.ImageShader? shader;
+  final Color paper;
+
+  @override
+  State<PageCurl> createState() => _PageCurlState();
+}
+
+/// Los buffers y el shader viven en el State: crearlos por frame costaba
+/// ~2000 objetos y una recompilacion del shader en cada pintada.
+class _PageCurlState extends State<PageCurl> {
+  static const _points = _PageCurlPainter.points;
+
+  final _positions = Float32List(_points * 2);
+  final _texCoords = Float32List(_points * 2);
+  final _front = Int32List(_points);
+  final _back = Int32List(_points);
+  final _theta = Float32List(_points);
+  final _frontIdx = Uint16List(_PageCurlPainter.maxIndices);
+  final _backIdx = Uint16List(_PageCurlPainter.maxIndices);
+
+  ui.ImageShader? _own;
+
+  ui.ImageShader get _shader => widget.shader ?? (_own ??= _makeShader());
+
+  @override
+  void didUpdateWidget(PageCurl old) {
+    super.didUpdateWidget(old);
+    if (old.image != widget.image) {
+      _own?.dispose();
+      _own = null;
+    }
+  }
+
+  @override
+  void dispose() {
+    _own?.dispose();
+    super.dispose();
+  }
+
+  ui.ImageShader _makeShader() => ui.ImageShader(
+    widget.image,
+    TileMode.clamp,
+    TileMode.clamp,
+    Matrix4.identity().storage,
+  );
 
   @override
   Widget build(BuildContext context) {
@@ -217,9 +327,18 @@ class PageCurl extends StatelessWidget {
         child: CustomPaint(
           size: Size.infinite,
           painter: _PageCurlPainter(
-            image: image,
-            progress: progress.clamp(0.0, 1.0),
-            direction: direction,
+            image: widget.image,
+            shader: _shader,
+            progress: widget.progress.clamp(0.0, 1.0),
+            direction: widget.direction,
+            paper: widget.paper,
+            positions: _positions,
+            texCoords: _texCoords,
+            front: _front,
+            back: _back,
+            theta: _theta,
+            frontIdx: _frontIdx,
+            backIdx: _backIdx,
           ),
         ),
       ),
@@ -230,38 +349,41 @@ class PageCurl extends StatelessWidget {
 class _PageCurlPainter extends CustomPainter {
   _PageCurlPainter({
     required this.image,
+    required this.shader,
     required this.progress,
     required this.direction,
+    required this.paper,
+    required this.positions,
+    required this.texCoords,
+    required this.front,
+    required this.back,
+    required this.theta,
+    required this.frontIdx,
+    required this.backIdx,
   });
 
   final ui.Image image;
+  final ui.ImageShader shader;
   final double progress;
   final int direction;
+  final Color paper;
+  final Float32List positions;
+  final Float32List texCoords;
+  final Int32List front;
+  final Int32List back;
+  final Float32List theta;
+  final Uint16List frontIdx;
+  final Uint16List backIdx;
 
-  static const _cols = 20;
-  static const _rows = 26;
+  static const _cols = 44;
+  static const _rows = 10;
+  static const points = (_cols + 1) * (_rows + 1);
+  static const maxIndices = _rows * _cols * 6;
+  static final _half = math.pi / 2;
+  static final _maxTheta = math.pi * 1.12;
 
-  static final Int32List _indices = _buildIndices();
-
-  static Int32List _buildIndices() {
-    final out = Int32List(_rows * _cols * 6);
-    var k = 0;
-    for (var j = 0; j < _rows; j++) {
-      for (var i = 0; i < _cols; i++) {
-        final a = j * (_cols + 1) + i;
-        final b = a + 1;
-        final c = a + _cols + 1;
-        final d = c + 1;
-        out[k++] = a;
-        out[k++] = c;
-        out[k++] = b;
-        out[k++] = b;
-        out[k++] = c;
-        out[k++] = d;
-      }
-    }
-    return out;
-  }
+  static double _ramp(double value, double from, double to) =>
+      ((value - from) / (to - from)).clamp(0.0, 1.0);
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -272,110 +394,179 @@ class _PageCurlPainter extends CustomPainter {
     final imgW = image.width.toDouble();
     final imgH = image.height.toDouble();
 
-    final radius = math.min(w, h) * 0.10;
-    final maxTheta = math.pi * 1.12;
-    final maxDist = radius * maxTheta;
+    final radius = math.min(w, h) * 0.085;
+    final arc = radius * _maxTheta;
+    final flapDrop = radius * math.sin(_maxTheta);
+    final flapSlope = math.cos(_maxTheta);
 
     final corner = direction > 0 ? Offset(w, h) : Offset(0, h);
-    final foldNormal = _normalize(
+    final normal = _normalize(
       direction > 0 ? const Offset(1, 0.32) : const Offset(-1, 0.32),
     );
-    final sweep = -foldNormal;
     final diagonal = math.sqrt(w * w + h * h);
-    final travel = -maxDist + progress * (diagonal + 2 * maxDist);
-    final foldPoint = corner + sweep * travel;
+    final travel = -arc + progress * (diagonal + 2 * arc);
+    final foldPoint = corner - normal * travel;
 
-    _paintCastShadow(canvas, w, h, foldPoint, foldNormal, maxDist);
+    canvas.save();
+    canvas.clipRect(Rect.fromLTWH(0, 0, w, h));
+    _paintCastShadow(canvas, w, h, foldPoint, normal, arc);
 
-    final positions = List<Offset>.filled(
-      (_cols + 1) * (_rows + 1),
-      Offset.zero,
-    );
-    final texCoords = List<Offset>.filled(
-      (_cols + 1) * (_rows + 1),
-      Offset.zero,
-    );
-    final colors = List<Color>.filled(
-      (_cols + 1) * (_rows + 1),
-      const Color(0xFFFFFFFF),
-    );
+    final argb = paper.toARGB32();
+    final pr = (argb >> 16) & 0xFF;
+    final pg = (argb >> 8) & 0xFF;
+    final pb = argb & 0xFF;
 
     for (var j = 0; j <= _rows; j++) {
       for (var i = 0; i <= _cols; i++) {
         final gx = i / _cols;
         final gy = j / _rows;
         final flat = Offset(gx * w, gy * h);
-        final dist =
-            (flat.dx - foldPoint.dx) * foldNormal.dx +
-            (flat.dy - foldPoint.dy) * foldNormal.dy;
+        final along =
+            (flat.dx - foldPoint.dx) * normal.dx +
+            (flat.dy - foldPoint.dy) * normal.dy;
 
-        Offset pos;
-        double shade;
-        var alpha = 1.0;
-        if (dist <= 0) {
-          pos = flat;
-          final prox = (1 + dist / (radius * 1.7)).clamp(0.0, 1.0);
-          shade = 1.0 - 0.34 * prox * prox;
-        } else if (dist >= maxDist) {
-          pos = flat - foldNormal * dist;
-          shade = 0.3;
-          alpha = 0.0;
+        double lift;
+        double theta_;
+        if (along <= 0) {
+          lift = along;
+          theta_ = 0;
         } else {
-          final theta = dist / radius;
-          final n = radius * math.sin(theta);
-          pos = flat - foldNormal * (dist - n);
-          if (theta <= math.pi / 2) {
-            shade = 0.74 + 0.26 * math.cos(theta);
-          } else {
-            shade = 0.30 + 0.16 * (1 + math.cos(theta));
-          }
-          alpha =
-              1.0 -
-              ((dist - maxDist * 0.82) / (maxDist * 0.18)).clamp(0.0, 1.0);
+          theta_ = along / radius;
+          lift = theta_ <= _maxTheta
+              ? radius * math.sin(theta_)
+              : flapDrop + (along - arc) * flapSlope;
         }
 
+        final lit = math.sin(theta_.clamp(0.0, math.pi));
+        double frontShade;
+        if (along <= 0) {
+          final prox = (1 + along / (radius * 2.4)).clamp(0.0, 1.0);
+          frontShade = 1.0 - 0.30 * prox * prox;
+        } else {
+          frontShade = 0.68 + 0.32 * lit;
+        }
+        final backShade = 0.76 + 0.24 * lit;
+
         final index = j * (_cols + 1) + i;
-        positions[index] = pos;
-        texCoords[index] = Offset(gx * imgW, gy * imgH);
-        final v = (shade * 255).round().clamp(0, 255);
-        final a = (alpha * 255).round().clamp(0, 255);
-        colors[index] = Color.fromARGB(a, v, v, v);
+        final shift = along - lift;
+        positions[index * 2] = flat.dx - normal.dx * shift;
+        positions[index * 2 + 1] = flat.dy - normal.dy * shift;
+        texCoords[index * 2] = gx * imgW;
+        texCoords[index * 2 + 1] = gy * imgH;
+        theta[index] = theta_;
+        front[index] = _packed(
+          255,
+          255,
+          255,
+          frontShade,
+          1 - _ramp(theta_, _half + 0.20, _half + 0.50),
+        );
+        back[index] = _packed(
+          pr,
+          pg,
+          pb,
+          backShade,
+          _ramp(theta_, _half - 0.04, _half + 0.16),
+        );
       }
     }
 
-    final vertices = ui.Vertices(
-      ui.VertexMode.triangles,
-      positions,
-      textureCoordinates: texCoords,
-      colors: colors,
-      indices: _indices,
-    );
-    final shader = ui.ImageShader(
-      image,
-      TileMode.clamp,
-      TileMode.clamp,
-      Matrix4.identity().storage,
-    );
-    final paint = Paint()
-      ..isAntiAlias = true
-      ..shader = shader;
-    canvas.drawVertices(vertices, BlendMode.modulate, paint);
-    shader.dispose();
-    vertices.dispose();
+    var nFront = 0;
+    var nBack = 0;
+    for (var j = 0; j < _rows; j++) {
+      for (var i = 0; i < _cols; i++) {
+        final a = j * (_cols + 1) + i;
+        final b = a + 1;
+        final c = a + _cols + 1;
+        final d = c + 1;
+        final lo = math.min(
+          math.min(theta[a], theta[b]),
+          math.min(theta[c], theta[d]),
+        );
+        final hi = math.max(
+          math.max(theta[a], theta[b]),
+          math.max(theta[c], theta[d]),
+        );
+        if (lo < _half + 0.50) {
+          frontIdx[nFront++] = a;
+          frontIdx[nFront++] = c;
+          frontIdx[nFront++] = b;
+          frontIdx[nFront++] = b;
+          frontIdx[nFront++] = c;
+          frontIdx[nFront++] = d;
+        }
+        if (hi > _half - 0.04) {
+          backIdx[nBack++] = a;
+          backIdx[nBack++] = c;
+          backIdx[nBack++] = b;
+          backIdx[nBack++] = b;
+          backIdx[nBack++] = c;
+          backIdx[nBack++] = d;
+        }
+      }
+    }
+
+    if (nFront == 0 && nBack == 0) {
+      canvas.restore();
+      return;
+    }
+
+    if (nFront > 0) {
+      final faceUp = ui.Vertices.raw(
+        ui.VertexMode.triangles,
+        positions,
+        textureCoordinates: texCoords,
+        colors: front,
+        indices: Uint16List.sublistView(frontIdx, 0, nFront),
+      );
+      canvas.drawVertices(
+        faceUp,
+        BlendMode.modulate,
+        Paint()
+          ..isAntiAlias = true
+          ..shader = shader,
+      );
+      faceUp.dispose();
+    }
+
+    if (nBack > 0) {
+      final faceDown = ui.Vertices.raw(
+        ui.VertexMode.triangles,
+        positions,
+        colors: back,
+        indices: Uint16List.sublistView(backIdx, 0, nBack),
+      );
+      canvas.drawVertices(
+        faceDown,
+        BlendMode.modulate,
+        Paint()
+          ..isAntiAlias = true
+          ..color = const Color(0xFFFFFFFF),
+      );
+      faceDown.dispose();
+    }
+
+    canvas.restore();
   }
+
+  static int _packed(int r, int g, int b, double shade, double alpha) =>
+      ((alpha * 255).round().clamp(0, 255) << 24) |
+      ((r * shade).round().clamp(0, 255) << 16) |
+      ((g * shade).round().clamp(0, 255) << 8) |
+      (b * shade).round().clamp(0, 255);
 
   void _paintCastShadow(
     Canvas canvas,
     double w,
     double h,
     Offset foldPoint,
-    Offset foldNormal,
-    double maxDist,
+    Offset normal,
+    double arc,
   ) {
-    final along = Offset(-foldNormal.dy, foldNormal.dx);
+    final along = Offset(-normal.dy, normal.dx);
     final reach = w + h;
-    final near = foldPoint + foldNormal * (maxDist * 0.15);
-    final far = foldPoint + foldNormal * (maxDist * 1.15);
+    final near = foldPoint + normal * (arc * 0.05);
+    final far = foldPoint + normal * (arc * 1.05);
     final path = Path()
       ..moveTo((near - along * reach).dx, (near - along * reach).dy)
       ..lineTo((near + along * reach).dx, (near + along * reach).dy)
@@ -384,14 +575,10 @@ class _PageCurlPainter extends CustomPainter {
       ..close();
     final paint = Paint()
       ..shader = ui.Gradient.linear(near, far, const [
-        Color(0x3D000000),
+        Color(0x4D000000),
         Color(0x00000000),
-      ])
-      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 7);
-    canvas.save();
-    canvas.clipRect(Rect.fromLTWH(0, 0, w, h));
+      ]);
     canvas.drawPath(path, paint);
-    canvas.restore();
   }
 
   Offset _normalize(Offset o) {
@@ -403,5 +590,7 @@ class _PageCurlPainter extends CustomPainter {
   bool shouldRepaint(_PageCurlPainter old) =>
       old.progress != progress ||
       old.image != image ||
-      old.direction != direction;
+      old.direction != direction ||
+      old.paper != paper ||
+      old.shader != shader;
 }

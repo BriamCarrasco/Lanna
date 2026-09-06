@@ -95,6 +95,7 @@ class _PdfReaderScreenState extends ConsumerState<PdfReaderScreen>
       final s = next.valueOrNull;
       if (s == null || !mounted) return;
       setState(() => _settings = s);
+      _curl.paper = s.preset.background;
       _syncSpreadSize();
       WakelockPlus.toggle(enable: s.keepAwake);
     });

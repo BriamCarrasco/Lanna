@@ -42,8 +42,8 @@ void main() {
     expect(s.edgeTaps, true);
     expect(s.keepAwake, false);
 
-    final next = s.copyWith(pageAnimation: 'curl', keepAwake: true);
-    expect(next.pageAnimation, 'curl');
+    final next = s.copyWith(pageAnimation: 'fade', keepAwake: true);
+    expect(next.pageAnimation, 'fade');
     expect(next.keepAwake, true);
     expect(next.edgeTaps, true);
   });
@@ -87,5 +87,17 @@ void main() {
     expect(row!.fontFamily, 'sans');
     expect(row.theme, 'sepia');
     expect((await db.select(db.readerPrefs).get()).length, 1);
+  });
+
+  test('una animación aparcada cae a la de por defecto', () {
+    for (final aparcada in ReaderSettings.parkedAnimations) {
+      expect(ReaderSettings.pageAnimations, isNot(contains(aparcada)));
+      expect(
+        const ReaderSettings().copyWith(pageAnimation: aparcada).pageAnimation,
+        'slide',
+        reason: '"$aparcada" sigue siendo elegible',
+      );
+    }
+    expect(ReaderSettings.sanitizeAnimation('inventada'), 'slide');
   });
 }

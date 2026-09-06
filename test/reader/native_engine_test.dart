@@ -87,10 +87,14 @@ void main() {
     String? locator,
     double? percent,
     Size size = const Size(400, 600),
+    void Function(EpubViewController)? whenReady,
   }) async {
     EpubViewController? controller;
     final wired = EpubViewCallbacks(
-      onReady: (c) => controller = c,
+      onReady: (c) {
+        controller = c;
+        whenReady?.call(c);
+      },
       onLocationChanged: callbacks?.onLocationChanged,
       onTocLoaded: callbacks?.onTocLoaded,
       onTextSelected: callbacks?.onTextSelected,
@@ -893,6 +897,35 @@ void main() {
 
       expect(counts, isNotEmpty);
       expect(counts.last, greaterThan(1));
+    });
+  });
+
+  group('trabajo durante la transición', () {
+    testWidgets('el motor no pagina de fondo mientras se anima', (
+      tester,
+    ) async {
+      final counts = <int>[];
+      final source = sourceWith(['<p>${words(4000)}</p>']);
+      final controller = await mount(
+        tester,
+        source,
+        callbacks: EpubViewCallbacks(onPageCount: counts.add),
+        whenReady: (c) => unawaited(c.setAnimating(true)),
+      );
+      await settle(tester);
+      expect(
+        counts,
+        isEmpty,
+        reason: 'siguió paginando con la animación en curso',
+      );
+
+      await controller.setAnimating(false);
+      await settle(tester);
+      expect(
+        counts,
+        isNotEmpty,
+        reason: 'no reanudó el trabajo al acabar la animación',
+      );
     });
   });
 
