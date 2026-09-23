@@ -88,6 +88,7 @@ class _PdfReaderScreenState extends ConsumerState<PdfReaderScreen>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    unawaited(_curl.loadShader());
     _repo = ref.read(bookRepositoryProvider);
     _settings =
         ref.read(readerSettingsProvider).valueOrNull ?? const ReaderSettings();

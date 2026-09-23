@@ -51,3 +51,13 @@ app.*.map.json
 
 # Widget Preview related
 .widget_preview/
+
+# Banco de pruebas del page curl: local, no se publica
+/lib/curl_lab/
+/test/curl_lab/
+/integration_test/curl_lab_*.dart
+/test_driver/perf_driver.dart
+/test_driver/screenshot_driver.dart
+/test_driver/png_report_driver.dart
+/assets/curl_lab/
+/CURL_LAB_REPORT.md

@@ -27,6 +27,8 @@ void main() {
   Future<PageCurlController> host(WidgetTester tester) async {
     late PageCurlController curl;
     await tester.pumpWidget(_Host(onCreate: (c) => curl = c));
+    await tester.runAsync(curl.loadShader);
+    await tester.pump();
     return curl;
   }
 

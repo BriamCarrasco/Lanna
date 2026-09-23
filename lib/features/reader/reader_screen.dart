@@ -127,6 +127,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    unawaited(_curl.loadShader());
     _repo = ref.read(bookRepositoryProvider);
     _settings =
         ref.read(readerSettingsProvider).valueOrNull ?? const ReaderSettings();
@@ -237,15 +238,23 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
       return;
     }
 
+    final mode = _transition ?? PageTransition.curl;
     final travel = (_dragTravel.abs() - 16).clamp(0.0, double.infinity);
-    _dragProgress = (travel / (width * 0.7)).clamp(0.0, 1.0);
+    _dragProgress = (travel / mode.travelSpan(width)).clamp(0.0, 1.0);
     _curl.updateDrag(_dragProgress);
   }
 
   void _onDragEnd(DragEndDetails details) {
     final velocity = details.velocity.pixelsPerSecond.dx;
     if (_curl.dragging) {
-      _curl.endDrag(complete: _dragProgress > 0.35 || velocity.abs() > 600);
+      final width = MediaQuery.sizeOf(context).width;
+      final mode = _transition ?? PageTransition.curl;
+      final span = mode.travelSpan(width);
+      _curl.endDrag(
+        complete:
+            _dragProgress > mode.completion(width) || velocity.abs() > 600,
+        velocity: velocity * (_dragTravel.isNegative ? -1 : 1) / span,
+      );
       _dragProgress = 0;
       _dragTravel = 0;
       return;

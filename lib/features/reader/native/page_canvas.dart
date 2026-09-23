@@ -37,12 +37,17 @@ class PageHighlight {
   final String color;
 }
 
-const _highlightColors = <String, Color>{
+const highlightColors = <String, Color>{
   'yellow': Color(0xFFFFE14D),
   'green': Color(0xFF8FE08A),
   'blue': Color(0xFF7FC0FF),
   'pink': Color(0xFFFF9EC9),
 };
+
+const highlightInk = Color(0xFF14121A);
+
+Color highlightTint(String name) =>
+    highlightColors[name] ?? highlightColors['yellow']!;
 
 class NativePage extends StatefulWidget {
   const NativePage({
@@ -335,9 +340,7 @@ class _NativePageState extends State<NativePage> {
 
   TextSpan _span(PageFragment fragment, InlineRun run) {
     final highlight = _highlightAt(run.start);
-    final tint = highlight == null
-        ? null
-        : _highlightColors[highlight.color] ?? _highlightColors['yellow']!;
+    final tint = highlight == null ? null : highlightTint(highlight.color);
     return TextSpan(
       text: run.text,
       recognizer: highlight == null ? null : _taps[highlight.cfi],
@@ -345,7 +348,7 @@ class _NativePageState extends State<NativePage> {
           .styleForRun(fragment.block, run)
           .copyWith(
             color: tint != null
-                ? const Color(0xFF14121A)
+                ? highlightInk
                 : (run.href == null ? widget.foreground : widget.linkColor),
             backgroundColor: tint,
           ),

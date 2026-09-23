@@ -115,9 +115,9 @@ class ReaderSettings {
   });
 
   static const lineHeights = [1.45, 1.7, 2.0];
-  static const pageAnimations = ['slide', 'fade', 'none'];
+  static const pageAnimations = ['curl', 'slide', 'fade', 'none'];
 
-  static const parkedAnimations = ['curl'];
+  static const parkedAnimations = <String>[];
 
   static String sanitizeAnimation(String value) =>
       pageAnimations.contains(value) ? value : 'slide';

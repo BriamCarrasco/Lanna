@@ -90,7 +90,7 @@ void main() {
   });
 
   test('una animación aparcada cae a la de por defecto', () {
-    for (final aparcada in ReaderSettings.parkedAnimations) {
+    for (final aparcada in [...ReaderSettings.parkedAnimations, 'inventada']) {
       expect(ReaderSettings.pageAnimations, isNot(contains(aparcada)));
       expect(
         const ReaderSettings().copyWith(pageAnimation: aparcada).pageAnimation,

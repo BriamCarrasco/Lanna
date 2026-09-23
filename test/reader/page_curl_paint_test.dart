@@ -26,9 +26,18 @@ void main() {
     return recorder.endRecording().toImage(w, h);
   }
 
-  Future<ByteData> render(WidgetTester tester, double progress) async {
+  Future<ByteData> render(
+    WidgetTester tester,
+    double progress, {
+    int direction = 1,
+  }) async {
     final image = (await tester.runAsync(sheet))!;
     addTearDown(image.dispose);
+    final program = (await tester.runAsync(
+      () => ui.FragmentProgram.fromAsset('shaders/page_curl.frag'),
+    ))!;
+    final shader = program.fragmentShader();
+    addTearDown(shader.dispose);
 
     await tester.pumpWidget(
       Directionality(
@@ -45,8 +54,9 @@ void main() {
                   Positioned.fill(
                     child: PageCurl(
                       image: image,
+                      shader: shader,
                       progress: progress,
-                      direction: 1,
+                      direction: direction,
                       paper: paper,
                     ),
                   ),
@@ -152,6 +162,38 @@ void main() {
       reason:
           'el dorso no llega a tumbarse sobre la hoja'
           ' (se queda pegado al pliegue)',
+    );
+  });
+
+  int mitad(ByteData d, bool Function(Rgba) test, {required bool izquierda}) {
+    var total = 0;
+    for (var y = 4; y < h - 4; y += 7) {
+      for (var x = 4; x < w - 4; x += 7) {
+        final enIzquierda = x < w ~/ 2;
+        if (enIzquierda == izquierda && test(pixel(d, x, y))) total++;
+      }
+    }
+    return total;
+  }
+
+  testWidgets('hacia atrás el pliegue va por el otro lado', (tester) async {
+    final adelante = await render(tester, 0.55);
+    final atras = await render(tester, 0.55, direction: -1);
+
+    expect(
+      mitad(adelante, esDorso, izquierda: true),
+      greaterThan(mitad(adelante, esDorso, izquierda: false)),
+      reason: 'hacia delante el dorso se tumba a la izquierda',
+    );
+    expect(
+      mitad(atras, esDorso, izquierda: false),
+      greaterThan(mitad(atras, esDorso, izquierda: true)),
+      reason: 'hacia atrás el dorso tiene que caer a la derecha',
+    );
+    expect(
+      mitad(atras, esFondo, izquierda: true),
+      greaterThan(mitad(atras, esFondo, izquierda: false)),
+      reason: 'hacia atrás la página nueva asoma por la izquierda',
     );
   });
 
