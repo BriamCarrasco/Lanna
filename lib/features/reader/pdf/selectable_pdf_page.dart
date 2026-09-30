@@ -4,7 +4,8 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:pdfrx/pdfrx.dart';
 
-import '../../../data/local/app_database.dart';
+import '../reader_engine.dart';
+import '../reader_theme.dart';
 
 class PdfSelection {
   const PdfSelection({
@@ -49,23 +50,19 @@ class SelectablePdfPage extends StatefulWidget {
     required this.document,
     required this.pageNumber,
     required this.highlights,
-    required this.highlightColors,
     required this.selection,
     required this.onSelect,
-    required this.onSelectionEnd,
     required this.onHighlightTap,
-    required this.onBackgroundTap,
+    required this.onTapEmpty,
   });
 
   final PdfDocument document;
   final int pageNumber;
-  final List<Highlight> highlights;
-  final Map<String, Color> highlightColors;
+  final List<HighlightSpec> highlights;
   final PdfSelection? selection;
   final ValueChanged<PdfSelection> onSelect;
-  final VoidCallback onSelectionEnd;
-  final ValueChanged<Highlight> onHighlightTap;
-  final VoidCallback onBackgroundTap;
+  final ValueChanged<String> onHighlightTap;
+  final VoidCallback onTapEmpty;
 
   @override
   State<SelectablePdfPage> createState() => _SelectablePdfPageState();
@@ -186,7 +183,7 @@ class _SelectablePdfPageState extends State<SelectablePdfPage> {
     );
   }
 
-  Highlight? _highlightAt(Offset normalized) {
+  HighlightSpec? _highlightAt(Offset normalized) {
     for (final h in widget.highlights) {
       for (final r in decodeHighlightRects(h.cfi)) {
         if (r.inflate(0.01).contains(normalized)) return h;
@@ -209,9 +206,9 @@ class _SelectablePdfPageState extends State<SelectablePdfPage> {
             );
             final hit = _highlightAt(n);
             if (hit != null) {
-              widget.onHighlightTap(hit);
+              widget.onHighlightTap(hit.cfi);
             } else {
-              widget.onBackgroundTap();
+              widget.onTapEmpty();
             }
           },
           onLongPressStart: (d) {
@@ -234,10 +231,7 @@ class _SelectablePdfPageState extends State<SelectablePdfPage> {
             final c = _charAt(n);
             if (c != null) _updateSelection(anchor, c, size);
           },
-          onLongPressEnd: (_) {
-            if (_anchorChar != null) widget.onSelectionEnd();
-            _anchorChar = null;
-          },
+          onLongPressEnd: (_) => _anchorChar = null,
           child: Stack(
             fit: StackFit.expand,
             children: [
@@ -252,7 +246,6 @@ class _SelectablePdfPageState extends State<SelectablePdfPage> {
                   child: CustomPaint(
                     painter: _HighlightPainter(
                       highlights: widget.highlights,
-                      colors: widget.highlightColors,
                       selection: widget.selection?.page == widget.pageNumber
                           ? widget.selection!.rects
                           : null,
@@ -269,22 +262,16 @@ class _SelectablePdfPageState extends State<SelectablePdfPage> {
 }
 
 class _HighlightPainter extends CustomPainter {
-  _HighlightPainter({
-    required this.highlights,
-    required this.colors,
-    required this.selection,
-  });
+  _HighlightPainter({required this.highlights, required this.selection});
 
-  final List<Highlight> highlights;
-  final Map<String, Color> colors;
+  final List<HighlightSpec> highlights;
   final List<Rect>? selection;
 
   @override
   void paint(Canvas canvas, Size size) {
     for (final h in highlights) {
-      final color = (colors[h.color] ?? const Color(0xFFFFE14D)).withValues(
-        alpha: 0.34,
-      );
+      final color = (readerHighlightColors[h.color] ?? const Color(0xFFFFE14D))
+          .withValues(alpha: 0.34);
       final paint = Paint()..color = color;
       for (final r in decodeHighlightRects(h.cfi)) {
         canvas.drawRRect(

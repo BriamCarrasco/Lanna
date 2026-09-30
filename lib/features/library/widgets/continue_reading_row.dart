@@ -56,7 +56,7 @@ class _Card extends StatelessWidget {
   Widget build(BuildContext context) {
     final pct = item.progress.percent.clamp(0.0, 1.0);
     final chapter = item.progress.chapterIndex;
-    final unit = item.book.format == BookFormat.pdf ? 'Pág.' : 'Cap.';
+    final unit = item.book.format == BookFormat.epub ? 'Cap.' : 'Pág.';
 
     return Pressable(
       scale: 0.98,

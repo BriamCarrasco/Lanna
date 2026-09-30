@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 import 'dart:async';
+import 'dart:io';
 
 import 'package:desktop_drop/desktop_drop.dart';
 import 'package:file_picker/file_picker.dart';
@@ -47,12 +48,13 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
   _SortMode _sort = _SortMode.recent;
   _ViewMode _view = _ViewMode.grid;
 
-  static const _extensions = ['epub', 'pdf'];
+  static const _extensions = ['epub', 'pdf', 'cbz', 'cbr'];
 
   Future<void> _pickAndImport() async {
+    final mobile = Platform.isAndroid || Platform.isIOS;
     final files = await FilePicker.pickFiles(
-      type: FileType.custom,
-      allowedExtensions: _extensions,
+      type: mobile ? FileType.any : FileType.custom,
+      allowedExtensions: mobile ? null : _extensions,
       dialogTitle: 'Importar libros',
     );
     if (files.isEmpty) return;

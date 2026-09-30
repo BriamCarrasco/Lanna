@@ -103,9 +103,14 @@ class BookDetailsDialog extends ConsumerWidget {
                           spacing: LannaSpacing.s1 + 2,
                           runSpacing: LannaSpacing.s1 + 2,
                           children: [
-                            _Chip(
-                              book.format == BookFormat.epub ? 'EPUB' : 'PDF',
-                            ),
+                            _Chip(switch (book.format) {
+                              BookFormat.epub => 'EPUB',
+                              BookFormat.pdf => 'PDF',
+                              BookFormat.comic =>
+                                book.filePath.toLowerCase().endsWith('.cbr')
+                                    ? 'CBR'
+                                    : 'CBZ',
+                            }),
                             if (book.fileSizeBytes != null)
                               _Chip(_formatSize(book.fileSizeBytes!)),
                             _Chip('Añadido ${_formatDate(book.addedAt)}'),

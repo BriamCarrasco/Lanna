@@ -10,17 +10,21 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
+import 'package:pdfrx/pdfrx.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 
 import '../../core/theme/app_theme.dart';
 import '../../core/theme/tokens.dart';
 import '../../data/book_repository.dart';
+import '../../data/comic/comic_archive.dart';
 import '../../data/epub/epub_book.dart';
 import '../../data/local/app_database.dart';
 import '../../data/models/book_format.dart';
-import 'epub_view.dart';
+import 'comic/comic_engine_view.dart';
 import 'epub_view_factory.dart';
 import 'native/book_source.dart';
+import 'pdf/pdf_engine_view.dart';
+import 'reader_engine.dart';
 import 'reader_prepare.dart';
 import 'reader_settings_provider.dart';
 import 'reader_theme.dart';
@@ -64,12 +68,13 @@ Offset selectionToolbarOrigin({
   return Offset(left, top);
 }
 
-const _highlightColors = <String, Color>{
-  'yellow': Color(0xFFFFE14D),
-  'green': Color(0xFF8FE08A),
-  'blue': Color(0xFF7FC0FF),
-  'pink': Color(0xFFFF9EC9),
-};
+const _highlightColors = readerHighlightColors;
+
+typedef _EngineBuilder = Widget Function(
+  ReaderEngineCallbacks callbacks,
+  String? initialLocator,
+  double? initialPercent,
+);
 
 class ReaderScreen extends ConsumerStatefulWidget {
   const ReaderScreen({super.key, required this.bookId});
@@ -93,13 +98,14 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
     },
   );
 
-  NativeBookSource? _nativeSource;
-  EpubViewController? _controller;
+  _EngineBuilder? _engine;
+  PdfDocument? _pdfDocument;
+  ComicArchive? _comicArchive;
+  ReaderEngineController? _controller;
   Book? _book;
-  EpubBook? _epubBook;
   ReaderLocation? _location;
 
-  List<EpubTocEntry> _fallbackToc = const [];
+  List<EpubTocEntry> _toc = const [];
   List<Bookmark> _bookmarks = const [];
   List<Highlight> _highlights = const [];
   ReaderSelection? _selection;
@@ -367,10 +373,6 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
       setState(() => _error = 'El libro no está en la biblioteca');
       return;
     }
-    if (book.format != BookFormat.epub) {
-      setState(() => _error = 'Por ahora solo se pueden leer archivos EPUB');
-      return;
-    }
     final file = File(book.filePath);
     if (!file.existsSync()) {
       setState(() => _error = 'No se encontró el archivo del libro');
@@ -380,29 +382,35 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
     final progress = await repo.readProgress(widget.bookId);
     _lastPercent = progress?.percent ?? 0;
 
-    final cache = await getApplicationCacheDirectory();
-    final extractDir = Directory(p.join(cache.path, 'reader', widget.bookId));
-
-    EpubBook? epubBook;
+    final _EngineBuilder? engine;
     try {
-      epubBook = await compute(prepareEpub, (
-        path: file.path,
-        extractDir: extractDir.path,
-      ));
-    } catch (_) {}
+      engine = switch (book.format) {
+        BookFormat.epub => await _prepareEpub(file),
+        BookFormat.pdf => await _preparePdf(file),
+        BookFormat.comic => await _prepareComic(file),
+      };
+    } on ComicFormatException catch (e) {
+      if (mounted) setState(() => _error = e.message);
+      return;
+    } catch (e) {
+      if (mounted) setState(() => _error = 'No se pudo abrir el libro\n$e');
+      return;
+    }
 
     await repo.markOpened(widget.bookId);
-    if (!mounted) return;
-
-    if (epubBook == null) {
-      setState(() => _error = 'No se pudo leer la estructura del libro');
+    if (!mounted) {
+      unawaited(_pdfDocument?.dispose());
+      unawaited(_comicArchive?.close());
+      return;
+    }
+    if (engine == null) {
+      setState(() => _error ??= 'No se pudo leer la estructura del libro');
       return;
     }
 
     setState(() {
       _book = book;
-      _epubBook = epubBook;
-      _nativeSource = NativeBookSource(root: extractDir, book: epubBook!);
+      _engine = engine;
       _initialLocator = progress?.locator;
       _initialPercent = progress?.percent;
       final safe = MediaQuery.viewPaddingOf(context);
@@ -410,23 +418,123 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
     });
   }
 
+  Future<Directory> _extractDir() async {
+    final cache = await getApplicationCacheDirectory();
+    return Directory(p.join(cache.path, 'reader', widget.bookId));
+  }
+
+  Future<_EngineBuilder?> _prepareEpub(File file) async {
+    final extractDir = await _extractDir();
+    EpubBook epubBook;
+    try {
+      epubBook = await compute(prepareEpub, (
+        path: file.path,
+        extractDir: extractDir.path,
+      ));
+    } catch (_) {
+      return null;
+    }
+    final source = NativeBookSource(root: extractDir, book: epubBook);
+    return (callbacks, locator, percent) => createEpubView(
+      key: ValueKey(widget.bookId),
+      source: source,
+      initialLocator: locator,
+      initialPercent: percent,
+      callbacks: callbacks,
+    );
+  }
+
+  bool _passwordDenied = false;
+
+  Future<_EngineBuilder?> _preparePdf(File file) async {
+    final PdfDocument document;
+    try {
+      await pdfrxFlutterInitialize();
+      document = await PdfDocument.openFile(
+        file.path,
+        passwordProvider: _askPassword,
+      );
+    } catch (_) {
+      _error = _passwordDenied
+          ? 'PDF protegido con contraseña'
+          : 'No se pudo abrir el PDF';
+      return null;
+    }
+    _pdfDocument = document;
+    return (callbacks, locator, _) => PdfEngineView(
+      key: ValueKey(widget.bookId),
+      document: document,
+      initialLocator: locator,
+      callbacks: callbacks,
+    );
+  }
+
+  Future<_EngineBuilder?> _prepareComic(File file) async {
+    final extractDir = await _extractDir();
+    final archive = await ComicArchive.open(
+      file.path,
+      cacheDir: extractDir.path,
+    );
+    _comicArchive = archive;
+    return (callbacks, locator, _) => ComicEngineView(
+      key: ValueKey(widget.bookId),
+      archive: archive,
+      initialLocator: locator,
+      callbacks: callbacks,
+    );
+  }
+
+  Future<String?> _askPassword() async {
+    if (!mounted) return null;
+    final controller = TextEditingController();
+    final result = await showDialog<String>(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        backgroundColor: LannaColors.surfaceHigh,
+        title: const Text('PDF protegido'),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          obscureText: true,
+          decoration: const InputDecoration(hintText: 'Contraseña'),
+          onSubmitted: (v) => Navigator.of(context).pop(v),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(controller.text),
+            child: const Text('Abrir'),
+          ),
+        ],
+      ),
+    );
+    WidgetsBinding.instance.addPostFrameCallback((_) => controller.dispose());
+    if (result == null || result.isEmpty) {
+      _passwordDenied = true;
+      return null;
+    }
+    return result;
+  }
+
   String? _initialLocator;
   double? _initialPercent;
 
-  bool get _dragCurlReady => _nativeSource != null;
+  bool get _dragCurlReady => _controller != null;
 
-  bool get _rtl => _nativeSource?.rtl ?? false;
+  bool get _rtl => _controller?.rtl ?? false;
+
+  ReaderCapabilities get _caps =>
+      _controller?.capabilities ?? const ReaderCapabilities();
 
   int _foldFor(int logical) => foldFor(logical, rtl: _rtl);
 
   int _turnFor(double travel) => turnForTravel(travel, rtl: _rtl);
 
-  List<EpubTocEntry> get _toc {
-    final parsed = _epubBook?.toc ?? const [];
-    return parsed.isNotEmpty ? parsed : _fallbackToc;
-  }
-
-  int get _chapterTotal => _epubBook?.spine.where((s) => s.linear).length ?? 0;
+  int get _chapterTotal => _controller?.chapterCount ?? 0;
 
   Bookmark? get _currentBookmark {
     final cfi = _location?.cfi;
@@ -466,7 +574,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
         cfi: loc.cfi,
         chapterIndex: loc.chapterIndex,
         percent: _lastPercent,
-        label: _currentChapterLabel(),
+        label: _currentChapterLabel() ?? loc.label,
       );
       _notify('Marcador añadido');
     }
@@ -663,7 +771,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
   Future<void> _animatedTurn(
     int dir,
     PageTransition mode,
-    EpubViewController controller,
+    ReaderEngineController controller,
     PageTurn advance,
   ) async {
     final started = await _curl.start(
@@ -718,6 +826,8 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
     WakelockPlus.disable();
     _primeTimer?.cancel();
     _curl.dispose();
+    unawaited(_pdfDocument?.dispose());
+    unawaited(_comicArchive?.close());
     _saveTimer?.cancel();
     _saveProgressNow();
     _focusNode.dispose();
@@ -754,7 +864,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
       backgroundColor: settings.preset.background,
       body: _error != null
           ? _ErrorView(message: _error!)
-          : _nativeSource == null
+          : _engine == null
           ? const Center(child: CircularProgressIndicator())
           : Focus(
               focusNode: _focusNode,
@@ -770,12 +880,8 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
                         translation: Offset(_curl.incomingShift, 0),
                         child: child,
                       ),
-                      child: createEpubView(
-                        key: ValueKey(widget.bookId),
-                        source: _nativeSource!,
-                        initialLocator: _initialLocator,
-                        initialPercent: _initialPercent,
-                        callbacks: EpubViewCallbacks(
+                      child: _engine!(
+                        ReaderEngineCallbacks(
                           onReady: (c) {
                             _controller = c;
                             _applySettings(settings);
@@ -789,12 +895,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
                           onLocationChanged: _onLocation,
                           onTocLoaded: (toc) {
                             if (!mounted) return;
-                            setState(() {
-                              _fallbackToc = [
-                                for (final e in toc)
-                                  EpubTocEntry(label: e.label, href: e.href),
-                              ];
-                            });
+                            setState(() => _toc = toc);
                           },
                           onPageCount: (total) {
                             if (!mounted || total == _pageCount) return;
@@ -823,6 +924,8 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
                             setState(() => _error = m);
                           },
                         ),
+                        _initialLocator,
+                        _initialPercent,
                       ),
                     ),
                   ),
@@ -882,22 +985,26 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
                     child: _showAppearance
                         ? AppearancePanel(
                             settings: settings,
-                            bookFontAvailable:
-                                _nativeSource?.bookFontFamily != null,
-                            bookFontUnsupported:
-                                _nativeSource?.bookFontUnsupported ?? false,
+                            bookFontAvailable: _caps.bookFontAvailable,
+                            bookFontUnsupported: _caps.bookFontUnsupported,
                             onPreset: (p) => ref
                                 .read(readerSettingsControllerProvider)
                                 .setPreset(p),
-                            onFontFamily: (f) => ref
-                                .read(readerSettingsControllerProvider)
-                                .setFontFamily(f),
-                            onFontScale: (v) => ref
-                                .read(readerSettingsControllerProvider)
-                                .setFontScale(v),
-                            onLineHeight: (v) => ref
-                                .read(readerSettingsControllerProvider)
-                                .setLineHeight(v),
+                            onFontFamily: !_caps.reflowable
+                                ? null
+                                : (f) => ref
+                                      .read(readerSettingsControllerProvider)
+                                      .setFontFamily(f),
+                            onFontScale: !_caps.reflowable
+                                ? null
+                                : (v) => ref
+                                      .read(readerSettingsControllerProvider)
+                                      .setFontScale(v),
+                            onLineHeight: !_caps.reflowable
+                                ? null
+                                : (v) => ref
+                                      .read(readerSettingsControllerProvider)
+                                      .setLineHeight(v),
                             onColumns: (m) => ref
                                 .read(readerSettingsControllerProvider)
                                 .setColumns(m),
@@ -1112,17 +1219,18 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
               color: chrome.onBarMuted,
               onTap: _location == null ? null : _toggleBookmark,
             ),
-            ReaderBarButton(
-              icon: Icons.search,
-              active: _showSearch,
-              tooltip: 'Buscar',
-              color: chrome.onBarMuted,
-              onTap: () => setState(() {
-                _showSearch = !_showSearch;
-                _showToc = false;
-                _showAppearance = false;
-              }),
-            ),
+            if (_caps.searchable)
+              ReaderBarButton(
+                icon: Icons.search,
+                active: _showSearch,
+                tooltip: 'Buscar',
+                color: chrome.onBarMuted,
+                onTap: () => setState(() {
+                  _showSearch = !_showSearch;
+                  _showToc = false;
+                  _showAppearance = false;
+                }),
+              ),
           ],
         ),
       ),
@@ -1131,9 +1239,9 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
 
   Widget _bottomBar() {
     final pct = (_location?.percentage ?? _lastPercent).clamp(0.0, 1.0);
-    final chapter = _location?.chapterIndex;
-    final total = _chapterTotal;
+    final label = _location?.label;
     final mins = _location?.remainingMinutes;
+    final controller = _controller;
     final chrome = _chrome;
 
     final style = LannaType.micro.copyWith(color: chrome.onBarMuted);
@@ -1152,21 +1260,16 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
         height: LannaSpacing.barHeight,
         child: Row(
           children: [
-            if (chapter != null)
-              Text(
-                total > 0
-                    ? 'Capítulo ${chapter + 1} de $total'
-                    : 'Capítulo ${chapter + 1}',
-                style: style,
-              ),
+            if (label != null) Text(label, style: style),
             const SizedBox(width: LannaSpacing.s3),
             Expanded(
               child: ReaderScrubber(
                 value: pct,
                 chrome: chrome,
-                onSeek: (f) => _controller?.goToPercentage(f),
+                onSeek: (f) => controller?.goToPercentage(f),
                 trailingLabel: (f) => '${(f * 100).round()} %',
-                bubbleLabel: (f) => '${(f * 100).round()} %',
+                bubbleLabel: (f) =>
+                    controller?.scrubLabel(f) ?? '${(f * 100).round()} %',
               ),
             ),
             if (mins != null && mins > 0) ...[

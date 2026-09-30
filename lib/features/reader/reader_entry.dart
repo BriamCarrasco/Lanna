@@ -4,8 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/theme/app_theme.dart';
 import '../../data/book_repository.dart';
-import '../../data/models/book_format.dart';
-import 'pdf/pdf_reader_screen.dart';
 import 'reader_screen.dart';
 
 class ReaderEntry extends ConsumerWidget {
@@ -22,12 +20,7 @@ class ReaderEntry extends ConsumerWidget {
         body: Center(child: CircularProgressIndicator()),
       ),
       error: (_, _) => _NotFound(),
-      data: (b) {
-        if (b == null) return _NotFound();
-        return b.format == BookFormat.pdf
-            ? PdfReaderScreen(bookId: bookId)
-            : ReaderScreen(bookId: bookId);
-      },
+      data: (b) => b == null ? _NotFound() : ReaderScreen(bookId: bookId),
     );
   }
 }

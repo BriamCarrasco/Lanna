@@ -2,6 +2,7 @@
 import 'package:drift/drift.dart';
 import 'package:drift_flutter/drift_flutter.dart';
 
+import '../import/fingerprint.dart';
 import '../models/book_format.dart';
 import 'tables.dart';
 
@@ -36,7 +37,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 11;
+  int get schemaVersion => 12;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -71,6 +72,9 @@ class AppDatabase extends _$AppDatabase {
       }
       if (from < 11) {
         await m.addColumn(books, books.contentHash);
+      }
+      if (from < 12) {
+        await refreshFingerprints();
       }
     },
     beforeOpen: (details) async {
@@ -113,9 +117,24 @@ class AppDatabase extends _$AppDatabase {
   }
 
   Future<Book?> findBookByHash(String hash) {
-    return (select(
+    return (select(books)
+          ..where((b) => b.contentHash.equals(hash))
+          ..limit(1))
+        .getSingleOrNull();
+  }
+
+  Future<void> refreshFingerprints() async {
+    final rows = await (selectOnly(
       books,
-    )..where((b) => b.contentHash.equals(hash))).getSingleOrNull();
+    )..addColumns([books.id, books.filePath])).get();
+    final ids = [for (final r in rows) r.read(books.id)!];
+    final paths = [for (final r in rows) r.read(books.filePath)!];
+    final prints = await fingerprintFiles(paths);
+    for (var i = 0; i < ids.length; i++) {
+      await (update(books)..where((b) => b.id.equals(ids[i]))).write(
+        BooksCompanion(contentHash: Value(prints[i])),
+      );
+    }
   }
 
   Future<void> upsertBook(BooksCompanion book) {

@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/tokens.dart';
-import '../epub_view.dart';
+import '../reader_engine.dart';
 import '../reader_theme.dart';
 
 class SearchPanel extends StatefulWidget {

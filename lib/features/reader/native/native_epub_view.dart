@@ -7,9 +7,8 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter/scheduler.dart';
 
 import '../../../core/theme/app_theme.dart';
-import '../../../data/epub/epub_book.dart';
 import '../../../data/epub/epub_document.dart';
-import '../epub_view.dart';
+import '../reader_engine.dart';
 import 'book_source.dart';
 import 'page_canvas.dart';
 import 'paginator.dart';
@@ -24,7 +23,7 @@ class NativeEpubView extends StatefulWidget {
   });
 
   final NativeBookSource source;
-  final EpubViewCallbacks callbacks;
+  final ReaderEngineCallbacks callbacks;
   final String? initialLocator;
   final double? initialPercent;
 
@@ -33,7 +32,7 @@ class NativeEpubView extends StatefulWidget {
 }
 
 class _NativeEpubViewState extends State<NativeEpubView>
-    implements EpubViewController {
+    implements ReaderEngineController {
   final GlobalKey _boundary = GlobalKey();
   final GlobalKey<SelectionAreaState> _selectionKey =
       GlobalKey<SelectionAreaState>();
@@ -94,17 +93,27 @@ class _NativeEpubViewState extends State<NativeEpubView>
   }
 
   void _emitToc() {
-    final toc = <TocEntry>[];
-    void walk(List<EpubTocEntry> entries) {
-      for (final entry in entries) {
-        toc.add(TocEntry(label: entry.label, href: entry.href));
-        walk(entry.children);
-      }
-    }
-
-    walk(widget.source.book.toc);
+    final toc = widget.source.book.toc;
     if (toc.isNotEmpty) widget.callbacks.onTocLoaded?.call(toc);
   }
+
+  @override
+  ReaderCapabilities get capabilities => ReaderCapabilities(
+    reflowable: true,
+    searchable: true,
+    selectable: true,
+    bookFontAvailable: widget.source.bookFontFamily != null,
+    bookFontUnsupported: widget.source.bookFontUnsupported,
+  );
+
+  @override
+  bool get rtl => widget.source.rtl;
+
+  @override
+  int get chapterCount => widget.source.chapterCount;
+
+  @override
+  String scrubLabel(double fraction) => '${(fraction * 100).round()} %';
 
   Size _viewport = Size.zero;
   Timer? _resize;
@@ -288,6 +297,7 @@ class _NativeEpubViewState extends State<NativeEpubView>
           document.length,
         ),
         chapterIndex: _chapter,
+        label: 'Capítulo ${_chapter + 1} de ${widget.source.chapterCount}',
         remainingMinutes: widget.source.remainingMinutes(_chapter, _offset),
         atStart: atStart,
         atEnd: atEnd,

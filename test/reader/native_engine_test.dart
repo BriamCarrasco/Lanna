@@ -6,10 +6,10 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lanna/data/epub/epub_book.dart';
-import 'package:lanna/features/reader/epub_view.dart';
 import 'package:lanna/features/reader/native/book_source.dart';
 import 'package:lanna/features/reader/native/native_epub_view.dart';
 import 'package:lanna/features/reader/native/page_canvas.dart';
+import 'package:lanna/features/reader/reader_engine.dart';
 
 void main() {
   late Directory root;
@@ -80,17 +80,17 @@ void main() {
     );
   }
 
-  Future<EpubViewController> mount(
+  Future<ReaderEngineController> mount(
     WidgetTester tester,
     NativeBookSource source, {
-    EpubViewCallbacks? callbacks,
+    ReaderEngineCallbacks? callbacks,
     String? locator,
     double? percent,
     Size size = const Size(400, 600),
-    void Function(EpubViewController)? whenReady,
+    void Function(ReaderEngineController)? whenReady,
   }) async {
-    EpubViewController? controller;
-    final wired = EpubViewCallbacks(
+    ReaderEngineController? controller;
+    final wired = ReaderEngineCallbacks(
       onReady: (c) {
         controller = c;
         whenReady?.call(c);
@@ -136,13 +136,13 @@ void main() {
   }
 
   testWidgets('pinta la primera página y avisa del índice', (tester) async {
-    final tocs = <List<TocEntry>>[];
+    final tocs = <List<EpubTocEntry>>[];
     final source = sourceWith(['<h1>Capítulo uno</h1><p>${words(80)}</p>']);
 
     await mount(
       tester,
       source,
-      callbacks: EpubViewCallbacks(onTocLoaded: tocs.add),
+      callbacks: ReaderEngineCallbacks(onTocLoaded: tocs.add),
     );
 
     expect(find.byType(Text), findsWidgets);
@@ -156,7 +156,7 @@ void main() {
     final controller = await mount(
       tester,
       source,
-      callbacks: EpubViewCallbacks(onLocationChanged: locations.add),
+      callbacks: ReaderEngineCallbacks(onLocationChanged: locations.add),
     );
 
     final first = locations.last;
@@ -187,7 +187,7 @@ void main() {
     final controller = await mount(
       tester,
       source,
-      callbacks: EpubViewCallbacks(onLocationChanged: locations.add),
+      callbacks: ReaderEngineCallbacks(onLocationChanged: locations.add),
     );
 
     await act(tester, () => controller.goToCfi('spine:1#0'));
@@ -210,7 +210,7 @@ void main() {
     await mount(
       tester,
       source,
-      callbacks: EpubViewCallbacks(onLocationChanged: locations.add),
+      callbacks: ReaderEngineCallbacks(onLocationChanged: locations.add),
       locator: 'spine:0#1200',
     );
 
@@ -230,7 +230,7 @@ void main() {
     final controller = await mount(
       tester,
       source,
-      callbacks: EpubViewCallbacks(onLocationChanged: locations.add),
+      callbacks: ReaderEngineCallbacks(onLocationChanged: locations.add),
     );
 
     var previous = -1.0;
@@ -255,7 +255,7 @@ void main() {
     final controller = await mount(
       tester,
       source,
-      callbacks: EpubViewCallbacks(onLocationChanged: locations.add),
+      callbacks: ReaderEngineCallbacks(onLocationChanged: locations.add),
     );
 
     await act(tester, () => controller.goToPercentage(0.9));
@@ -270,7 +270,7 @@ void main() {
     await mount(
       tester,
       source,
-      callbacks: EpubViewCallbacks(onTextSelected: selections.add),
+      callbacks: ReaderEngineCallbacks(onTextSelected: selections.add),
     );
 
     final document = await source.document(0);
@@ -320,7 +320,7 @@ void main() {
     final controller = await mount(
       tester,
       source,
-      callbacks: EpubViewCallbacks(onLocationChanged: locations.add),
+      callbacks: ReaderEngineCallbacks(onLocationChanged: locations.add),
     );
 
     for (var i = 0; i < 4; i++) {
@@ -359,7 +359,7 @@ void main() {
     await mount(
       tester,
       source,
-      callbacks: EpubViewCallbacks(onLocationChanged: locations.add),
+      callbacks: ReaderEngineCallbacks(onLocationChanged: locations.add),
       locator: 'epubcfi(/6/14[cap3]!/4/2/2)',
       percent: 0.85,
     );
@@ -381,7 +381,7 @@ void main() {
     final controller = await mount(
       tester,
       source,
-      callbacks: EpubViewCallbacks(onLocationChanged: locations.add),
+      callbacks: ReaderEngineCallbacks(onLocationChanged: locations.add),
     );
 
     await act(tester, () => controller.goToCfi('cap1.xhtml#medio'));
@@ -410,7 +410,7 @@ void main() {
     final controller = await mount(
       tester,
       source,
-      callbacks: EpubViewCallbacks(
+      callbacks: ReaderEngineCallbacks(
         onSearchResults: (_, hits) => results.add(hits),
       ),
     );
@@ -439,7 +439,7 @@ void main() {
     final controller = await mount(
       tester,
       source,
-      callbacks: EpubViewCallbacks(
+      callbacks: ReaderEngineCallbacks(
         onLocationChanged: locations.add,
         onSearchResults: (_, hits) => results.add(hits),
       ),
@@ -604,7 +604,7 @@ void main() {
       final controller = await mount(
         tester,
         source,
-        callbacks: EpubViewCallbacks(onLocationChanged: locations.add),
+        callbacks: ReaderEngineCallbacks(onLocationChanged: locations.add),
       );
 
       await act(tester, () => controller.goToCfi('cap2.xhtml'));
@@ -634,7 +634,7 @@ void main() {
       final controller = await mount(
         tester,
         source,
-        callbacks: EpubViewCallbacks(onLocationChanged: locations.add),
+        callbacks: ReaderEngineCallbacks(onLocationChanged: locations.add),
       );
 
       late int s3Offset;
@@ -682,7 +682,7 @@ void main() {
       final controller = await mount(
         tester,
         source,
-        callbacks: EpubViewCallbacks(onLocationChanged: locations.add),
+        callbacks: ReaderEngineCallbacks(onLocationChanged: locations.add),
       );
 
       await act(tester, () => controller.goToCfi('cap2.xhtml#final'));
@@ -719,7 +719,7 @@ void main() {
       final controller = await mount(
         tester,
         source,
-        callbacks: EpubViewCallbacks(onLocationChanged: locations.add),
+        callbacks: ReaderEngineCallbacks(onLocationChanged: locations.add),
       );
 
       late Map<int, int> anchorAt;
@@ -804,7 +804,7 @@ void main() {
       final controller = await mount(
         tester,
         source,
-        callbacks: EpubViewCallbacks(onLocationChanged: locations.add),
+        callbacks: ReaderEngineCallbacks(onLocationChanged: locations.add),
       );
 
       await act(tester, () => controller.next());
@@ -839,7 +839,7 @@ void main() {
       await mount(
         tester,
         source,
-        callbacks: EpubViewCallbacks(onTextSelected: selections.add),
+        callbacks: ReaderEngineCallbacks(onTextSelected: selections.add),
       );
       final document = await source.document(0);
 
@@ -872,7 +872,7 @@ void main() {
       final controller = await mount(
         tester,
         source,
-        callbacks: EpubViewCallbacks(onLocationChanged: locations.add),
+        callbacks: ReaderEngineCallbacks(onLocationChanged: locations.add),
       );
 
       final alPrincipio = locations.last.remainingMinutes;
@@ -892,7 +892,7 @@ void main() {
       await mount(
         tester,
         source,
-        callbacks: EpubViewCallbacks(onPageCount: counts.add),
+        callbacks: ReaderEngineCallbacks(onPageCount: counts.add),
       );
 
       expect(counts, isNotEmpty);
@@ -909,7 +909,7 @@ void main() {
       final controller = await mount(
         tester,
         source,
-        callbacks: EpubViewCallbacks(onPageCount: counts.add),
+        callbacks: ReaderEngineCallbacks(onPageCount: counts.add),
         whenReady: (c) => unawaited(c.setAnimating(true)),
       );
       await settle(tester);
@@ -940,7 +940,9 @@ void main() {
       final controller = await mount(
         tester,
         source,
-        callbacks: EpubViewCallbacks(onSearchResults: (_, h) => results.add(h)),
+        callbacks: ReaderEngineCallbacks(
+          onSearchResults: (_, h) => results.add(h),
+        ),
       );
 
       expect(source.isCached(2), isFalse);
@@ -1003,7 +1005,7 @@ void main() {
                     data: MediaQueryData(size: value),
                     child: NativeEpubView(
                       source: source,
-                      callbacks: EpubViewCallbacks(
+                      callbacks: ReaderEngineCallbacks(
                         onLocationChanged: locations.add,
                         onPageCount: counts.add,
                       ),
@@ -1047,7 +1049,7 @@ void main() {
       final controller = await mount(
         tester,
         source,
-        callbacks: EpubViewCallbacks(onLocationChanged: locations.add),
+        callbacks: ReaderEngineCallbacks(onLocationChanged: locations.add),
       );
 
       await act(tester, () => controller.goToCfi('spine:1#0'));
@@ -1085,7 +1087,7 @@ void main() {
       final controller = await mount(
         tester,
         source,
-        callbacks: EpubViewCallbacks(onPageCount: counts.add),
+        callbacks: ReaderEngineCallbacks(onPageCount: counts.add),
       );
       await act(tester, () => controller.applyPresentation(presentation()));
       final baseline = counts.length;
@@ -1111,7 +1113,7 @@ void main() {
       final controller = await mount(
         tester,
         source,
-        callbacks: EpubViewCallbacks(onPageCount: counts.add),
+        callbacks: ReaderEngineCallbacks(onPageCount: counts.add),
       );
       await act(tester, () => controller.applyPresentation(presentation()));
       final baseline = counts.length;
@@ -1137,7 +1139,7 @@ void main() {
       final controller = await mount(
         tester,
         source,
-        callbacks: EpubViewCallbacks(onLocationChanged: locations.add),
+        callbacks: ReaderEngineCallbacks(onLocationChanged: locations.add),
       );
 
       unawaited(
@@ -1171,7 +1173,7 @@ void main() {
       final controller = await mount(
         tester,
         source,
-        callbacks: EpubViewCallbacks(onLocationChanged: locations.add),
+        callbacks: ReaderEngineCallbacks(onLocationChanged: locations.add),
       );
 
       await act(tester, () => controller.goToPercentage(1.0));
@@ -1192,7 +1194,7 @@ void main() {
       final controller = await mount(
         tester,
         source,
-        callbacks: EpubViewCallbacks(onHighlightTapped: taps.add),
+        callbacks: ReaderEngineCallbacks(onHighlightTapped: taps.add),
       );
       final cfi = const ReaderLocator(
         chapter: 0,
@@ -1253,7 +1255,7 @@ void main() {
     await mount(
       tester,
       source,
-      callbacks: EpubViewCallbacks(onError: errors.add),
+      callbacks: ReaderEngineCallbacks(onError: errors.add),
     );
 
     expect(tester.takeException(), isNull);
@@ -1270,7 +1272,7 @@ void main() {
       tester,
       source,
       locator: 'spine:1#0',
-      callbacks: EpubViewCallbacks(onError: errors.add),
+      callbacks: ReaderEngineCallbacks(onError: errors.add),
     );
 
     expect(errors, isNotEmpty);

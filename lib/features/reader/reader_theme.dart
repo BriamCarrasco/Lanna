@@ -4,7 +4,14 @@ import 'package:flutter/material.dart';
 
 import '../../core/theme/app_theme.dart';
 import '../../data/local/app_database.dart';
-import 'epub_view.dart';
+import 'reader_engine.dart';
+
+const readerHighlightColors = <String, Color>{
+  'yellow': Color(0xFFFFE14D),
+  'green': Color(0xFF8FE08A),
+  'blue': Color(0xFF7FC0FF),
+  'pink': Color(0xFFFF9EC9),
+};
 
 enum ReaderThemePreset {
   light(

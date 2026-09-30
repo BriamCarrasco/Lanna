@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:archive/archive.dart';
@@ -121,6 +122,21 @@ Uint8List buildReaderEpub({
   return Uint8List.fromList(ZipEncoder().encode(archive));
 }
 
+final tinyPng = base64Decode(
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=',
+);
+
+Uint8List buildComicZip({required List<String> pages, String? comicInfo}) {
+  final archive = Archive();
+  for (final name in pages) {
+    archive.addFile(ArchiveFile.bytes(name, tinyPng));
+  }
+  if (comicInfo != null) {
+    archive.addFile(ArchiveFile.string('ComicInfo.xml', comicInfo));
+  }
+  return Uint8List.fromList(ZipEncoder().encode(archive));
+}
+
 class ReaderHarness {
   ReaderHarness._(this.root, this.db, this.wakelock);
 
@@ -190,6 +206,31 @@ extension ReaderHarnessX on ReaderHarness {
     );
     if (percent > 0 || locator != null) {
       await db.saveProgress(bookId: id, percent: percent, locator: locator);
+    }
+    return id;
+  }
+
+  Future<String> seedComic({
+    required List<String> pages,
+    String id = 'comic',
+    String? comicInfo,
+    List<int>? bytes,
+    String? locator,
+  }) async {
+    final file = File(p.join(root.path, '$id.cbz'))
+      ..writeAsBytesSync(
+        bytes ?? buildComicZip(pages: pages, comicInfo: comicInfo),
+      );
+    await db.upsertBook(
+      BooksCompanion.insert(
+        id: id,
+        title: 'Cómic de prueba',
+        filePath: file.path,
+        format: BookFormat.comic,
+      ),
+    );
+    if (locator != null) {
+      await db.saveProgress(bookId: id, percent: 0, locator: locator);
     }
     return id;
   }
