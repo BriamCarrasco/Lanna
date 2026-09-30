@@ -4,6 +4,7 @@ import 'dart:io';
 import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -209,6 +210,12 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
 
   double _dragTravel = 0;
 
+  /// beginDrag() hace un readback de GPU antes de marcar `dragging`: si el
+  /// dedo se levanta durante ese hueco (mas probable en telefonos lentos),
+  /// _onDragEnd no debe decidir nada hasta que ese arranque termine, o el
+  /// avance queda sin su reversa.
+  Future<bool>? _curlStart;
+
   void _onDragStart(DragStartDetails details) {
     _dragTravel = 0;
     _dragProgress = 0;
@@ -220,21 +227,21 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
 
     final width = MediaQuery.sizeOf(context).width;
     if (!_curl.dragging) {
-      if (_curl.busy) return;
+      if (_curl.busy || _curlStart != null) return;
       if (_dragTravel.abs() < 16) return;
       final controller = _controller;
       if (controller == null) return;
       final forward = _rtl ? _dragTravel > 0 : _dragTravel < 0;
       if (forward ? _atEnd : _atStart) return;
-      unawaited(
-        _curl.beginDrag(
-          _foldFor(forward ? 1 : -1),
-          mode: _transition ?? PageTransition.curl,
-          outgoing: controller.snapshot,
-          advance: () => forward ? controller.next() : controller.previous(),
-          revert: () => forward ? controller.previous() : controller.next(),
-        ),
+      final start = _curl.beginDrag(
+        _foldFor(forward ? 1 : -1),
+        mode: _transition ?? PageTransition.curl,
+        outgoing: controller.snapshot,
+        advance: () => forward ? controller.next() : controller.previous(),
+        revert: () => forward ? controller.previous() : controller.next(),
       );
+      _curlStart = start;
+      unawaited(start.whenComplete(() => _curlStart = null));
       return;
     }
 
@@ -244,7 +251,10 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
     _curl.updateDrag(_dragProgress);
   }
 
-  void _onDragEnd(DragEndDetails details) {
+  Future<void> _onDragEnd(DragEndDetails details) async {
+    final pending = _curlStart;
+    if (pending != null) await pending;
+    if (!mounted) return;
     final velocity = details.velocity.pixelsPerSecond.dx;
     if (_curl.dragging) {
       final width = MediaQuery.sizeOf(context).width;
@@ -268,7 +278,10 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
     }
   }
 
-  void _onDragCancel() {
+  Future<void> _onDragCancel() async {
+    final pending = _curlStart;
+    if (pending != null) await pending;
+    if (!mounted) return;
     if (_curl.dragging) _curl.endDrag(complete: false);
     _dragTravel = 0;
     _dragProgress = 0;
@@ -309,8 +322,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
 
     if (elapsed > const Duration(milliseconds: 350)) return;
 
-    final edgeRaw = size.width * 0.22;
-    final edge = edgeRaw > 130 ? 130.0 : edgeRaw;
+    const edge = 96.0;
     if (_settings.edgeTaps && up.dx < edge) {
       _turn(turnForEdge(leading: true, rtl: _rtl));
       return;
@@ -325,11 +337,23 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
 
   (double, double)? _lastInsets;
 
+  /// Ocultar los controles pone la barra de estado/navegacion en modo
+  /// inmersivo, y eso reduce el `viewPadding` que reporta Android. Si
+  /// paginaramos con ese valor en vivo, cada toggle de los controles
+  /// re-paginaria el capitulo con un margen distinto y la posicion de
+  /// lectura podria caer en otra pagina. Se fija el margen real la
+  /// primera vez que los controles estan visibles (barras reales) y se
+  /// reusa siempre, para que mostrar/ocultar controles nunca dispare un
+  /// relayout.
+  EdgeInsets? _stableSafeArea;
+
   void _pushInsets({bool force = false}) {
     final controller = _controller;
     if (controller == null || !mounted) return;
     final safe = MediaQuery.viewPaddingOf(context);
-    final next = (safe.top + 52.0, safe.bottom + 48.0);
+    if (_chromeVisible) _stableSafeArea = safe;
+    final effective = _stableSafeArea ?? safe;
+    final next = (effective.top + 52.0, effective.bottom + 48.0);
     if (_lastInsets == next && !force) return;
     _lastInsets = next;
     controller.setInsets(next.$1, next.$2);
@@ -803,12 +827,28 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
                     ),
                   ),
                   Positioned.fill(
-                    child: GestureDetector(
+                    child: RawGestureDetector(
                       behavior: HitTestBehavior.translucent,
-                      onHorizontalDragStart: _onDragStart,
-                      onHorizontalDragUpdate: _onDragUpdate,
-                      onHorizontalDragEnd: _onDragEnd,
-                      onHorizontalDragCancel: _onDragCancel,
+                      gestures: {
+                        HorizontalDragGestureRecognizer:
+                            GestureRecognizerFactoryWithHandlers<
+                              HorizontalDragGestureRecognizer
+                            >(
+                              () => HorizontalDragGestureRecognizer(
+                                supportedDevices: {
+                                  PointerDeviceKind.touch,
+                                  PointerDeviceKind.stylus,
+                                },
+                              ),
+                              (instance) {
+                                instance
+                                  ..onStart = _onDragStart
+                                  ..onUpdate = _onDragUpdate
+                                  ..onEnd = _onDragEnd
+                                  ..onCancel = _onDragCancel;
+                              },
+                            ),
+                      },
                       child: Listener(
                         behavior: HitTestBehavior.translucent,
                         onPointerDown: (e) {
