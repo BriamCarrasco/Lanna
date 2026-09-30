@@ -80,10 +80,16 @@ class ComicArchive {
 
   static const markerName = '.lanna-complete';
 
-  static Future<ComicArchive> open(String path, {required String cacheDir}) async {
+  static Future<ComicArchive> open(
+    String path, {
+    required String cacheDir,
+  }) async {
     final (source, target) = switch (sniffComic(path)) {
       ComicContainer.zip => (_Source.zip, path),
-      ComicContainer.rar when LibArchive.instance != null => (_Source.rar, path),
+      ComicContainer.rar when LibArchive.instance != null => (
+        _Source.rar,
+        path,
+      ),
       ComicContainer.rar => (
         _Source.directory,
         await _extractWithPlugin(path, cacheDir),
@@ -292,11 +298,7 @@ void _worker((SendPort, String, _Source) args) {
   }
 
   final inbox = ReceivePort();
-  reply.send((
-    inbox.sendPort,
-    [for (final i in pages) reader.names[i]],
-    info,
-  ));
+  reply.send((inbox.sendPort, [for (final i in pages) reader.names[i]], info));
   inbox.listen((message) {
     if (message case (int id, int page)) {
       try {

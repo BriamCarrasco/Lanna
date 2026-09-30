@@ -110,6 +110,9 @@ class _NativeEpubViewState extends State<NativeEpubView>
   bool get rtl => widget.source.rtl;
 
   @override
+  Future<void> setRtl(bool value) async {}
+
+  @override
   int get chapterCount => widget.source.chapterCount;
 
   @override

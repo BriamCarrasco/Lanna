@@ -85,6 +85,7 @@ class ReaderCapabilities {
     this.selectable = false,
     this.bookFontAvailable = false,
     this.bookFontUnsupported = false,
+    this.directional = false,
   });
 
   final bool reflowable;
@@ -92,11 +93,13 @@ class ReaderCapabilities {
   final bool selectable;
   final bool bookFontAvailable;
   final bool bookFontUnsupported;
+  final bool directional;
 }
 
 abstract class ReaderEngineController {
   ReaderCapabilities get capabilities;
   bool get rtl;
+  Future<void> setRtl(bool value);
   int get chapterCount;
   String scrubLabel(double fraction);
 

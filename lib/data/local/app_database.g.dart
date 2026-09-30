@@ -92,6 +92,17 @@ class $BooksTable extends Books with TableInfo<$BooksTable, Book> {
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _readingDirectionMeta = const VerificationMeta(
+    'readingDirection',
+  );
+  @override
+  late final GeneratedColumn<String> readingDirection = GeneratedColumn<String>(
+    'reading_direction',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _addedAtMeta = const VerificationMeta(
     'addedAt',
   );
@@ -125,6 +136,7 @@ class $BooksTable extends Books with TableInfo<$BooksTable, Book> {
     coverPath,
     fileSizeBytes,
     contentHash,
+    readingDirection,
     addedAt,
     lastOpenedAt,
   ];
@@ -191,6 +203,15 @@ class $BooksTable extends Books with TableInfo<$BooksTable, Book> {
         ),
       );
     }
+    if (data.containsKey('reading_direction')) {
+      context.handle(
+        _readingDirectionMeta,
+        readingDirection.isAcceptableOrUnknown(
+          data['reading_direction']!,
+          _readingDirectionMeta,
+        ),
+      );
+    }
     if (data.containsKey('added_at')) {
       context.handle(
         _addedAtMeta,
@@ -249,6 +270,10 @@ class $BooksTable extends Books with TableInfo<$BooksTable, Book> {
         DriftSqlType.string,
         data['${effectivePrefix}content_hash'],
       ),
+      readingDirection: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}reading_direction'],
+      ),
       addedAt: attachedDatabase.typeMapping.read(
         DriftSqlType.dateTime,
         data['${effectivePrefix}added_at'],
@@ -278,6 +303,7 @@ class Book extends DataClass implements Insertable<Book> {
   final String? coverPath;
   final int? fileSizeBytes;
   final String? contentHash;
+  final String? readingDirection;
   final DateTime addedAt;
   final DateTime? lastOpenedAt;
   const Book({
@@ -289,6 +315,7 @@ class Book extends DataClass implements Insertable<Book> {
     this.coverPath,
     this.fileSizeBytes,
     this.contentHash,
+    this.readingDirection,
     required this.addedAt,
     this.lastOpenedAt,
   });
@@ -315,6 +342,9 @@ class Book extends DataClass implements Insertable<Book> {
     if (!nullToAbsent || contentHash != null) {
       map['content_hash'] = Variable<String>(contentHash);
     }
+    if (!nullToAbsent || readingDirection != null) {
+      map['reading_direction'] = Variable<String>(readingDirection);
+    }
     map['added_at'] = Variable<DateTime>(addedAt);
     if (!nullToAbsent || lastOpenedAt != null) {
       map['last_opened_at'] = Variable<DateTime>(lastOpenedAt);
@@ -340,6 +370,9 @@ class Book extends DataClass implements Insertable<Book> {
       contentHash: contentHash == null && nullToAbsent
           ? const Value.absent()
           : Value(contentHash),
+      readingDirection: readingDirection == null && nullToAbsent
+          ? const Value.absent()
+          : Value(readingDirection),
       addedAt: Value(addedAt),
       lastOpenedAt: lastOpenedAt == null && nullToAbsent
           ? const Value.absent()
@@ -363,6 +396,7 @@ class Book extends DataClass implements Insertable<Book> {
       coverPath: serializer.fromJson<String?>(json['coverPath']),
       fileSizeBytes: serializer.fromJson<int?>(json['fileSizeBytes']),
       contentHash: serializer.fromJson<String?>(json['contentHash']),
+      readingDirection: serializer.fromJson<String?>(json['readingDirection']),
       addedAt: serializer.fromJson<DateTime>(json['addedAt']),
       lastOpenedAt: serializer.fromJson<DateTime?>(json['lastOpenedAt']),
     );
@@ -381,6 +415,7 @@ class Book extends DataClass implements Insertable<Book> {
       'coverPath': serializer.toJson<String?>(coverPath),
       'fileSizeBytes': serializer.toJson<int?>(fileSizeBytes),
       'contentHash': serializer.toJson<String?>(contentHash),
+      'readingDirection': serializer.toJson<String?>(readingDirection),
       'addedAt': serializer.toJson<DateTime>(addedAt),
       'lastOpenedAt': serializer.toJson<DateTime?>(lastOpenedAt),
     };
@@ -395,6 +430,7 @@ class Book extends DataClass implements Insertable<Book> {
     Value<String?> coverPath = const Value.absent(),
     Value<int?> fileSizeBytes = const Value.absent(),
     Value<String?> contentHash = const Value.absent(),
+    Value<String?> readingDirection = const Value.absent(),
     DateTime? addedAt,
     Value<DateTime?> lastOpenedAt = const Value.absent(),
   }) => Book(
@@ -408,6 +444,9 @@ class Book extends DataClass implements Insertable<Book> {
         ? fileSizeBytes.value
         : this.fileSizeBytes,
     contentHash: contentHash.present ? contentHash.value : this.contentHash,
+    readingDirection: readingDirection.present
+        ? readingDirection.value
+        : this.readingDirection,
     addedAt: addedAt ?? this.addedAt,
     lastOpenedAt: lastOpenedAt.present ? lastOpenedAt.value : this.lastOpenedAt,
   );
@@ -425,6 +464,9 @@ class Book extends DataClass implements Insertable<Book> {
       contentHash: data.contentHash.present
           ? data.contentHash.value
           : this.contentHash,
+      readingDirection: data.readingDirection.present
+          ? data.readingDirection.value
+          : this.readingDirection,
       addedAt: data.addedAt.present ? data.addedAt.value : this.addedAt,
       lastOpenedAt: data.lastOpenedAt.present
           ? data.lastOpenedAt.value
@@ -443,6 +485,7 @@ class Book extends DataClass implements Insertable<Book> {
           ..write('coverPath: $coverPath, ')
           ..write('fileSizeBytes: $fileSizeBytes, ')
           ..write('contentHash: $contentHash, ')
+          ..write('readingDirection: $readingDirection, ')
           ..write('addedAt: $addedAt, ')
           ..write('lastOpenedAt: $lastOpenedAt')
           ..write(')'))
@@ -459,6 +502,7 @@ class Book extends DataClass implements Insertable<Book> {
     coverPath,
     fileSizeBytes,
     contentHash,
+    readingDirection,
     addedAt,
     lastOpenedAt,
   );
@@ -474,6 +518,7 @@ class Book extends DataClass implements Insertable<Book> {
           other.coverPath == this.coverPath &&
           other.fileSizeBytes == this.fileSizeBytes &&
           other.contentHash == this.contentHash &&
+          other.readingDirection == this.readingDirection &&
           other.addedAt == this.addedAt &&
           other.lastOpenedAt == this.lastOpenedAt);
 }
@@ -487,6 +532,7 @@ class BooksCompanion extends UpdateCompanion<Book> {
   final Value<String?> coverPath;
   final Value<int?> fileSizeBytes;
   final Value<String?> contentHash;
+  final Value<String?> readingDirection;
   final Value<DateTime> addedAt;
   final Value<DateTime?> lastOpenedAt;
   final Value<int> rowid;
@@ -499,6 +545,7 @@ class BooksCompanion extends UpdateCompanion<Book> {
     this.coverPath = const Value.absent(),
     this.fileSizeBytes = const Value.absent(),
     this.contentHash = const Value.absent(),
+    this.readingDirection = const Value.absent(),
     this.addedAt = const Value.absent(),
     this.lastOpenedAt = const Value.absent(),
     this.rowid = const Value.absent(),
@@ -512,6 +559,7 @@ class BooksCompanion extends UpdateCompanion<Book> {
     this.coverPath = const Value.absent(),
     this.fileSizeBytes = const Value.absent(),
     this.contentHash = const Value.absent(),
+    this.readingDirection = const Value.absent(),
     this.addedAt = const Value.absent(),
     this.lastOpenedAt = const Value.absent(),
     this.rowid = const Value.absent(),
@@ -528,6 +576,7 @@ class BooksCompanion extends UpdateCompanion<Book> {
     Expression<String>? coverPath,
     Expression<int>? fileSizeBytes,
     Expression<String>? contentHash,
+    Expression<String>? readingDirection,
     Expression<DateTime>? addedAt,
     Expression<DateTime>? lastOpenedAt,
     Expression<int>? rowid,
@@ -541,6 +590,7 @@ class BooksCompanion extends UpdateCompanion<Book> {
       if (coverPath != null) 'cover_path': coverPath,
       if (fileSizeBytes != null) 'file_size_bytes': fileSizeBytes,
       if (contentHash != null) 'content_hash': contentHash,
+      if (readingDirection != null) 'reading_direction': readingDirection,
       if (addedAt != null) 'added_at': addedAt,
       if (lastOpenedAt != null) 'last_opened_at': lastOpenedAt,
       if (rowid != null) 'rowid': rowid,
@@ -556,6 +606,7 @@ class BooksCompanion extends UpdateCompanion<Book> {
     Value<String?>? coverPath,
     Value<int?>? fileSizeBytes,
     Value<String?>? contentHash,
+    Value<String?>? readingDirection,
     Value<DateTime>? addedAt,
     Value<DateTime?>? lastOpenedAt,
     Value<int>? rowid,
@@ -569,6 +620,7 @@ class BooksCompanion extends UpdateCompanion<Book> {
       coverPath: coverPath ?? this.coverPath,
       fileSizeBytes: fileSizeBytes ?? this.fileSizeBytes,
       contentHash: contentHash ?? this.contentHash,
+      readingDirection: readingDirection ?? this.readingDirection,
       addedAt: addedAt ?? this.addedAt,
       lastOpenedAt: lastOpenedAt ?? this.lastOpenedAt,
       rowid: rowid ?? this.rowid,
@@ -604,6 +656,9 @@ class BooksCompanion extends UpdateCompanion<Book> {
     if (contentHash.present) {
       map['content_hash'] = Variable<String>(contentHash.value);
     }
+    if (readingDirection.present) {
+      map['reading_direction'] = Variable<String>(readingDirection.value);
+    }
     if (addedAt.present) {
       map['added_at'] = Variable<DateTime>(addedAt.value);
     }
@@ -627,6 +682,7 @@ class BooksCompanion extends UpdateCompanion<Book> {
           ..write('coverPath: $coverPath, ')
           ..write('fileSizeBytes: $fileSizeBytes, ')
           ..write('contentHash: $contentHash, ')
+          ..write('readingDirection: $readingDirection, ')
           ..write('addedAt: $addedAt, ')
           ..write('lastOpenedAt: $lastOpenedAt, ')
           ..write('rowid: $rowid')
@@ -3218,6 +3274,7 @@ typedef $$BooksTableCreateCompanionBuilder = BooksCompanion Function({
   Value<String?> coverPath,
   Value<int?> fileSizeBytes,
   Value<String?> contentHash,
+  Value<String?> readingDirection,
   Value<DateTime> addedAt,
   Value<DateTime?> lastOpenedAt,
   Value<int> rowid,
@@ -3231,6 +3288,7 @@ typedef $$BooksTableUpdateCompanionBuilder = BooksCompanion Function({
   Value<String?> coverPath,
   Value<int?> fileSizeBytes,
   Value<String?> contentHash,
+  Value<String?> readingDirection,
   Value<DateTime> addedAt,
   Value<DateTime?> lastOpenedAt,
   Value<int> rowid,
@@ -3364,6 +3422,11 @@ class $$BooksTableFilterComposer extends Composer<_$AppDatabase, $BooksTable> {
 
   ColumnFilters<String> get contentHash => $composableBuilder(
     column: $table.contentHash,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get readingDirection => $composableBuilder(
+    column: $table.readingDirection,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -3527,6 +3590,11 @@ class $$BooksTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get readingDirection => $composableBuilder(
+    column: $table.readingDirection,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<DateTime> get addedAt => $composableBuilder(
     column: $table.addedAt,
     builder: (column) => ColumnOrderings(column),
@@ -3572,6 +3640,11 @@ class $$BooksTableAnnotationComposer
 
   GeneratedColumn<String> get contentHash => $composableBuilder(
     column: $table.contentHash,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get readingDirection => $composableBuilder(
+    column: $table.readingDirection,
     builder: (column) => column,
   );
 
@@ -3726,6 +3799,7 @@ class $$BooksTableTableManager
                 Value<String?> coverPath = const Value.absent(),
                 Value<int?> fileSizeBytes = const Value.absent(),
                 Value<String?> contentHash = const Value.absent(),
+                Value<String?> readingDirection = const Value.absent(),
                 Value<DateTime> addedAt = const Value.absent(),
                 Value<DateTime?> lastOpenedAt = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
@@ -3738,6 +3812,7 @@ class $$BooksTableTableManager
                 coverPath: coverPath,
                 fileSizeBytes: fileSizeBytes,
                 contentHash: contentHash,
+                readingDirection: readingDirection,
                 addedAt: addedAt,
                 lastOpenedAt: lastOpenedAt,
                 rowid: rowid,
@@ -3752,6 +3827,7 @@ class $$BooksTableTableManager
                 Value<String?> coverPath = const Value.absent(),
                 Value<int?> fileSizeBytes = const Value.absent(),
                 Value<String?> contentHash = const Value.absent(),
+                Value<String?> readingDirection = const Value.absent(),
                 Value<DateTime> addedAt = const Value.absent(),
                 Value<DateTime?> lastOpenedAt = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
@@ -3764,6 +3840,7 @@ class $$BooksTableTableManager
                 coverPath: coverPath,
                 fileSizeBytes: fileSizeBytes,
                 contentHash: contentHash,
+                readingDirection: readingDirection,
                 addedAt: addedAt,
                 lastOpenedAt: lastOpenedAt,
                 rowid: rowid,

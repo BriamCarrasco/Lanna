@@ -20,10 +20,12 @@ abstract class FixedLayoutEngine extends StatefulWidget {
     super.key,
     required this.callbacks,
     this.initialLocator,
+    this.initialRtl,
   });
 
   final ReaderEngineCallbacks callbacks;
   final String? initialLocator;
+  final bool? initialRtl;
 }
 
 abstract class FixedLayoutEngineState<W extends FixedLayoutEngine>
@@ -59,10 +61,26 @@ abstract class FixedLayoutEngineState<W extends FixedLayoutEngine>
   List<int> get visiblePages => _pagesOf(_spreadIndex);
 
   @override
-  ReaderCapabilities get capabilities => const ReaderCapabilities();
+  ReaderCapabilities get capabilities =>
+      const ReaderCapabilities(directional: true);
+
+  bool get naturalRtl => false;
+
+  late bool? _rtlOverride = widget.initialRtl;
 
   @override
-  bool get rtl => false;
+  bool get rtl => _rtlOverride ?? naturalRtl;
+
+  @override
+  Future<void> setRtl(bool value) async {
+    if (value == rtl) return;
+    _rtlOverride = value;
+    if (!mounted) return;
+    setState(() {});
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) widget.callbacks.onRendered?.call();
+    });
+  }
 
   @override
   int get chapterCount => 0;

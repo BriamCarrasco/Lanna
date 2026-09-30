@@ -382,12 +382,17 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
     final progress = await repo.readProgress(widget.bookId);
     _lastPercent = progress?.percent ?? 0;
 
+    final rtl = switch (book.readingDirection) {
+      'rtl' => true,
+      'ltr' => false,
+      _ => null,
+    };
     final _EngineBuilder? engine;
     try {
       engine = switch (book.format) {
         BookFormat.epub => await _prepareEpub(file),
-        BookFormat.pdf => await _preparePdf(file),
-        BookFormat.comic => await _prepareComic(file),
+        BookFormat.pdf => await _preparePdf(file, rtl),
+        BookFormat.comic => await _prepareComic(file, rtl),
       };
     } on ComicFormatException catch (e) {
       if (mounted) setState(() => _error = e.message);
@@ -446,7 +451,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
 
   bool _passwordDenied = false;
 
-  Future<_EngineBuilder?> _preparePdf(File file) async {
+  Future<_EngineBuilder?> _preparePdf(File file, bool? rtl) async {
     final PdfDocument document;
     try {
       await pdfrxFlutterInitialize();
@@ -465,11 +470,12 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
       key: ValueKey(widget.bookId),
       document: document,
       initialLocator: locator,
+      initialRtl: rtl,
       callbacks: callbacks,
     );
   }
 
-  Future<_EngineBuilder?> _prepareComic(File file) async {
+  Future<_EngineBuilder?> _prepareComic(File file, bool? rtl) async {
     final extractDir = await _extractDir();
     final archive = await ComicArchive.open(
       file.path,
@@ -480,6 +486,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
       key: ValueKey(widget.bookId),
       archive: archive,
       initialLocator: locator,
+      initialRtl: rtl,
       callbacks: callbacks,
     );
   }
@@ -526,6 +533,14 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
   bool get _dragCurlReady => _controller != null;
 
   bool get _rtl => _controller?.rtl ?? false;
+
+  void _setRtl(bool value) {
+    final controller = _controller;
+    if (controller == null || value == _rtl) return;
+    unawaited(controller.setRtl(value));
+    unawaited(_repo.setReadingDirection(widget.bookId, value ? 'rtl' : 'ltr'));
+    setState(() {});
+  }
 
   ReaderCapabilities get _caps =>
       _controller?.capabilities ?? const ReaderCapabilities();
@@ -838,11 +853,15 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
     if (event is! KeyDownEvent) return KeyEventResult.ignored;
     switch (event.logicalKey) {
       case LogicalKeyboardKey.arrowRight:
+        _turn(turnForEdge(leading: false, rtl: _rtl));
+        return KeyEventResult.handled;
+      case LogicalKeyboardKey.arrowLeft:
+        _turn(turnForEdge(leading: true, rtl: _rtl));
+        return KeyEventResult.handled;
       case LogicalKeyboardKey.pageDown:
       case LogicalKeyboardKey.space:
         _turn(1);
         return KeyEventResult.handled;
-      case LogicalKeyboardKey.arrowLeft:
       case LogicalKeyboardKey.pageUp:
         _turn(-1);
         return KeyEventResult.handled;
@@ -1008,6 +1027,8 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
                             onColumns: (m) => ref
                                 .read(readerSettingsControllerProvider)
                                 .setColumns(m),
+                            rtl: _rtl,
+                            onDirection: _caps.directional ? _setRtl : null,
                           )
                         : const SizedBox.shrink(),
                   ),
@@ -1266,6 +1287,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
               child: ReaderScrubber(
                 value: pct,
                 chrome: chrome,
+                rtl: controller?.rtl ?? false,
                 onSeek: (f) => controller?.goToPercentage(f),
                 trailingLabel: (f) => '${(f * 100).round()} %',
                 bubbleLabel: (f) =>

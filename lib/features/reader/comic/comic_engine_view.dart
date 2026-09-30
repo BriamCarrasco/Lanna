@@ -12,6 +12,7 @@ class ComicEngineView extends FixedLayoutEngine {
     required this.archive,
     required super.callbacks,
     super.initialLocator,
+    super.initialRtl,
   });
 
   final ComicArchive archive;
@@ -27,7 +28,7 @@ class _ComicEngineViewState extends FixedLayoutEngineState<ComicEngineView> {
   int get pageCount => widget.book.pages.length;
 
   @override
-  bool get rtl => widget.book.rtl;
+  bool get naturalRtl => widget.book.rtl;
 
   @override
   bool get fitsInsets => false;

@@ -23,6 +23,7 @@ void main() {
   Future<AppDatabase> atSchema9({bool withDeadTable = true}) async {
     final db = AppDatabase.forTesting(NativeDatabase.memory());
     await db.customStatement('ALTER TABLE books DROP COLUMN content_hash');
+    await db.customStatement('ALTER TABLE books DROP COLUMN reading_direction');
     if (withDeadTable) {
       await db.customStatement(
         'CREATE TABLE book_locations ('
@@ -35,23 +36,32 @@ void main() {
     return db;
   }
 
-  test('de v9 a v11: cae la tabla muerta y llega content_hash', () async {
-    final db = await atSchema9();
-    addTearDown(db.close);
-    expect(await hasTable(db, 'book_locations'), isTrue);
-    expect(await columns(db, 'books'), isNot(contains('content_hash')));
+  test(
+    'de v9 a la actual: cae la tabla muerta y llegan las columnas nuevas',
+    () async {
+      final db = await atSchema9();
+      addTearDown(db.close);
+      expect(await hasTable(db, 'book_locations'), isTrue);
+      expect(await columns(db, 'books'), isNot(contains('content_hash')));
 
-    await db.migration.onUpgrade(Migrator(db), 9, 11);
+      await db.migration.onUpgrade(Migrator(db), 9, db.schemaVersion);
 
-    expect(await hasTable(db, 'book_locations'), isFalse);
-    expect(await columns(db, 'books'), contains('content_hash'));
-  });
+      expect(await hasTable(db, 'book_locations'), isFalse);
+      expect(
+        await columns(db, 'books'),
+        containsAll(['content_hash', 'reading_direction']),
+      );
+    },
+  );
 
   test('si book_locations nunca existió, la migración no revienta', () async {
     final db = await atSchema9(withDeadTable: false);
     addTearDown(db.close);
 
-    await expectLater(db.migration.onUpgrade(Migrator(db), 9, 11), completes);
+    await expectLater(
+      db.migration.onUpgrade(Migrator(db), 9, db.schemaVersion),
+      completes,
+    );
     expect(await columns(db, 'books'), contains('content_hash'));
   });
 
@@ -59,7 +69,7 @@ void main() {
     final db = await atSchema9();
     addTearDown(db.close);
 
-    await db.migration.onUpgrade(Migrator(db), 9, 11);
+    await db.migration.onUpgrade(Migrator(db), 9, db.schemaVersion);
 
     for (final name in const [
       'books',
@@ -74,11 +84,28 @@ void main() {
     }
   });
 
-  test('una base ya en v11 no se toca', () async {
+  test('de v12 a v13 llega la dirección de lectura', () async {
     final db = AppDatabase.forTesting(NativeDatabase.memory());
     addTearDown(db.close);
+    await db.customStatement('ALTER TABLE books DROP COLUMN reading_direction');
 
-    await expectLater(db.migration.onUpgrade(Migrator(db), 11, 11), completes);
-    expect(await columns(db, 'books'), contains('content_hash'));
+    await db.migration.onUpgrade(Migrator(db), 12, 13);
+
+    expect(await columns(db, 'books'), contains('reading_direction'));
+  });
+
+  test('una base ya en la versión actual no se toca', () async {
+    final db = AppDatabase.forTesting(NativeDatabase.memory());
+    addTearDown(db.close);
+    final version = db.schemaVersion;
+
+    await expectLater(
+      db.migration.onUpgrade(Migrator(db), version, version),
+      completes,
+    );
+    expect(
+      await columns(db, 'books'),
+      containsAll(['content_hash', 'reading_direction']),
+    );
   });
 }

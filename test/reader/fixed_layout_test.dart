@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lanna/features/reader/comic/comic_engine_view.dart';
 import 'package:lanna/features/reader/reader_theme.dart';
@@ -88,6 +89,69 @@ void main() {
     await settleReader(tester, rounds: 4);
 
     expect(find.text('Página 2 de 3'), findsOneWidget);
+  });
+
+  readerTest('la dirección elegida para el libro manda sobre ComicInfo', (
+    tester,
+    h,
+  ) async {
+    await h.seedComic(
+      pages: _pages,
+      comicInfo: '<ComicInfo><Manga>YesAndRightToLeft</Manga></ComicInfo>',
+    );
+    await h.db.setReadingDirection('comic', 'ltr');
+    await h.pumpReader(tester, id: 'comic');
+    await h.setAnimation('none');
+    await settleReader(tester, rounds: 4);
+
+    await tester.flingFrom(const Offset(300, 400), const Offset(-300, 0), 1200);
+    await settleReader(tester, rounds: 4);
+
+    expect(find.text('Página 2 de 3'), findsOneWidget);
+  });
+
+  readerTest('desde Apariencia se cambia a derecha a izquierda', (
+    tester,
+    h,
+  ) async {
+    await h.seedComic(pages: _pages);
+    await h.pumpReader(tester, id: 'comic');
+    await h.setAnimation('none');
+    await settleReader(tester, rounds: 4);
+
+    await tester.tap(find.text('Aa'));
+    await settleReader(tester, rounds: 4);
+    expect(find.text('Lectura'), findsOneWidget);
+    await tester.tap(find.text('Der → Izq'));
+    await settleReader(tester, rounds: 4);
+    await tester.tap(find.text('Aa'));
+    await settleReader(tester, rounds: 4);
+
+    await tester.flingFrom(const Offset(150, 400), const Offset(300, 0), 1200);
+    await settleReader(tester, rounds: 4);
+    expect(find.text('Página 2 de 3'), findsOneWidget);
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowLeft);
+    await settleReader(tester, rounds: 4);
+    expect(find.text('Página 3 de 3'), findsOneWidget);
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowRight);
+    await settleReader(tester, rounds: 4);
+    expect(find.text('Página 2 de 3'), findsOneWidget);
+
+    final book = await tester.runAsync(() => h.db.findBook('comic'));
+    expect(book?.readingDirection, 'rtl');
+  });
+
+  readerTest('un EPUB no ofrece cambiar la dirección', (tester, h) async {
+    await h.seedBook(chapters: const ['<p>Hola</p>']);
+    await h.pumpReader(tester);
+
+    await tester.tap(find.text('Aa'));
+    await settleReader(tester, rounds: 4);
+
+    expect(find.text('Apariencia'), findsWidgets);
+    expect(find.text('Lectura'), findsNothing);
   });
 
   readerTest('un CBZ dañado muestra un error en vez de colgarse', (

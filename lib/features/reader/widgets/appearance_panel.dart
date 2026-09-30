@@ -16,6 +16,8 @@ class AppearancePanel extends StatelessWidget {
     this.onFontFamily,
     this.onFontScale,
     this.onLineHeight,
+    this.rtl = false,
+    this.onDirection,
   });
 
   final ReaderSettings settings;
@@ -26,6 +28,8 @@ class AppearancePanel extends StatelessWidget {
   final ValueChanged<String>? onFontFamily;
   final ValueChanged<int>? onFontScale;
   final ValueChanged<double>? onLineHeight;
+  final bool rtl;
+  final ValueChanged<bool>? onDirection;
 
   bool get _typography =>
       onFontFamily != null && onFontScale != null && onLineHeight != null;
@@ -132,6 +136,19 @@ class AppearancePanel extends StatelessWidget {
               onChanged: onColumns,
             ),
           ),
+          if (onDirection case final onDirection?) ...[
+            const SizedBox(height: LannaSpacing.s3),
+            _Row(
+              label: 'Lectura',
+              chrome: chrome,
+              child: _Segmented(
+                options: const {'ltr': 'Izq → Der', 'rtl': 'Der → Izq'},
+                value: rtl ? 'rtl' : 'ltr',
+                chrome: chrome,
+                onChanged: (v) => onDirection(v == 'rtl'),
+              ),
+            ),
+          ],
         ],
       ),
     );

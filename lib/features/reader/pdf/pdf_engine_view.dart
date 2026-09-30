@@ -16,6 +16,7 @@ class PdfEngineView extends FixedLayoutEngine {
     required this.document,
     required super.callbacks,
     super.initialLocator,
+    super.initialRtl,
   });
 
   final PdfDocument document;
@@ -45,8 +46,11 @@ class _PdfEngineViewState extends FixedLayoutEngineState<PdfEngineView> {
   List<EpubTocEntry> get toc => _toc;
 
   @override
-  ReaderCapabilities get capabilities =>
-      const ReaderCapabilities(searchable: true, selectable: true);
+  ReaderCapabilities get capabilities => const ReaderCapabilities(
+    searchable: true,
+    selectable: true,
+    directional: true,
+  );
 
   @override
   Future<void> prepare() async {

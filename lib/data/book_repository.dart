@@ -44,6 +44,9 @@ class BookRepository {
 
   Future<void> markOpened(String bookId) => _db.touchLastOpened(bookId);
 
+  Future<void> setReadingDirection(String bookId, String? direction) =>
+      _db.setReadingDirection(bookId, direction);
+
   Stream<List<Bookmark>> watchBookmarks(String bookId) =>
       _db.watchBookmarks(bookId);
 

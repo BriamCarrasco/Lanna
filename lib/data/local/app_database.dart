@@ -37,7 +37,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 12;
+  int get schemaVersion => 13;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -75,6 +75,9 @@ class AppDatabase extends _$AppDatabase {
       }
       if (from < 12) {
         await refreshFingerprints();
+      }
+      if (from < 13) {
+        await m.addColumn(books, books.readingDirection);
       }
     },
     beforeOpen: (details) async {
@@ -121,6 +124,12 @@ class AppDatabase extends _$AppDatabase {
           ..where((b) => b.contentHash.equals(hash))
           ..limit(1))
         .getSingleOrNull();
+  }
+
+  Future<void> setReadingDirection(String bookId, String? direction) {
+    return (update(books)..where((b) => b.id.equals(bookId))).write(
+      BooksCompanion(readingDirection: Value(direction)),
+    );
   }
 
   Future<void> refreshFingerprints() async {

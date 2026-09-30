@@ -20,6 +20,8 @@ class Books extends Table {
 
   TextColumn get contentHash => text().nullable()();
 
+  TextColumn get readingDirection => text().nullable()();
+
   DateTimeColumn get addedAt => dateTime().withDefault(currentDateAndTime)();
 
   DateTimeColumn get lastOpenedAt => dateTime().nullable()();

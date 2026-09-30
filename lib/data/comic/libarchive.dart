@@ -100,8 +100,7 @@ class LibArchiveException implements Exception {
 }
 
 class RarReader {
-  RarReader(this.path, [LibArchive? api])
-    : _api = api ?? LibArchive.instance! {
+  RarReader(this.path, [LibArchive? api]) : _api = api ?? LibArchive.instance! {
     try {
       _reopen();
       final names = <String>[];

@@ -12,9 +12,11 @@ class ReaderScrubber extends StatefulWidget {
     required this.onSeek,
     required this.trailingLabel,
     this.bubbleLabel,
+    this.rtl = false,
   });
 
   final double value;
+  final bool rtl;
   final ReaderChrome chrome;
   final ValueChanged<double> onSeek;
   final String Function(double fraction) trailingLabel;
@@ -52,14 +54,17 @@ class _ReaderScrubberState extends State<ReaderScrubber> {
                 color: chrome.onBar,
               ),
             ),
-            child: Slider(
-              value: current,
-              label: widget.bubbleLabel?.call(current),
-              onChanged: (v) => setState(() => _drag = v),
-              onChangeEnd: (v) {
-                setState(() => _drag = null);
-                widget.onSeek(v);
-              },
+            child: Directionality(
+              textDirection: widget.rtl ? TextDirection.rtl : TextDirection.ltr,
+              child: Slider(
+                value: current,
+                label: widget.bubbleLabel?.call(current),
+                onChanged: (v) => setState(() => _drag = v),
+                onChangeEnd: (v) {
+                  setState(() => _drag = null);
+                  widget.onSeek(v);
+                },
+              ),
             ),
           ),
         ),
