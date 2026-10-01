@@ -36,6 +36,8 @@ class Books extends Table {
 
   BoolColumn get hidden => boolean().withDefault(const Constant(false))();
 
+  DateTimeColumn get favoritedAt => dateTime().nullable()();
+
   DateTimeColumn get addedAt => dateTime().withDefault(currentDateAndTime)();
 
   DateTimeColumn get lastOpenedAt => dateTime().nullable()();

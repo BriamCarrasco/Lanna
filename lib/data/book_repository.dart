@@ -69,6 +69,11 @@ class BookRepository {
 
   Future<OpenedFile> openBookFile(Book book) => _access.open(book.filePath);
 
+  Stream<List<Book>> watchFavorites() => _db.watchFavorites();
+
+  Future<void> setFavorite(String id, bool favorite) =>
+      _db.setFavorite(id, favorite);
+
   Future<void> hideBook(String id) =>
       _db.updateBook(id, const BooksCompanion(hidden: Value(true)));
 
@@ -220,6 +225,10 @@ final bookRepositoryProvider = Provider<BookRepository>((ref) {
 
 final libraryFoldersProvider = StreamProvider<List<LibraryFolder>>((ref) {
   return ref.watch(bookRepositoryProvider).watchFolders();
+});
+
+final favoritesProvider = StreamProvider<List<Book>>((ref) {
+  return ref.watch(bookRepositoryProvider).watchFavorites();
 });
 
 final libraryProvider = StreamProvider<List<Book>>((ref) {

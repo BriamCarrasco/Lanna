@@ -7,7 +7,6 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/tokens.dart';
 import '../../../data/book_repository.dart';
 import '../../../data/local/app_database.dart';
-import '../../../data/models/book_format.dart';
 import 'book_cover.dart';
 
 Future<void> showBookDetails(BuildContext context, Book book) {
@@ -110,16 +109,7 @@ class BookDetailsDialog extends ConsumerWidget {
                           spacing: LannaSpacing.s1 + 2,
                           runSpacing: LannaSpacing.s1 + 2,
                           children: [
-                            _Chip(switch (book.format) {
-                              BookFormat.epub => 'EPUB',
-                              BookFormat.pdf => 'PDF',
-                              BookFormat.comic =>
-                                (book.relativePath ?? book.filePath)
-                                        .toLowerCase()
-                                        .endsWith('.cbr')
-                                    ? 'CBR'
-                                    : 'CBZ',
-                            }),
+                            _Chip(formatLabel(book)),
                             if (book.fileSizeBytes != null)
                               _Chip(_formatSize(book.fileSizeBytes!)),
                             _Chip('Añadido ${_formatDate(book.addedAt)}'),

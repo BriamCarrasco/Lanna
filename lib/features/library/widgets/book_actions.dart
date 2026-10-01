@@ -42,6 +42,14 @@ Future<void> showBookMenu(
     items: [
       const PopupMenuItem(value: 'open', child: Text('Abrir')),
       const PopupMenuItem(value: 'details', child: Text('Detalles')),
+      PopupMenuItem(
+        value: 'favorite',
+        child: Text(
+          book.favoritedAt != null
+              ? 'Quitar de favoritos'
+              : 'Añadir a favoritos',
+        ),
+      ),
       const PopupMenuItem(
         value: 'collection',
         child: Text('Añadir a colección'),
@@ -60,6 +68,12 @@ Future<void> showBookMenu(
       openBook(context, book);
     case 'details':
       unawaited(showBookDetails(context, book));
+    case 'favorite':
+      unawaited(
+        ref
+            .read(bookRepositoryProvider)
+            .setFavorite(book.id, book.favoritedAt == null),
+      );
     case 'collection':
       unawaited(showCollectionPicker(context, ref, book));
     case 'delete':

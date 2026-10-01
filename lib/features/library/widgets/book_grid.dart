@@ -56,9 +56,19 @@ class BookGridTile extends StatelessWidget {
           Expanded(
             child: Align(
               alignment: Alignment.topCenter,
-              child: Opacity(
-                opacity: book.available ? 1 : 0.4,
-                child: BookCover(book: book),
+              child: Stack(
+                children: [
+                  Opacity(
+                    opacity: book.available ? 1 : 0.4,
+                    child: BookCover(book: book, showFormat: true),
+                  ),
+                  if (book.favoritedAt != null)
+                    const Positioned(
+                      top: LannaSpacing.s1 + 2,
+                      right: LannaSpacing.s1 + 2,
+                      child: _FavoriteBadge(),
+                    ),
+                ],
               ),
             ),
           ),
@@ -86,6 +96,22 @@ class BookGridTile extends StatelessWidget {
             ),
         ],
       ),
+    );
+  }
+}
+
+class _FavoriteBadge extends StatelessWidget {
+  const _FavoriteBadge();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(LannaSpacing.s1),
+      decoration: BoxDecoration(
+        color: Colors.black.withValues(alpha: 0.55),
+        shape: BoxShape.circle,
+      ),
+      child: const Icon(Icons.favorite, size: 13, color: LannaColors.accent),
     );
   }
 }

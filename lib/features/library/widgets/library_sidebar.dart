@@ -7,10 +7,18 @@ import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/tokens.dart';
 
-enum LibrarySection { library, folders, collections, authors, settings }
+enum LibrarySection {
+  library,
+  favorites,
+  folders,
+  collections,
+  authors,
+  settings,
+}
 
 const librarySections = <(IconData, String, LibrarySection)>[
   (Icons.menu_book_outlined, 'Biblioteca', LibrarySection.library),
+  (Icons.favorite_border, 'Favoritos', LibrarySection.favorites),
   (Icons.folder_outlined, 'Carpetas', LibrarySection.folders),
   (
     Icons.collections_bookmark_outlined,
@@ -25,6 +33,8 @@ void goToLibrarySection(BuildContext context, LibrarySection section) {
   switch (section) {
     case LibrarySection.library:
       context.go('/');
+    case LibrarySection.favorites:
+      context.go('/favorites');
     case LibrarySection.folders:
       context.go('/folders');
     case LibrarySection.collections:

@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../features/library/authors_screen.dart';
 import '../../features/library/collections_screen.dart';
+import '../../features/library/favorites_screen.dart';
 import '../../features/library/folders_screen.dart';
 import '../../features/library/library_screen.dart';
 import '../../features/library/library_shell.dart';
@@ -41,6 +42,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             path: '/',
             name: 'library',
             builder: (context, state) => const LibraryScreen(),
+          ),
+          GoRoute(
+            path: '/favorites',
+            name: 'favorites',
+            builder: (context, state) => const FavoritesScreen(),
           ),
           GoRoute(
             path: '/folders',

@@ -71,7 +71,10 @@ class _Card extends StatelessWidget {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            SizedBox(width: 64, child: BookCover(book: item.book)),
+            SizedBox(
+              width: 64,
+              child: BookCover(book: item.book, showFormat: true),
+            ),
             const SizedBox(width: LannaSpacing.s3),
             Expanded(
               child: Column(

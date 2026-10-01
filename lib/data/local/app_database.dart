@@ -38,7 +38,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 14;
+  int get schemaVersion => 15;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -88,6 +88,9 @@ class AppDatabase extends _$AppDatabase {
         await m.addColumn(books, books.available);
         await m.addColumn(books, books.hidden);
       }
+      if (from < 15) {
+        await m.addColumn(books, books.favoritedAt);
+      }
     },
     beforeOpen: (details) async {
       await customStatement('PRAGMA foreign_keys = ON');
@@ -99,6 +102,20 @@ class AppDatabase extends _$AppDatabase {
           ..where((b) => b.hidden.equals(false))
           ..orderBy([(b) => OrderingTerm.desc(b.addedAt)]))
         .watch();
+  }
+
+  Stream<List<Book>> watchFavorites() {
+    return (select(books)
+          ..where((b) => b.hidden.equals(false) & b.favoritedAt.isNotNull())
+          ..orderBy([(b) => OrderingTerm.desc(b.favoritedAt)]))
+        .watch();
+  }
+
+  Future<void> setFavorite(String id, bool favorite) {
+    return updateBook(
+      id,
+      BooksCompanion(favoritedAt: Value(favorite ? DateTime.now() : null)),
+    );
   }
 
   Stream<List<LibraryFolder>> watchFolders() {

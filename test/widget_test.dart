@@ -121,6 +121,77 @@ void main() {
     await tester.pump(const Duration(milliseconds: 50));
   });
 
+  testWidgets('cada portada lleva la etiqueta de su formato', (tester) async {
+    final db = AppDatabase.forTesting(NativeDatabase.memory());
+    addTearDown(db.close);
+    for (final (id, path, format) in [
+      ('e', 'Novela.epub', BookFormat.epub),
+      ('p', 'Manual.pdf', BookFormat.pdf),
+      ('r', 'Manga/Tomo 01.cbr', BookFormat.comic),
+      ('z', 'Manga/Tomo 02.cbz', BookFormat.comic),
+    ]) {
+      await db.upsertBook(
+        BooksCompanion.insert(
+          id: id,
+          title: 'Libro $id',
+          filePath: '/Libros/$path',
+          format: format,
+          relativePath: Value(path),
+        ),
+      );
+    }
+
+    await _pumpApp(tester, db);
+
+    for (final label in ['EPUB', 'PDF', 'CBR', 'CBZ']) {
+      expect(find.text(label), findsOneWidget, reason: label);
+    }
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(const Duration(milliseconds: 50));
+  });
+
+  testWidgets('un libro marcado como favorito aparece en Favoritos', (
+    tester,
+  ) async {
+    final db = AppDatabase.forTesting(NativeDatabase.memory());
+    addTearDown(db.close);
+    for (final (id, title) in [('a', 'Rayuela'), ('b', 'Kafka en la orilla')]) {
+      await db.upsertBook(
+        BooksCompanion.insert(
+          id: id,
+          title: title,
+          filePath: '/$id.epub',
+          format: BookFormat.epub,
+        ),
+      );
+    }
+
+    await _pumpApp(tester, db);
+    expect(find.byIcon(Icons.favorite), findsNothing);
+
+    await tester.longPress(find.text('Rayuela').first);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Añadir a favoritos'));
+    await tester.pumpAndSettle();
+    expect(find.byIcon(Icons.favorite), findsOneWidget);
+
+    await tester.tap(find.text('Favoritos'));
+    await tester.pumpAndSettle();
+    expect(find.text('Rayuela'), findsWidgets);
+    expect(find.text('Kafka en la orilla'), findsNothing);
+
+    await tester.longPress(find.text('Rayuela').first);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Quitar de favoritos'));
+    await tester.pumpAndSettle();
+    expect(find.text('Rayuela'), findsNothing);
+    expect(find.textContaining('Todavía no tienes favoritos'), findsOneWidget);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(const Duration(milliseconds: 50));
+  });
+
   testWidgets('la búsqueda encuentra un tomo por su carpeta y archivo', (
     tester,
   ) async {

@@ -8,6 +8,7 @@ const _bookColumnsSince = {
   11: ['content_hash'],
   13: ['reading_direction'],
   14: ['folder_id', 'relative_path', 'file_modified', 'available', 'hidden'],
+  15: ['favorited_at'],
 };
 
 void main() {
@@ -129,6 +130,22 @@ void main() {
     expect(book?.available, isTrue);
     expect(book?.hidden, isFalse);
     expect(book?.folderId, isNull);
+  });
+
+  test('de v14 a v15 llegan los favoritos sin tocar los libros', () async {
+    final db = await atSchema(14);
+    addTearDown(db.close);
+    await db.customStatement(
+      'INSERT INTO books '
+      '(id, title, file_path, format, added_at, available, hidden) '
+      "VALUES ('uno', 'Uno', '/libros/uno.epub', 'epub', 0, 1, 0)",
+    );
+
+    await db.migration.onUpgrade(Migrator(db), 14, 15);
+
+    final book = await db.findBook('uno');
+    expect(book?.favoritedAt, isNull);
+    expect(await db.watchFavorites().first, isEmpty);
   });
 
   test('una base ya en la versión actual no se toca', () async {
