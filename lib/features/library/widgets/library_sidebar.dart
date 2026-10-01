@@ -1,4 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
@@ -40,12 +42,14 @@ class LibrarySidebar extends StatelessWidget {
     required this.active,
     required this.onSelect,
     this.searchController,
+    this.searchFocusNode,
     this.onSearchChanged,
   });
 
   final LibrarySection active;
   final ValueChanged<LibrarySection> onSelect;
   final TextEditingController? searchController;
+  final FocusNode? searchFocusNode;
   final ValueChanged<String>? onSearchChanged;
 
   @override
@@ -91,6 +95,7 @@ class LibrarySidebar extends StatelessWidget {
           if (searchController != null && onSearchChanged != null) ...[
             LibrarySearchField(
               controller: searchController!,
+              focusNode: searchFocusNode,
               onChanged: onSearchChanged!,
             ),
             const SizedBox(height: LannaSpacing.s5),
@@ -106,15 +111,19 @@ class LibrarySidebar extends StatelessWidget {
   }
 }
 
+bool get _desktop => Platform.isWindows || Platform.isMacOS || Platform.isLinux;
+
 class LibrarySearchField extends StatelessWidget {
   const LibrarySearchField({
     super.key,
     required this.controller,
     required this.onChanged,
+    this.focusNode,
   });
 
   final TextEditingController controller;
   final ValueChanged<String> onChanged;
+  final FocusNode? focusNode;
 
   @override
   Widget build(BuildContext context) {
@@ -133,6 +142,7 @@ class LibrarySearchField extends StatelessWidget {
           Expanded(
             child: TextField(
               controller: controller,
+              focusNode: focusNode,
               onChanged: onChanged,
               cursorColor: LannaColors.accent,
               cursorWidth: 1.5,
@@ -151,7 +161,17 @@ class LibrarySearchField extends StatelessWidget {
           ValueListenableBuilder<TextEditingValue>(
             valueListenable: controller,
             builder: (context, value, _) => value.text.isEmpty
-                ? const SizedBox(width: 4)
+                ? (_desktop
+                      ? Padding(
+                          padding: const EdgeInsets.only(right: 6),
+                          child: Text(
+                            Platform.isMacOS ? '⌘F' : 'Ctrl F',
+                            style: LannaType.micro.copyWith(
+                              color: LannaColors.textMuted,
+                            ),
+                          ),
+                        )
+                      : const SizedBox(width: 4))
                 : InkWell(
                     onTap: () {
                       controller.clear();

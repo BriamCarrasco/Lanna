@@ -2,6 +2,7 @@
 import 'package:drift/drift.dart' show Value;
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lanna/app.dart';
@@ -75,6 +76,11 @@ void main() {
     expect(find.text('Rayuela'), findsWidgets);
     expect(find.text('Kafka en la orilla'), findsNothing);
 
+    await tester.enterText(find.byType(EditableText), 'rayuela julio');
+    await tester.pumpAndSettle();
+    expect(find.text('Rayuela'), findsWidgets);
+    expect(find.text('Kafka en la orilla'), findsNothing);
+
     await tester.enterText(find.byType(EditableText), 'zzz');
     await tester.pumpAndSettle();
     expect(find.textContaining('Sin resultados'), findsOneWidget);
@@ -110,6 +116,68 @@ void main() {
 
     await tester.tapAt(const Offset(2, 2));
     await tester.pump(const Duration(milliseconds: 400));
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(const Duration(milliseconds: 50));
+  });
+
+  testWidgets('la búsqueda encuentra un tomo por su carpeta y archivo', (
+    tester,
+  ) async {
+    final db = AppDatabase.forTesting(NativeDatabase.memory());
+    addTearDown(db.close);
+    for (final (id, path) in [
+      ('t9', 'Manga/Boku dake ga Inai Machi/Tomo 09.cbr'),
+      ('t1', 'Manga/Boku dake ga Inai Machi/Tomo 01.cbr'),
+      ('ak', 'Manga/Akira/Tomo 09.cbz'),
+    ]) {
+      await db.upsertBook(
+        BooksCompanion.insert(
+          id: id,
+          title: 'Título $id',
+          filePath: '/Libros/$path',
+          format: BookFormat.comic,
+          relativePath: Value(path),
+        ),
+      );
+    }
+
+    await _pumpApp(tester, db);
+    await tester.enterText(find.byType(EditableText), 'boku 09');
+    await tester.pumpAndSettle();
+
+    expect(find.text('Título t9'), findsWidgets);
+    expect(find.text('Título t1'), findsNothing);
+    expect(find.text('Título ak'), findsNothing);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(const Duration(milliseconds: 50));
+  });
+
+  testWidgets('Ctrl+F y / llevan al buscador, Esc lo limpia', (tester) async {
+    final db = AppDatabase.forTesting(NativeDatabase.memory());
+    addTearDown(db.close);
+    await _pumpApp(tester, db);
+
+    EditableText field() =>
+        tester.widget<EditableText>(find.byType(EditableText));
+    expect(field().focusNode.hasFocus, isFalse);
+
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+    await tester.sendKeyEvent(LogicalKeyboardKey.keyF);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+    await tester.pump();
+    expect(field().focusNode.hasFocus, isTrue);
+
+    await tester.enterText(find.byType(EditableText), 'kafka');
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pump();
+    expect(field().focusNode.hasFocus, isFalse);
+    expect(field().controller.text, isEmpty);
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.slash, character: '/');
+    await tester.pump();
+    expect(field().focusNode.hasFocus, isTrue);
 
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pump(const Duration(milliseconds: 50));

@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -22,12 +23,56 @@ class LibraryShell extends ConsumerStatefulWidget {
 
 class _LibraryShellState extends ConsumerState<LibraryShell> {
   final _searchController = TextEditingController();
+  final _searchFocus = FocusNode(debugLabel: 'búsqueda');
   LibrarySection? _lastSection;
 
   @override
+  void initState() {
+    super.initState();
+    HardwareKeyboard.instance.addHandler(_onKey);
+  }
+
+  @override
   void dispose() {
+    HardwareKeyboard.instance.removeHandler(_onKey);
     _searchController.dispose();
+    _searchFocus.dispose();
     super.dispose();
+  }
+
+  bool _onKey(KeyEvent event) {
+    if (event is! KeyDownEvent || !mounted) return false;
+    if (_searchFocus.context == null) return false;
+    if (!(ModalRoute.of(context)?.isCurrent ?? false)) return false;
+
+    if (event.logicalKey == LogicalKeyboardKey.escape &&
+        _searchFocus.hasFocus) {
+      _searchController.clear();
+      _onSearchChanged('');
+      _searchFocus.unfocus();
+      return true;
+    }
+
+    final keyboard = HardwareKeyboard.instance;
+    final find =
+        event.logicalKey == LogicalKeyboardKey.keyF &&
+        (keyboard.isControlPressed || keyboard.isMetaPressed);
+    final slash = event.character == '/' && !_typing();
+    if (!find && !slash) return false;
+
+    _searchFocus.requestFocus();
+    _searchController.selection = TextSelection(
+      baseOffset: 0,
+      extentOffset: _searchController.text.length,
+    );
+    return true;
+  }
+
+  bool _typing() {
+    final context = FocusManager.instance.primaryFocus?.context;
+    return context != null &&
+        (context.widget is EditableText ||
+            context.findAncestorWidgetOfExactType<EditableText>() != null);
   }
 
   LibrarySection _sectionFor(String path) {
@@ -79,6 +124,7 @@ class _LibraryShellState extends ConsumerState<LibraryShell> {
               active: section,
               onSelect: (s) => _select(s, section),
               searchController: _searchController,
+              searchFocusNode: _searchFocus,
               onSearchChanged: _onSearchChanged,
             ),
             Expanded(child: widget.child),
@@ -108,6 +154,7 @@ class _LibraryShellState extends ConsumerState<LibraryShell> {
                 ),
                 child: LibrarySearchField(
                   controller: _searchController,
+                  focusNode: _searchFocus,
                   onChanged: _onSearchChanged,
                 ),
               ),

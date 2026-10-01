@@ -11,6 +11,7 @@ import '../../core/widgets/fade_in.dart';
 import '../../data/book_repository.dart';
 import '../../data/library/library_scanner.dart';
 import '../../data/local/app_database.dart';
+import 'book_search.dart';
 import 'library_scan_controller.dart';
 import 'library_shell.dart';
 import 'widgets/book_actions.dart';
@@ -86,13 +87,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
     final query = foldForSearch(rawQuery);
     final matched = query.isEmpty
         ? books
-        : books
-              .where(
-                (b) =>
-                    matchesQuery(b.title, query) ||
-                    matchesQuery(b.author ?? '', query),
-              )
-              .toList();
+        : books.where((b) => bookMatches(b, query)).toList();
     return _sorted(matched);
   }
 

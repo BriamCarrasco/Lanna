@@ -15,6 +15,13 @@ void main() {
     expect(matchesQuery('Rayuela', foldForSearch('kafka')), isFalse);
   });
 
+  test('cada palabra puede estar en cualquier orden y lugar', () {
+    final hay = '1984 George Orwell';
+    expect(matchesQuery(hay, foldForSearch('orwell 1984')), isTrue);
+    expect(matchesQuery(hay, foldForSearch('  george   1984 ')), isTrue);
+    expect(matchesQuery(hay, foldForSearch('orwell huxley')), isFalse);
+  });
+
   test('query vacía siempre coincide', () {
     expect(matchesQuery('cualquier cosa', ''), isTrue);
   });

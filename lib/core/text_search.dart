@@ -12,7 +12,12 @@ String foldForSearch(String input) {
   return buffer.toString().toLowerCase().trim();
 }
 
+final _spaces = RegExp(r'\s+');
+
 bool matchesQuery(String haystack, String foldedQuery) {
   if (foldedQuery.isEmpty) return true;
-  return foldForSearch(haystack).contains(foldedQuery);
+  final folded = foldForSearch(haystack);
+  return foldedQuery
+      .split(_spaces)
+      .every((word) => word.isEmpty || folded.contains(word));
 }

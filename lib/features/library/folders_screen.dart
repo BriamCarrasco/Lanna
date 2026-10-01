@@ -10,6 +10,7 @@ import '../../core/theme/tokens.dart';
 import '../../data/book_repository.dart';
 import '../../data/comic/comic_book.dart';
 import '../../data/local/app_database.dart';
+import 'book_search.dart';
 import 'library_scan_controller.dart';
 import 'library_shell.dart';
 import 'widgets/book_actions.dart';
@@ -150,9 +151,7 @@ class _FoldersScreenState extends ConsumerState<FoldersScreen> {
     if (query.isNotEmpty) {
       final matches = [
         for (final b in booksUnder(inFolder, _path))
-          if (matchesQuery(b.title, query) ||
-              matchesQuery(b.author ?? '', query))
-            b,
+          if (bookMatches(b, query)) b,
       ];
       body = matches.isEmpty
           ? const SectionEmpty(
