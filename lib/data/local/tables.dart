@@ -22,9 +22,36 @@ class Books extends Table {
 
   TextColumn get readingDirection => text().nullable()();
 
+  TextColumn get folderId => text().nullable().references(
+    LibraryFolders,
+    #id,
+    onDelete: KeyAction.cascade,
+  )();
+
+  TextColumn get relativePath => text().nullable()();
+
+  IntColumn get fileModified => integer().nullable()();
+
+  BoolColumn get available => boolean().withDefault(const Constant(true))();
+
+  BoolColumn get hidden => boolean().withDefault(const Constant(false))();
+
   DateTimeColumn get addedAt => dateTime().withDefault(currentDateAndTime)();
 
   DateTimeColumn get lastOpenedAt => dateTime().nullable()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {id};
+}
+
+class LibraryFolders extends Table {
+  TextColumn get id => text()();
+
+  TextColumn get location => text().unique()();
+
+  TextColumn get name => text()();
+
+  DateTimeColumn get addedAt => dateTime().withDefault(currentDateAndTime)();
 
   @override
   Set<Column<Object>> get primaryKey => {id};

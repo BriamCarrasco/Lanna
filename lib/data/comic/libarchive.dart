@@ -5,11 +5,25 @@ import 'dart:typed_data';
 
 import 'package:ffi/ffi.dart';
 
+import '../storage/random_source.dart';
+
 typedef _NewC = Pointer<Void> Function();
 typedef _ArchiveC = Int32 Function(Pointer<Void>);
 typedef _ArchiveDart = int Function(Pointer<Void>);
-typedef _OpenC = Int32 Function(Pointer<Void>, Pointer<Void>, Size);
-typedef _OpenDart = int Function(Pointer<Void>, Pointer<Void>, int);
+typedef _SetCallbackC = Int32 Function(Pointer<Void>, Pointer<Void>);
+typedef _SetCallbackDart = int Function(Pointer<Void>, Pointer<Void>);
+typedef _ReadCallback = IntPtr Function(
+  Pointer<Void>,
+  Pointer<Void>,
+  Pointer<Pointer<Void>>,
+);
+typedef _SeekCallback = Int64 Function(
+  Pointer<Void>,
+  Pointer<Void>,
+  Int64,
+  Int32,
+);
+typedef _SkipCallback = Int64 Function(Pointer<Void>, Pointer<Void>, Int64);
 typedef _NextHeaderC = Int32 Function(Pointer<Void>, Pointer<Pointer<Void>>);
 typedef _NextHeaderDart = int Function(Pointer<Void>, Pointer<Pointer<Void>>);
 typedef _EntryStringC = Pointer<Void> Function(Pointer<Void>);
@@ -32,11 +46,19 @@ final class LibArchive {
       _supportRar5 = lib.lookupFunction<_ArchiveC, _ArchiveDart>(
         'archive_read_support_format_rar5',
       ),
-      _open = lib.lookupFunction<_OpenC, _OpenDart>(
-        Platform.isWindows
-            ? 'archive_read_open_filename_w'
-            : 'archive_read_open_filename',
+      _setRead = lib.lookupFunction<_SetCallbackC, _SetCallbackDart>(
+        'archive_read_set_read_callback',
       ),
+      _setSeek = lib.lookupFunction<_SetCallbackC, _SetCallbackDart>(
+        'archive_read_set_seek_callback',
+      ),
+      _setSkip = lib.lookupFunction<_SetCallbackC, _SetCallbackDart>(
+        'archive_read_set_skip_callback',
+      ),
+      _setData = lib.lookupFunction<_SetCallbackC, _SetCallbackDart>(
+        'archive_read_set_callback_data',
+      ),
+      _open = lib.lookupFunction<_ArchiveC, _ArchiveDart>('archive_read_open1'),
       _nextHeader = lib.lookupFunction<_NextHeaderC, _NextHeaderDart>(
         'archive_read_next_header',
       ),
@@ -60,7 +82,11 @@ final class LibArchive {
   final Pointer<Void> Function() _new;
   final _ArchiveDart _supportRar;
   final _ArchiveDart _supportRar5;
-  final _OpenDart _open;
+  final _SetCallbackDart _setRead;
+  final _SetCallbackDart _setSeek;
+  final _SetCallbackDart _setSkip;
+  final _SetCallbackDart _setData;
+  final _ArchiveDart _open;
   final _NextHeaderDart _nextHeader;
   final Pointer<Void> Function(Pointer<Void>)? _pathnameW;
   final Pointer<Void> Function(Pointer<Void>) _pathnameUtf8;
@@ -100,7 +126,20 @@ class LibArchiveException implements Exception {
 }
 
 class RarReader {
-  RarReader(this.path, [LibArchive? api]) : _api = api ?? LibArchive.instance! {
+  RarReader(this.source, [LibArchive? api])
+    : _api = api ?? LibArchive.instance! {
+    _readCallback = NativeCallable<_ReadCallback>.isolateLocal(
+      _onRead,
+      exceptionalReturn: -1,
+    );
+    _seekCallback = NativeCallable<_SeekCallback>.isolateLocal(
+      _onSeek,
+      exceptionalReturn: -30,
+    );
+    _skipCallback = NativeCallable<_SkipCallback>.isolateLocal(
+      _onSkip,
+      exceptionalReturn: 0,
+    );
     try {
       _reopen();
       final names = <String>[];
@@ -114,14 +153,47 @@ class RarReader {
     }
   }
 
-  final String path;
+  final RandomSource source;
   final LibArchive _api;
   late final List<String> names;
+
+  static const _blockSize = 1 << 16;
+
+  late final NativeCallable<_ReadCallback> _readCallback;
+  late final NativeCallable<_SeekCallback> _seekCallback;
+  late final NativeCallable<_SkipCallback> _skipCallback;
+  final Pointer<Uint8> _block = malloc<Uint8>(_blockSize);
+  int _offset = 0;
 
   Pointer<Void> _archive = nullptr;
   final Pointer<Pointer<Void>> _entry = calloc<Pointer<Void>>();
   int _position = -1;
   bool _atEnd = false;
+
+  int _onRead(Pointer<Void> _, Pointer<Void> _, Pointer<Pointer<Void>> out) {
+    final n = source.readInto(_block.asTypedList(_blockSize), _offset);
+    _offset += n;
+    out.value = _block.cast();
+    return n;
+  }
+
+  int _onSeek(Pointer<Void> _, Pointer<Void> _, int offset, int whence) {
+    final base = switch (whence) {
+      1 => _offset,
+      2 => source.length,
+      _ => 0,
+    };
+    final target = base + offset;
+    if (target < 0) return -30;
+    _offset = target;
+    return target;
+  }
+
+  int _onSkip(Pointer<Void> _, Pointer<Void> _, int request) {
+    final skipped = request.clamp(0, source.length - _offset);
+    _offset += skipped;
+    return skipped;
+  }
 
   void _reopen() {
     _release();
@@ -132,15 +204,13 @@ class RarReader {
     _archive = archive;
     _api._supportRar(archive);
     _api._supportRar5(archive);
-    final native = Platform.isWindows
-        ? path.toNativeUtf16().cast<Void>()
-        : path.toNativeUtf8().cast<Void>();
-    try {
-      final result = _api._open(archive, native, 1 << 16);
-      if (result != _ok && result != _warn) throw _failure();
-    } finally {
-      calloc.free(native);
-    }
+    _offset = 0;
+    _api._setRead(archive, _readCallback.nativeFunction.cast());
+    _api._setSeek(archive, _seekCallback.nativeFunction.cast());
+    _api._setSkip(archive, _skipCallback.nativeFunction.cast());
+    _api._setData(archive, nullptr);
+    final result = _api._open(archive);
+    if (result != _ok && result != _warn) throw _failure();
     _position = -1;
     _atEnd = false;
   }
@@ -214,5 +284,9 @@ class RarReader {
   void close() {
     _release();
     calloc.free(_entry);
+    malloc.free(_block);
+    _readCallback.close();
+    _seekCallback.close();
+    _skipCallback.close();
   }
 }

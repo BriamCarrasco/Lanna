@@ -18,8 +18,11 @@ import '../../core/theme/tokens.dart';
 import '../../data/book_repository.dart';
 import '../../data/comic/comic_archive.dart';
 import '../../data/epub/epub_book.dart';
+import '../../data/library/book_metadata.dart';
+import '../../data/library/folder_access.dart';
 import '../../data/local/app_database.dart';
 import '../../data/models/book_format.dart';
+import '../../data/storage/random_source.dart';
 import 'comic/comic_engine_view.dart';
 import 'epub_view_factory.dart';
 import 'native/book_source.dart';
@@ -101,6 +104,23 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
   _EngineBuilder? _engine;
   PdfDocument? _pdfDocument;
   ComicArchive? _comicArchive;
+  OpenedFile? _openedFile;
+
+  Future<void> _releaseSources() async {
+    final document = _pdfDocument;
+    final comic = _comicArchive;
+    final file = _openedFile;
+    _pdfDocument = null;
+    _comicArchive = null;
+    _openedFile = null;
+    try {
+      await document?.dispose();
+      await comic?.close();
+    } finally {
+      file?.close();
+    }
+  }
+
   ReaderEngineController? _controller;
   Book? _book;
   ReaderLocation? _location;
@@ -373,11 +393,21 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
       setState(() => _error = 'El libro no está en la biblioteca');
       return;
     }
-    final file = File(book.filePath);
-    if (!file.existsSync()) {
-      setState(() => _error = 'No se encontró el archivo del libro');
+    final OpenedFile opened;
+    try {
+      opened = await repo.openBookFile(book);
+    } catch (_) {
+      if (mounted) {
+        setState(() => _error = 'No se encontró el archivo del libro');
+      }
       return;
     }
+    if (!mounted) {
+      opened.close();
+      return;
+    }
+    _openedFile = opened;
+    final spec = opened.spec;
 
     final progress = await repo.readProgress(widget.bookId);
     _lastPercent = progress?.percent ?? 0;
@@ -390,9 +420,9 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
     final _EngineBuilder? engine;
     try {
       engine = switch (book.format) {
-        BookFormat.epub => await _prepareEpub(file),
-        BookFormat.pdf => await _preparePdf(file, rtl),
-        BookFormat.comic => await _prepareComic(file, rtl),
+        BookFormat.epub => await _prepareEpub(spec),
+        BookFormat.pdf => await _preparePdf(spec, rtl),
+        BookFormat.comic => await _prepareComic(spec, rtl),
       };
     } on ComicFormatException catch (e) {
       if (mounted) setState(() => _error = e.message);
@@ -404,8 +434,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
 
     await repo.markOpened(widget.bookId);
     if (!mounted) {
-      unawaited(_pdfDocument?.dispose());
-      unawaited(_comicArchive?.close());
+      unawaited(_releaseSources());
       return;
     }
     if (engine == null) {
@@ -428,16 +457,18 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
     return Directory(p.join(cache.path, 'reader', widget.bookId));
   }
 
-  Future<_EngineBuilder?> _prepareEpub(File file) async {
+  Future<_EngineBuilder?> _prepareEpub(SourceSpec spec) async {
     final extractDir = await _extractDir();
     EpubBook epubBook;
     try {
       epubBook = await compute(prepareEpub, (
-        path: file.path,
+        spec: spec,
         extractDir: extractDir.path,
       ));
     } catch (_) {
       return null;
+    } finally {
+      _openedFile?.close();
     }
     final source = NativeBookSource(root: extractDir, book: epubBook);
     return (callbacks, locator, percent) => createEpubView(
@@ -451,14 +482,10 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
 
   bool _passwordDenied = false;
 
-  Future<_EngineBuilder?> _preparePdf(File file, bool? rtl) async {
+  Future<_EngineBuilder?> _preparePdf(SourceSpec spec, bool? rtl) async {
     final PdfDocument document;
     try {
-      await pdfrxFlutterInitialize();
-      document = await PdfDocument.openFile(
-        file.path,
-        passwordProvider: _askPassword,
-      );
+      document = await openPdfDocument(spec, passwordProvider: _askPassword);
     } catch (_) {
       _error = _passwordDenied
           ? 'PDF protegido con contraseña'
@@ -475,12 +502,9 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
     );
   }
 
-  Future<_EngineBuilder?> _prepareComic(File file, bool? rtl) async {
+  Future<_EngineBuilder?> _prepareComic(SourceSpec spec, bool? rtl) async {
     final extractDir = await _extractDir();
-    final archive = await ComicArchive.open(
-      file.path,
-      cacheDir: extractDir.path,
-    );
+    final archive = await ComicArchive.open(spec, cacheDir: extractDir.path);
     _comicArchive = archive;
     return (callbacks, locator, _) => ComicEngineView(
       key: ValueKey(widget.bookId),
@@ -841,8 +865,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
     WakelockPlus.disable();
     _primeTimer?.cancel();
     _curl.dispose();
-    unawaited(_pdfDocument?.dispose());
-    unawaited(_comicArchive?.close());
+    unawaited(_releaseSources());
     _saveTimer?.cancel();
     _saveProgressNow();
     _focusNode.dispose();

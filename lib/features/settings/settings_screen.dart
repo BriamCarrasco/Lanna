@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:path/path.dart' as p;
-import 'package:path_provider/path_provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/theme/app_theme.dart';
 import '../../core/theme/tokens.dart';
+import '../../data/book_repository.dart';
+import '../../data/local/app_database.dart';
+import '../library/library_scan_controller.dart';
 import '../library/widgets/section_scaffold.dart';
 import '../reader/reader_settings_provider.dart';
 import '../reader/reader_theme.dart';
@@ -28,11 +28,6 @@ Future<void> _openUrl(BuildContext context, String url) async {
     ).showSnackBar(const SnackBar(content: Text('No se pudo abrir el enlace')));
   }
 }
-
-final _storagePathProvider = FutureProvider<String>((ref) async {
-  final support = await getApplicationSupportDirectory();
-  return p.join(support.path, 'library', 'books');
-});
 
 Widget _flexChild(bool compact, Widget child) =>
     compact ? child : Expanded(child: child);
@@ -129,10 +124,10 @@ class SettingsScreen extends ConsumerWidget {
                     _flexChild(
                       compact,
                       const _Section(
-                        title: 'Biblioteca',
+                        title: 'Carpetas de la biblioteca',
                         child: Padding(
                           padding: EdgeInsets.all(LannaSpacing.s4),
-                          child: _StoragePath(),
+                          child: _Folders(),
                         ),
                       ),
                     ),
@@ -161,35 +156,113 @@ class SettingsScreen extends ConsumerWidget {
   }
 }
 
-class _StoragePath extends ConsumerWidget {
-  const _StoragePath();
+class _Folders extends ConsumerWidget {
+  const _Folders();
+
+  Future<void> _add(BuildContext context, WidgetRef ref) async {
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      final report = await ref.read(libraryScanProvider.notifier).addFolder();
+      if (report != null) {
+        messenger.showSnackBar(SnackBar(content: Text(describeScan(report))));
+      }
+    } catch (e) {
+      messenger.showSnackBar(
+        SnackBar(content: Text('No se pudo revisar la carpeta: $e')),
+      );
+    }
+  }
+
+  Future<void> _remove(
+    BuildContext context,
+    WidgetRef ref,
+    LibraryFolder folder,
+  ) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: LannaColors.surfaceHigh,
+        title: Text('¿Quitar «${folder.name}»?'),
+        content: const Text(
+          'Sus libros dejarán de aparecer en la biblioteca, junto con su '
+          'progreso, marcadores y subrayados. Los archivos no se tocan.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: LannaColors.danger,
+              foregroundColor: LannaColors.surface,
+            ),
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Quitar'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    await ref.read(libraryScanProvider.notifier).removeFolder(folder);
+  }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final path = ref.watch(_storagePathProvider);
+    final folders = ref.watch(libraryFoldersProvider).valueOrNull ?? const [];
+    final scanning = ref.watch(libraryScanProvider).running;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Carpeta de almacenamiento',
+          folders.isEmpty
+              ? 'Todavía no elegiste ninguna carpeta. Lanna lee los libros '
+                    'desde ahí, sin copiarlos.'
+              : 'Lanna lee los libros desde estas carpetas, sin copiarlos.',
           style: LannaType.sm.copyWith(color: LannaColors.textMuted),
         ),
-        const SizedBox(height: LannaSpacing.s1),
-        SelectableText(
-          path.valueOrNull ?? '—',
-          style: LannaType.sm.copyWith(color: LannaColors.text),
-        ),
+        for (final folder in folders) ...[
+          const SizedBox(height: LannaSpacing.s3),
+          Row(
+            children: [
+              const Icon(
+                Icons.folder_outlined,
+                size: 18,
+                color: LannaColors.textMuted,
+              ),
+              const SizedBox(width: LannaSpacing.s2),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      folder.name,
+                      style: LannaType.sm.copyWith(color: LannaColors.text),
+                    ),
+                    if (!folder.location.startsWith('content://'))
+                      Text(
+                        folder.location,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: LannaType.micro.copyWith(
+                          color: LannaColors.textMuted,
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+              IconButton(
+                onPressed: scanning
+                    ? null
+                    : () => _remove(context, ref, folder),
+                icon: const Icon(Icons.close, size: 18),
+                tooltip: 'Quitar carpeta',
+              ),
+            ],
+          ),
+        ],
         const SizedBox(height: LannaSpacing.s3),
-        _LinkText(
-          'Copiar ruta',
-          onTap: () {
-            final value = path.valueOrNull;
-            if (value == null) return;
-            Clipboard.setData(ClipboardData(text: value));
-            ScaffoldMessenger.of(context)
-                .showSnackBar(const SnackBar(content: Text('Ruta copiada')));
-          },
-        ),
+        _LinkText('Añadir carpeta', onTap: () => _add(context, ref)),
       ],
     );
   }

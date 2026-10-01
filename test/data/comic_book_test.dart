@@ -7,6 +7,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:lanna/data/comic/comic_archive.dart';
 import 'package:lanna/data/comic/comic_book.dart';
 import 'package:lanna/data/comic/libarchive.dart';
+import 'package:lanna/data/storage/random_source.dart';
 import 'package:path/path.dart' as p;
 
 import '../support/reader_harness.dart';
@@ -93,7 +94,10 @@ void main() {
           ),
         );
 
-      final comic = await ComicArchive.open(cbz.path, cacheDir: cache);
+      final comic = await ComicArchive.open(
+        pathSpec(cbz.path),
+        cacheDir: cache,
+      );
       addTearDown(comic.close);
 
       expect(comic.book.pages, ['p1.png', 'p2.png', 'p10.png']);
@@ -115,7 +119,10 @@ void main() {
       final cbz = File(p.join(tmp.path, 'd.cbz'))
         ..writeAsBytesSync(ZipEncoder().encodeBytes(archive));
 
-      final comic = await ComicArchive.open(cbz.path, cacheDir: cache);
+      final comic = await ComicArchive.open(
+        pathSpec(cbz.path),
+        cacheDir: cache,
+      );
       addTearDown(comic.close);
 
       final pages = await Future.wait([
@@ -133,7 +140,10 @@ void main() {
         ..parent.createSync(recursive: true)
         ..writeAsBytesSync(tinyPng);
 
-      final comic = await ComicArchive.open(cbz.path, cacheDir: cache);
+      final comic = await ComicArchive.open(
+        pathSpec(cbz.path),
+        cacheDir: cache,
+      );
       await comic.close();
       for (var i = 0; i < 50 && Directory(cache).existsSync(); i++) {
         await Future<void>.delayed(const Duration(milliseconds: 10));
@@ -146,7 +156,7 @@ void main() {
       final bad = File(p.join(tmp.path, 'x.cbz'))
         ..writeAsBytesSync([1, 2, 3, 4, 5, 6, 7, 8]);
       expect(
-        () => ComicArchive.open(bad.path, cacheDir: cache),
+        () => ComicArchive.open(pathSpec(bad.path), cacheDir: cache),
         throwsA(isA<ComicFormatException>()),
       );
     });
@@ -155,7 +165,7 @@ void main() {
       final bad = File(p.join(tmp.path, 'x.cbz'))
         ..writeAsBytesSync([0x50, 0x4B, 3, 4, 5, 6, 7, 8, 9, 10]);
       expect(
-        () => ComicArchive.open(bad.path, cacheDir: cache),
+        () => ComicArchive.open(pathSpec(bad.path), cacheDir: cache),
         throwsA(isA<ComicFormatException>()),
       );
     });
@@ -164,7 +174,7 @@ void main() {
       final empty = File(p.join(tmp.path, 'e.cbz'))
         ..writeAsBytesSync(buildComicZip(pages: const []));
       expect(
-        () => ComicArchive.open(empty.path, cacheDir: cache),
+        () => ComicArchive.open(pathSpec(empty.path), cacheDir: cache),
         throwsA(isA<ComicFormatException>()),
       );
     });
@@ -173,7 +183,10 @@ void main() {
       test('un CBR $label se lee por página con libarchive', () async {
         final cbr = File(p.join(tmp.path, 'a.cbr'))
           ..writeAsBytesSync(base64Decode(fixture));
-        final comic = await ComicArchive.open(cbr.path, cacheDir: cache);
+        final comic = await ComicArchive.open(
+          pathSpec(cbr.path),
+          cacheDir: cache,
+        );
         addTearDown(comic.close);
 
         expect(comic.book.pages, ['p1.png', 'p2.png', 'p10.png']);

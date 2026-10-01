@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/tokens.dart';
 import '../../../core/widgets/pressable.dart';
 import '../../../data/local/app_database.dart';
+import 'book_actions.dart';
 import 'book_cover.dart';
 
 typedef BookMenuCallback = void Function(Book book, Offset globalPosition);
@@ -44,7 +44,7 @@ class BookGridTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Pressable(
-      onTap: () => context.push('/reader/${book.id}'),
+      onTap: () => openBook(context, book),
       onLongPress: () {
         final box = context.findRenderObject() as RenderBox;
         onMenu(book, box.localToGlobal(box.size.center(Offset.zero)));
@@ -56,7 +56,10 @@ class BookGridTile extends StatelessWidget {
           Expanded(
             child: Align(
               alignment: Alignment.topCenter,
-              child: BookCover(book: book),
+              child: Opacity(
+                opacity: book.available ? 1 : 0.4,
+                child: BookCover(book: book),
+              ),
             ),
           ),
           const SizedBox(height: LannaSpacing.s2),
@@ -69,7 +72,12 @@ class BookGridTile extends StatelessWidget {
               height: 1.25,
             ),
           ),
-          if (book.author != null)
+          if (!book.available)
+            Text(
+              'No disponible',
+              style: LannaType.micro.copyWith(color: LannaColors.danger),
+            )
+          else if (book.author != null)
             Text(
               book.author!,
               maxLines: 1,

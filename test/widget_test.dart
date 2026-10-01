@@ -127,7 +127,7 @@ void main() {
     expect(find.text('Tu biblioteca está vacía'), findsOneWidget);
     expect(tester.takeException(), isNull);
 
-    await tester.tap(find.text('Ajustes'));
+    await tester.tap(find.byIcon(Icons.settings_outlined));
     await tester.pumpAndSettle();
     expect(find.text('Animación de paso de página'), findsOneWidget);
     expect(tester.takeException(), isNull);

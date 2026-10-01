@@ -1,27 +1,23 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 import 'dart:async';
-import 'dart:io';
 
-import 'package:desktop_drop/desktop_drop.dart';
-import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 
 import '../../core/text_search.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/theme/tokens.dart';
 import '../../core/widgets/fade_in.dart';
 import '../../data/book_repository.dart';
+import '../../data/library/library_scanner.dart';
 import '../../data/local/app_database.dart';
-import 'import_controller.dart';
+import 'library_scan_controller.dart';
 import 'library_shell.dart';
 import 'widgets/book_actions.dart';
 import 'widgets/book_cover.dart';
 import 'widgets/book_grid.dart';
 import 'widgets/continue_reading_row.dart';
 import 'widgets/empty_library_view.dart';
-import 'widgets/import_progress_card.dart';
 import 'widgets/section_scaffold.dart';
 
 enum _SortMode {
@@ -43,28 +39,43 @@ class LibraryScreen extends ConsumerStatefulWidget {
 }
 
 class _LibraryScreenState extends ConsumerState<LibraryScreen> {
-  bool _dragging = false;
-  bool _overlayHidden = false;
   _SortMode _sort = _SortMode.recent;
   _ViewMode _view = _ViewMode.grid;
 
-  static const _extensions = ['epub', 'pdf', 'cbz', 'cbr'];
-
-  Future<void> _pickAndImport() async {
-    final mobile = Platform.isAndroid || Platform.isIOS;
-    final files = await FilePicker.pickFiles(
-      type: mobile ? FileType.any : FileType.custom,
-      allowedExtensions: mobile ? null : _extensions,
-      dialogTitle: 'Importar libros',
-    );
-    if (files.isEmpty) return;
-    _startImport(files.map((f) => f.path).whereType<String>().toList());
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      unawaited(
+        ref
+            .read(libraryScanProvider.notifier)
+            .scanOnStartup()
+            .then((_) {}, onError: (_) {}),
+      );
+    });
   }
 
-  void _startImport(List<String> paths) {
-    if (paths.isEmpty) return;
-    setState(() => _overlayHidden = false);
-    ref.read(importControllerProvider.notifier).importPaths(paths);
+  Future<void> _addFolder() async {
+    await _report(ref.read(libraryScanProvider.notifier).addFolder());
+  }
+
+  Future<void> _rescan() async {
+    await _report(ref.read(libraryScanProvider.notifier).scan());
+  }
+
+  Future<void> _report(Future<ScanReport?> work) async {
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      final report = await work;
+      if (report == null || !mounted) return;
+      messenger.showSnackBar(SnackBar(content: Text(describeScan(report))));
+    } catch (e) {
+      if (!mounted) return;
+      messenger.showSnackBar(
+        SnackBar(content: Text('No se pudo revisar la carpeta: $e')),
+      );
+    }
   }
 
   void _showBookMenu(Book book, Offset globalPosition) {
@@ -109,61 +120,68 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
     final library = ref.watch(libraryProvider);
     final continueReading =
         ref.watch(continueReadingProvider).valueOrNull ?? const [];
-    final import = ref.watch(importControllerProvider);
+    final scan = ref.watch(libraryScanProvider);
+    final hasFolders =
+        ref.watch(libraryFoldersProvider).valueOrNull?.isNotEmpty ?? false;
     final query = ref.watch(librarySearchProvider);
-    final showOverlay = !import.isEmpty && !_overlayHidden;
     final count = library.valueOrNull?.length ?? 0;
-    final compact = MediaQuery.sizeOf(context).width < 720;
+    final compact = MediaQuery.sizeOf(context).width < 900;
 
-    return Stack(
-      children: [
-        SectionScaffold(
-          title: 'Biblioteca',
-          subtitle: '$count ${count == 1 ? 'libro' : 'libros'}',
-          actions: compact
-              ? [
-                  PopupMenuButton<_SortMode>(
-                    icon: const Icon(
-                      Icons.sort,
-                      size: 20,
-                      color: LannaColors.textMuted,
-                    ),
-                    initialValue: _sort,
-                    tooltip: 'Ordenar',
-                    onSelected: (s) => setState(() => _sort = s),
-                    itemBuilder: (_) => [
-                      for (final m in _SortMode.values)
-                        PopupMenuItem(value: m, child: Text(m.label)),
-                    ],
-                  ),
-                  IconButton(
-                    onPressed: _pickAndImport,
-                    icon: const Icon(Icons.add),
-                    tooltip: 'Importar libros',
-                  ),
-                ]
-              : [
-                  _ViewToggle(
-                    view: _view,
-                    onChanged: (v) => setState(() => _view = v),
-                  ),
-                  _SortButton(
-                    sort: _sort,
-                    onChanged: (s) => setState(() => _sort = s),
-                  ),
-                  FilledButton.icon(
-                    onPressed: _pickAndImport,
-                    icon: const Icon(Icons.add, size: 18),
-                    label: const Text('Importar'),
-                  ),
+    return SectionScaffold(
+      title: 'Biblioteca',
+      subtitle: '$count ${count == 1 ? 'libro' : 'libros'}',
+      actions: compact
+          ? [
+              PopupMenuButton<_SortMode>(
+                icon: const Icon(
+                  Icons.sort,
+                  size: 20,
+                  color: LannaColors.textMuted,
+                ),
+                initialValue: _sort,
+                tooltip: 'Ordenar',
+                onSelected: (s) => setState(() => _sort = s),
+                itemBuilder: (_) => [
+                  for (final m in _SortMode.values)
+                    PopupMenuItem(value: m, child: Text(m.label)),
                 ],
-          child: DropTarget(
-            onDragEntered: (_) => setState(() => _dragging = true),
-            onDragExited: (_) => setState(() => _dragging = false),
-            onDragDone: (detail) {
-              setState(() => _dragging = false);
-              _startImport(detail.files.map((f) => f.path).toList());
-            },
+              ),
+              IconButton(
+                onPressed: scan.running ? null : _rescan,
+                icon: const Icon(Icons.refresh),
+                tooltip: 'Actualizar biblioteca',
+              ),
+              IconButton(
+                onPressed: _addFolder,
+                icon: const Icon(Icons.create_new_folder_outlined),
+                tooltip: 'Añadir carpeta',
+              ),
+            ]
+          : [
+              _ViewToggle(
+                view: _view,
+                onChanged: (v) => setState(() => _view = v),
+              ),
+              _SortButton(
+                sort: _sort,
+                onChanged: (s) => setState(() => _sort = s),
+              ),
+              IconButton(
+                onPressed: scan.running ? null : _rescan,
+                icon: const Icon(Icons.refresh, size: 20),
+                color: LannaColors.textMuted,
+                tooltip: 'Actualizar biblioteca',
+              ),
+              FilledButton.icon(
+                onPressed: _addFolder,
+                icon: const Icon(Icons.create_new_folder_outlined, size: 18),
+                label: const Text('Añadir carpeta'),
+              ),
+            ],
+      child: Column(
+        children: [
+          if (scan.running) _ScanBanner(scan: scan),
+          Expanded(
             child: _LibraryBody(
               library: library.whenData(
                 (books) => _filteredSorted(books, query),
@@ -171,29 +189,53 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
               continueReading: query.isEmpty ? continueReading : const [],
               query: query,
               view: _view,
-              dragging: _dragging,
-              onImport: _pickAndImport,
+              hasFolders: hasFolders,
+              scanning: scan.running,
+              onAddFolder: _addFolder,
+              onRescan: _rescan,
               onBookMenu: _showBookMenu,
             ),
           ),
-        ),
-        if (showOverlay)
-          Positioned.fill(
-            child: ColoredBox(
-              color: Colors.black.withValues(alpha: 0.55),
-              child: ImportProgressCard(
-                progress: import,
-                onDismiss: () {
-                  if (import.isRunning) {
-                    setState(() => _overlayHidden = true);
-                  } else {
-                    ref.read(importControllerProvider.notifier).clear();
-                  }
-                },
-              ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ScanBanner extends StatelessWidget {
+  const _ScanBanner({required this.scan});
+
+  final ScanState scan;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        LannaSpacing.s6,
+        LannaSpacing.s3,
+        LannaSpacing.s6,
+        0,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            scan.total == 0
+                ? 'Revisando tus carpetas…'
+                : 'Revisando tus carpetas… ${scan.done} de ${scan.total}',
+            style: LannaType.sm.copyWith(color: LannaColors.textMuted),
+          ),
+          const SizedBox(height: LannaSpacing.s2),
+          ClipRRect(
+            borderRadius: LannaRadii.brXs,
+            child: LinearProgressIndicator(
+              value: scan.total == 0 ? null : scan.done / scan.total,
+              minHeight: 3,
+              backgroundColor: LannaColors.border,
             ),
           ),
-      ],
+        ],
+      ),
     );
   }
 }
@@ -204,8 +246,10 @@ class _LibraryBody extends StatelessWidget {
     required this.continueReading,
     required this.query,
     required this.view,
-    required this.dragging,
-    required this.onImport,
+    required this.hasFolders,
+    required this.scanning,
+    required this.onAddFolder,
+    required this.onRescan,
     required this.onBookMenu,
   });
 
@@ -213,14 +257,16 @@ class _LibraryBody extends StatelessWidget {
   final List<BookWithProgress> continueReading;
   final String query;
   final _ViewMode view;
-  final bool dragging;
-  final VoidCallback onImport;
+  final bool hasFolders;
+  final bool scanning;
+  final VoidCallback onAddFolder;
+  final Future<void> Function() onRescan;
   final void Function(Book book, Offset globalPosition) onBookMenu;
 
   @override
   Widget build(BuildContext context) {
     final searching = query.trim().isNotEmpty;
-    final content = library.when(
+    return library.when(
       loading: () => const Center(child: CircularProgressIndicator()),
       error: (e, _) => Center(child: Text('Error: $e')),
       data: (books) {
@@ -230,59 +276,41 @@ class _LibraryBody extends StatelessWidget {
                   icon: Icons.search_off,
                   message: 'Sin resultados para «$query»',
                 )
-              : FadeIn(child: EmptyLibraryView(onImport: onImport));
+              : FadeIn(
+                  child: EmptyLibraryView(
+                    hasFolders: hasFolders,
+                    scanning: scanning,
+                    onAddFolder: onAddFolder,
+                    onRescan: onRescan,
+                  ),
+                );
         }
-        return CustomScrollView(
-          slivers: [
-            if (continueReading.isNotEmpty) ...[
-              const _SectionLabel('Seguir leyendo'),
-              SliverToBoxAdapter(
-                child: ContinueReadingRow(items: continueReading),
+        return RefreshIndicator(
+          onRefresh: onRescan,
+          child: CustomScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            slivers: [
+              if (continueReading.isNotEmpty) ...[
+                const _SectionLabel('Seguir leyendo'),
+                SliverToBoxAdapter(
+                  child: ContinueReadingRow(items: continueReading),
+                ),
+              ],
+              _SectionLabel(
+                searching ? 'Resultados' : 'Todos los libros',
+                trailing: '${books.length}',
+              ),
+              if (view == _ViewMode.grid)
+                BookGridSliver(books: books, onMenu: onBookMenu)
+              else
+                _BookListSliver(books: books, onMenu: onBookMenu),
+              const SliverToBoxAdapter(
+                child: SizedBox(height: LannaSpacing.s6),
               ),
             ],
-            _SectionLabel(
-              searching ? 'Resultados' : 'Todos los libros',
-              trailing: '${books.length}',
-            ),
-            if (view == _ViewMode.grid)
-              BookGridSliver(books: books, onMenu: onBookMenu)
-            else
-              _BookListSliver(books: books, onMenu: onBookMenu),
-            const SliverToBoxAdapter(child: SizedBox(height: LannaSpacing.s6)),
-          ],
+          ),
         );
       },
-    );
-
-    return Stack(
-      children: [
-        content,
-        Positioned.fill(
-          child: IgnorePointer(
-            child: AnimatedOpacity(
-              opacity: dragging ? 1 : 0,
-              duration: LannaMotion.fast,
-              curve: LannaMotion.ease,
-              child: Container(
-                margin: const EdgeInsets.all(LannaSpacing.s3),
-                decoration: BoxDecoration(
-                  color: LannaColors.accentTint,
-                  borderRadius: LannaRadii.brXl,
-                  border: Border.all(color: LannaColors.accent, width: 2),
-                ),
-                child: Center(
-                  child: Text(
-                    'Suelta para importar',
-                    style: LannaType.lg.copyWith(
-                      color: LannaColors.accentStrong,
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ),
-      ],
     );
   }
 }
@@ -443,14 +471,20 @@ class _BookRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return InkWell(
-      onTap: () => context.push('/reader/${book.id}'),
+      onTap: () => openBook(context, book),
       onLongPress: () => _menuFromCenter(context),
       onSecondaryTapUp: (d) => onMenu(book, d.globalPosition),
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: LannaSpacing.s3),
         child: Row(
           children: [
-            SizedBox(width: 34, child: BookCover(book: book)),
+            SizedBox(
+              width: 34,
+              child: Opacity(
+                opacity: book.available ? 1 : 0.4,
+                child: BookCover(book: book),
+              ),
+            ),
             const SizedBox(width: LannaSpacing.s3),
             Expanded(
               child: Column(

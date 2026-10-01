@@ -31,6 +31,7 @@ class _LibraryShellState extends ConsumerState<LibraryShell> {
   }
 
   LibrarySection _sectionFor(String path) {
+    if (path.startsWith('/folders')) return LibrarySection.folders;
     if (path.startsWith('/collections')) return LibrarySection.collections;
     if (path.startsWith('/authors')) return LibrarySection.authors;
     if (path.startsWith('/settings')) return LibrarySection.settings;

@@ -9,15 +9,24 @@ import 'package:archive/archive.dart';
 import 'package:path/path.dart' as p;
 import 'package:rar/rar.dart';
 
+import '../storage/random_source.dart';
 import 'comic_book.dart';
 import 'libarchive.dart';
 
 enum ComicContainer { zip, rar, unknown }
 
 ComicContainer sniffComic(String path) {
-  final raf = File(path).openSync();
+  final source = FileSource(path);
   try {
-    final head = raf.readSync(7);
+    return sniffSource(source);
+  } finally {
+    source.close();
+  }
+}
+
+ComicContainer sniffSource(RandomSource source) {
+  final head = source.read(0, 7);
+  {
     if (head.length >= 4 && head[0] == 0x50 && head[1] == 0x4B) {
       return ComicContainer.zip;
     }
@@ -31,8 +40,6 @@ ComicContainer sniffComic(String path) {
       return ComicContainer.rar;
     }
     return ComicContainer.unknown;
-  } finally {
-    raf.closeSync();
   }
 }
 
@@ -70,29 +77,40 @@ class ComicFormatException implements Exception {
 enum _Source { zip, rar, directory }
 
 class ComicArchive {
-  ComicArchive._(this.book, this._requests, this._pending);
+  ComicArchive._(this.book, this._requests, this._pending, this._exited);
 
   final ComicBook book;
   final SendPort _requests;
   final Map<int, Completer<Uint8List>> _pending;
+  final Completer<void> _exited;
   int _nextId = 0;
   bool _closed = false;
 
   static const markerName = '.lanna-complete';
 
   static Future<ComicArchive> open(
-    String path, {
+    SourceSpec spec, {
     required String cacheDir,
   }) async {
-    final (source, target) = switch (sniffComic(path)) {
-      ComicContainer.zip => (_Source.zip, path),
+    final probe = openSource(spec);
+    final ComicContainer container;
+    try {
+      container = sniffSource(probe);
+    } finally {
+      probe.close();
+    }
+    final (source, directory) = switch (container) {
+      ComicContainer.zip => (_Source.zip, null),
       ComicContainer.rar when LibArchive.instance != null => (
         _Source.rar,
-        path,
+        null,
       ),
-      ComicContainer.rar => (
+      ComicContainer.rar when spec.path != null => (
         _Source.directory,
-        await _extractWithPlugin(path, cacheDir),
+        await _extractWithPlugin(spec.path!, cacheDir),
+      ),
+      ComicContainer.rar => throw const ComicFormatException(
+        'Este dispositivo no puede leer CBR desde una carpeta',
       ),
       ComicContainer.unknown => throw const ComicFormatException(
         'El archivo no es un CBZ ni un CBR válido',
@@ -103,6 +121,7 @@ class ComicArchive {
     final port = ReceivePort();
     final init = Completer<(SendPort, List<String>, String?)>();
     final pending = <int, Completer<Uint8List>>{};
+    final exited = Completer<void>();
     port.listen((message) {
       switch (message) {
         case (SendPort requests, List<String> pages, String? info):
@@ -123,12 +142,13 @@ class ComicArchive {
           }
           pending.clear();
           port.close();
+          if (!exited.isCompleted) exited.complete();
       }
     });
     try {
       await Isolate.spawn(
         _worker,
-        (port.sendPort, target, source),
+        (port.sendPort, spec, source, directory),
         onExit: port.sendPort,
         onError: port.sendPort,
       );
@@ -148,6 +168,7 @@ class ComicArchive {
       ),
       requests,
       pending,
+      exited,
     );
     if (pages.isEmpty) {
       await archive.close();
@@ -167,10 +188,12 @@ class ComicArchive {
     return completer.future;
   }
 
-  Future<void> close() async {
-    if (_closed) return;
-    _closed = true;
-    _requests.send(null);
+  Future<void> close() {
+    if (!_closed) {
+      _closed = true;
+      _requests.send(null);
+    }
+    return _exited.future;
   }
 
   static void _discardExtraction(String dir) {
@@ -206,8 +229,44 @@ abstract interface class _EntryReader {
   void close();
 }
 
+class _SourceHandle extends AbstractFileHandle {
+  _SourceHandle(this._source);
+
+  final RandomSource _source;
+
+  @override
+  int position = 0;
+
+  @override
+  int get length => _source.length;
+
+  @override
+  bool get isOpen => true;
+
+  @override
+  int readInto(Uint8List buffer, [int? length]) {
+    final view = length == null
+        ? buffer
+        : Uint8List.sublistView(buffer, 0, length);
+    final n = _source.readInto(view, position);
+    position += n;
+    return n;
+  }
+
+  @override
+  Future<void> close() async {}
+
+  @override
+  void closeSync() {}
+
+  @override
+  void writeFromSync(List<int> buffer, [int start = 0, int? end]) =>
+      throw UnsupportedError('solo lectura');
+}
+
 class _ZipReader implements _EntryReader {
-  _ZipReader(String path) : _input = InputFileStream(path) {
+  _ZipReader(RandomSource source)
+    : _input = InputFileStream.withFileHandle(_SourceHandle(source)) {
     try {
       _files = ZipDecoder().decodeStream(_input).files;
     } catch (_) {
@@ -232,7 +291,7 @@ class _ZipReader implements _EntryReader {
 }
 
 class _RarReader implements _EntryReader {
-  _RarReader(String path) : _reader = RarReader(path);
+  _RarReader(RandomSource source) : _reader = RarReader(source);
 
   final RarReader _reader;
 
@@ -274,17 +333,23 @@ String _describe(Object error) => switch (error) {
   _ => '$error',
 };
 
-void _worker((SendPort, String, _Source) args) {
-  final (reply, target, source) = args;
+void _worker((SendPort, SourceSpec, _Source, String?) args) {
+  final (reply, spec, source, directory) = args;
   final _EntryReader reader;
   final List<int> pages;
+  RandomSource? input;
   try {
-    reader = switch (source) {
-      _Source.zip => _ZipReader(target),
-      _Source.rar => _RarReader(target),
-      _Source.directory => _DirectoryReader(target),
-    };
+    if (directory != null) {
+      reader = _DirectoryReader(directory);
+    } else {
+      input = openSource(spec);
+      reader = switch (source) {
+        _Source.zip => _ZipReader(input),
+        _ => _RarReader(input),
+      };
+    }
   } catch (error) {
+    input?.close();
     reply.send((null, _describe(error)));
     return;
   }
@@ -310,6 +375,7 @@ void _worker((SendPort, String, _Source) args) {
       return;
     }
     reader.close();
+    input?.close();
     inbox.close();
   });
 }

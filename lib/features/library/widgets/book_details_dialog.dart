@@ -26,10 +26,17 @@ Future<bool> confirmDeleteBook(
     context: context,
     builder: (context) => AlertDialog(
       backgroundColor: LannaColors.surfaceHigh,
-      title: Text('¿Eliminar «${book.title}»?'),
-      content: const Text(
-        'Se quitará de la biblioteca y se borrará el archivo importado, '
-        'junto con su progreso y marcadores. No se puede deshacer.',
+      title: Text(
+        book.folderId != null
+            ? '¿Quitar «${book.title}»?'
+            : '¿Eliminar «${book.title}»?',
+      ),
+      content: Text(
+        book.folderId != null
+            ? 'Dejará de aparecer en la biblioteca. El archivo se queda en '
+                  'su carpeta, no se borra.'
+            : 'Se quitará de la biblioteca y se borrará el archivo importado, '
+                  'junto con su progreso y marcadores. No se puede deshacer.',
       ),
       actions: [
         TextButton(
@@ -42,7 +49,7 @@ Future<bool> confirmDeleteBook(
             foregroundColor: LannaColors.surface,
           ),
           onPressed: () => Navigator.of(context).pop(true),
-          child: const Text('Eliminar'),
+          child: Text(book.folderId != null ? 'Quitar' : 'Eliminar'),
         ),
       ],
     ),
@@ -107,7 +114,9 @@ class BookDetailsDialog extends ConsumerWidget {
                               BookFormat.epub => 'EPUB',
                               BookFormat.pdf => 'PDF',
                               BookFormat.comic =>
-                                book.filePath.toLowerCase().endsWith('.cbr')
+                                (book.relativePath ?? book.filePath)
+                                        .toLowerCase()
+                                        .endsWith('.cbr')
                                     ? 'CBR'
                                     : 'CBZ',
                             }),

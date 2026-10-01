@@ -11,6 +11,21 @@ import '../../../data/book_repository.dart';
 import '../../../data/local/app_database.dart';
 import 'book_details_dialog.dart';
 
+void openBook(BuildContext context, Book book) {
+  if (!book.available) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          'No se encuentra «${book.title}» en su carpeta. '
+          'Revisa la carpeta y actualiza la biblioteca.',
+        ),
+      ),
+    );
+    return;
+  }
+  unawaited(context.push('/reader/${book.id}'));
+}
+
 Future<void> showBookMenu(
   BuildContext context,
   WidgetRef ref,
@@ -24,17 +39,25 @@ Future<void> showBookMenu(
       globalPosition & const Size(40, 40),
       Offset.zero & overlay.size,
     ),
-    items: const [
-      PopupMenuItem(value: 'open', child: Text('Abrir')),
-      PopupMenuItem(value: 'details', child: Text('Detalles')),
-      PopupMenuItem(value: 'collection', child: Text('Añadir a colección')),
-      PopupMenuItem(value: 'delete', child: Text('Eliminar')),
+    items: [
+      const PopupMenuItem(value: 'open', child: Text('Abrir')),
+      const PopupMenuItem(value: 'details', child: Text('Detalles')),
+      const PopupMenuItem(
+        value: 'collection',
+        child: Text('Añadir a colección'),
+      ),
+      PopupMenuItem(
+        value: 'delete',
+        child: Text(
+          book.folderId != null ? 'Quitar de la biblioteca' : 'Eliminar',
+        ),
+      ),
     ],
   );
   if (!context.mounted) return;
   switch (selected) {
     case 'open':
-      unawaited(context.push('/reader/${book.id}'));
+      openBook(context, book);
     case 'details':
       unawaited(showBookDetails(context, book));
     case 'collection':
@@ -42,8 +65,9 @@ Future<void> showBookMenu(
     case 'delete':
       final deleted = await confirmDeleteBook(context, ref, book);
       if (deleted && context.mounted) {
+        final verb = book.folderId != null ? 'quitado' : 'eliminado';
         ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('«${book.title}» eliminado')));
+            .showSnackBar(SnackBar(content: Text('«${book.title}» $verb')));
       }
   }
 }

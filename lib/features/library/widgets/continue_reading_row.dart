@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/tokens.dart';
 import '../../../core/widgets/pressable.dart';
 import '../../../data/local/app_database.dart';
 import '../../../data/models/book_format.dart';
+import 'book_actions.dart';
 import 'book_cover.dart';
 
 class ContinueReadingRow extends StatelessWidget {
@@ -60,7 +60,7 @@ class _Card extends StatelessWidget {
 
     return Pressable(
       scale: 0.98,
-      onTap: () => context.push('/reader/${item.book.id}'),
+      onTap: () => openBook(context, item.book),
       child: Container(
         padding: const EdgeInsets.all(LannaSpacing.s3),
         decoration: BoxDecoration(

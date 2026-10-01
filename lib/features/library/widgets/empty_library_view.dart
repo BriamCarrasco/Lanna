@@ -5,9 +5,18 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/tokens.dart';
 
 class EmptyLibraryView extends StatelessWidget {
-  const EmptyLibraryView({super.key, required this.onImport});
+  const EmptyLibraryView({
+    super.key,
+    required this.hasFolders,
+    required this.scanning,
+    required this.onAddFolder,
+    required this.onRescan,
+  });
 
-  final VoidCallback onImport;
+  final bool hasFolders;
+  final bool scanning;
+  final VoidCallback onAddFolder;
+  final VoidCallback onRescan;
 
   @override
   Widget build(BuildContext context) {
@@ -31,20 +40,38 @@ class EmptyLibraryView extends StatelessWidget {
             ),
             const SizedBox(height: LannaSpacing.s4),
             Text(
-              'Tu biblioteca está vacía',
+              hasFolders
+                  ? 'No encontramos libros en tus carpetas'
+                  : 'Tu biblioteca está vacía',
+              textAlign: TextAlign.center,
               style: LannaType.title.copyWith(color: LannaColors.text),
             ),
             const SizedBox(height: LannaSpacing.s2),
-            Text(
-              'Arrastra archivos EPUB o PDF aquí, o impórtalos desde tu equipo',
-              style: LannaType.md.copyWith(color: LannaColors.textMuted),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: LannaSpacing.s5),
+              child: Text(
+                hasFolders
+                    ? 'Lanna lee EPUB, PDF, CBZ y CBR. Copia tus libros a la '
+                          'carpeta y actualiza la biblioteca.'
+                    : 'Elige la carpeta donde guardas tus libros. Lanna los lee '
+                          'desde ahí, sin copiarlos.',
+                textAlign: TextAlign.center,
+                style: LannaType.md.copyWith(color: LannaColors.textMuted),
+              ),
             ),
             const SizedBox(height: LannaSpacing.s5),
-            FilledButton.icon(
-              onPressed: onImport,
-              icon: const Icon(Icons.add, size: 18),
-              label: const Text('Importar libros'),
-            ),
+            if (hasFolders)
+              OutlinedButton.icon(
+                onPressed: scanning ? null : onRescan,
+                icon: const Icon(Icons.refresh, size: 18),
+                label: const Text('Actualizar'),
+              )
+            else
+              FilledButton.icon(
+                onPressed: onAddFolder,
+                icon: const Icon(Icons.create_new_folder_outlined, size: 18),
+                label: const Text('Elegir carpeta'),
+              ),
           ],
         ),
       ),

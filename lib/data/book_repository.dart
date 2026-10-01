@@ -7,15 +7,70 @@ import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:uuid/uuid.dart';
 
-import 'import/book_importer.dart';
+import 'library/folder_access.dart';
+import 'library/library_scanner.dart';
 import 'local/app_database.dart';
 import 'local/database_provider.dart';
 
+Future<LibraryDirs> defaultLibraryDirs() async {
+  final support = await getApplicationSupportDirectory();
+  final cache = await getApplicationCacheDirectory();
+  return (
+    covers: p.join(support.path, 'library', 'covers'),
+    cache: cache.path,
+    legacyBooks: p.join(support.path, 'library', 'books'),
+  );
+}
+
 class BookRepository {
-  BookRepository(this._db) : _importer = BookImporter(_db);
+  BookRepository(
+    this._db,
+    this._access, {
+    Future<LibraryDirs> Function() dirs = defaultLibraryDirs,
+  }) : _scanner = LibraryScanner(_db, _access, dirs);
 
   final AppDatabase _db;
-  final BookImporter _importer;
+  final FolderAccess _access;
+  final LibraryScanner _scanner;
+
+  FolderAccess get folderAccess => _access;
+
+  Stream<List<LibraryFolder>> watchFolders() => _db.watchFolders();
+
+  Future<LibraryFolder?> pickFolder() async {
+    final picked = await _access.pick();
+    if (picked == null) return null;
+    final existing = await _db.findFolderByLocation(picked.location);
+    if (existing != null) return existing;
+    final id = const Uuid().v4();
+    await _db.addFolder(
+      LibraryFoldersCompanion.insert(
+        id: id,
+        location: picked.location,
+        name: picked.name,
+      ),
+    );
+    return (await _db.findFolderByLocation(picked.location))!;
+  }
+
+  Future<void> removeFolder(LibraryFolder folder) async {
+    final books = await _db.booksInFolder(folder.id);
+    await _db.deleteFolder(folder.id);
+    try {
+      await _access.release(folder.location);
+    } catch (_) {}
+    for (final book in books) {
+      await _discardDerived(book);
+    }
+  }
+
+  Future<ScanReport> scan({void Function(int done, int total)? onProgress}) =>
+      _scanner.scanAll(onProgress: onProgress);
+
+  Future<OpenedFile> openBookFile(Book book) => _access.open(book.filePath);
+
+  Future<void> hideBook(String id) =>
+      _db.updateBook(id, const BooksCompanion(hidden: Value(true)));
 
   Stream<List<Book>> watchLibrary() => _db.watchLibrary();
 
@@ -127,33 +182,44 @@ class BookRepository {
   Future<void> removeBookFromCollection(String collectionId, String bookId) =>
       _db.removeBookFromCollection(collectionId, bookId);
 
-  Future<ImportResult> importFile(String path) => _importer.importFile(path);
-
   Future<void> deleteBook(String id) async {
     final book = await _db.findBook(id);
-    await _db.deleteBook(id);
     if (book == null) return;
-
-    for (final path in [book.filePath, book.coverPath]) {
-      if (path == null || path.startsWith('sample://')) continue;
-      final file = File(path);
-      if (file.existsSync()) {
-        try {
-          await file.delete();
-        } catch (_) {}
-      }
+    if (book.folderId != null) return hideBook(id);
+    await _db.deleteBook(id);
+    final file = File(book.filePath);
+    if (file.existsSync()) {
+      try {
+        await file.delete();
+      } catch (_) {}
     }
+    await _discardDerived(book);
+  }
 
+  Future<void> _discardDerived(Book book) async {
+    if (book.coverPath case final cover?) {
+      try {
+        final file = File(cover);
+        if (file.existsSync()) await file.delete();
+      } catch (_) {}
+    }
     try {
       final cache = await getApplicationCacheDirectory();
-      final extracted = Directory(p.join(cache.path, 'reader', id));
+      final extracted = Directory(p.join(cache.path, 'reader', book.id));
       if (extracted.existsSync()) await extracted.delete(recursive: true);
     } catch (_) {}
   }
 }
 
 final bookRepositoryProvider = Provider<BookRepository>((ref) {
-  return BookRepository(ref.watch(appDatabaseProvider));
+  return BookRepository(
+    ref.watch(appDatabaseProvider),
+    ref.watch(folderAccessProvider),
+  );
+});
+
+final libraryFoldersProvider = StreamProvider<List<LibraryFolder>>((ref) {
+  return ref.watch(bookRepositoryProvider).watchFolders();
 });
 
 final libraryProvider = StreamProvider<List<Book>>((ref) {

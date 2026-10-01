@@ -3,6 +3,313 @@
 part of 'app_database.dart';
 
 // ignore_for_file: type=lint
+class $LibraryFoldersTable extends LibraryFolders
+    with TableInfo<$LibraryFoldersTable, LibraryFolder> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $LibraryFoldersTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _locationMeta = const VerificationMeta(
+    'location',
+  );
+  @override
+  late final GeneratedColumn<String> location = GeneratedColumn<String>(
+    'location',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways('UNIQUE'),
+  );
+  static const VerificationMeta _nameMeta = const VerificationMeta('name');
+  @override
+  late final GeneratedColumn<String> name = GeneratedColumn<String>(
+    'name',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _addedAtMeta = const VerificationMeta(
+    'addedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> addedAt = GeneratedColumn<DateTime>(
+    'added_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+    defaultValue: currentDateAndTime,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [id, location, name, addedAt];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'library_folders';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<LibraryFolder> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('location')) {
+      context.handle(
+        _locationMeta,
+        location.isAcceptableOrUnknown(data['location']!, _locationMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_locationMeta);
+    }
+    if (data.containsKey('name')) {
+      context.handle(
+        _nameMeta,
+        name.isAcceptableOrUnknown(data['name']!, _nameMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_nameMeta);
+    }
+    if (data.containsKey('added_at')) {
+      context.handle(
+        _addedAtMeta,
+        addedAt.isAcceptableOrUnknown(data['added_at']!, _addedAtMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  LibraryFolder map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return LibraryFolder(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      location: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}location'],
+      )!,
+      name: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}name'],
+      )!,
+      addedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}added_at'],
+      )!,
+    );
+  }
+
+  @override
+  $LibraryFoldersTable createAlias(String alias) {
+    return $LibraryFoldersTable(attachedDatabase, alias);
+  }
+}
+
+class LibraryFolder extends DataClass implements Insertable<LibraryFolder> {
+  final String id;
+  final String location;
+  final String name;
+  final DateTime addedAt;
+  const LibraryFolder({
+    required this.id,
+    required this.location,
+    required this.name,
+    required this.addedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['location'] = Variable<String>(location);
+    map['name'] = Variable<String>(name);
+    map['added_at'] = Variable<DateTime>(addedAt);
+    return map;
+  }
+
+  LibraryFoldersCompanion toCompanion(bool nullToAbsent) {
+    return LibraryFoldersCompanion(
+      id: Value(id),
+      location: Value(location),
+      name: Value(name),
+      addedAt: Value(addedAt),
+    );
+  }
+
+  factory LibraryFolder.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return LibraryFolder(
+      id: serializer.fromJson<String>(json['id']),
+      location: serializer.fromJson<String>(json['location']),
+      name: serializer.fromJson<String>(json['name']),
+      addedAt: serializer.fromJson<DateTime>(json['addedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'location': serializer.toJson<String>(location),
+      'name': serializer.toJson<String>(name),
+      'addedAt': serializer.toJson<DateTime>(addedAt),
+    };
+  }
+
+  LibraryFolder copyWith({
+    String? id,
+    String? location,
+    String? name,
+    DateTime? addedAt,
+  }) => LibraryFolder(
+    id: id ?? this.id,
+    location: location ?? this.location,
+    name: name ?? this.name,
+    addedAt: addedAt ?? this.addedAt,
+  );
+  LibraryFolder copyWithCompanion(LibraryFoldersCompanion data) {
+    return LibraryFolder(
+      id: data.id.present ? data.id.value : this.id,
+      location: data.location.present ? data.location.value : this.location,
+      name: data.name.present ? data.name.value : this.name,
+      addedAt: data.addedAt.present ? data.addedAt.value : this.addedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('LibraryFolder(')
+          ..write('id: $id, ')
+          ..write('location: $location, ')
+          ..write('name: $name, ')
+          ..write('addedAt: $addedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(id, location, name, addedAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is LibraryFolder &&
+          other.id == this.id &&
+          other.location == this.location &&
+          other.name == this.name &&
+          other.addedAt == this.addedAt);
+}
+
+class LibraryFoldersCompanion extends UpdateCompanion<LibraryFolder> {
+  final Value<String> id;
+  final Value<String> location;
+  final Value<String> name;
+  final Value<DateTime> addedAt;
+  final Value<int> rowid;
+  const LibraryFoldersCompanion({
+    this.id = const Value.absent(),
+    this.location = const Value.absent(),
+    this.name = const Value.absent(),
+    this.addedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  LibraryFoldersCompanion.insert({
+    required String id,
+    required String location,
+    required String name,
+    this.addedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       location = Value(location),
+       name = Value(name);
+  static Insertable<LibraryFolder> custom({
+    Expression<String>? id,
+    Expression<String>? location,
+    Expression<String>? name,
+    Expression<DateTime>? addedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (location != null) 'location': location,
+      if (name != null) 'name': name,
+      if (addedAt != null) 'added_at': addedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  LibraryFoldersCompanion copyWith({
+    Value<String>? id,
+    Value<String>? location,
+    Value<String>? name,
+    Value<DateTime>? addedAt,
+    Value<int>? rowid,
+  }) {
+    return LibraryFoldersCompanion(
+      id: id ?? this.id,
+      location: location ?? this.location,
+      name: name ?? this.name,
+      addedAt: addedAt ?? this.addedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (location.present) {
+      map['location'] = Variable<String>(location.value);
+    }
+    if (name.present) {
+      map['name'] = Variable<String>(name.value);
+    }
+    if (addedAt.present) {
+      map['added_at'] = Variable<DateTime>(addedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('LibraryFoldersCompanion(')
+          ..write('id: $id, ')
+          ..write('location: $location, ')
+          ..write('name: $name, ')
+          ..write('addedAt: $addedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 class $BooksTable extends Books with TableInfo<$BooksTable, Book> {
   @override
   final GeneratedDatabase attachedDatabase;
@@ -103,6 +410,70 @@ class $BooksTable extends Books with TableInfo<$BooksTable, Book> {
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _folderIdMeta = const VerificationMeta(
+    'folderId',
+  );
+  @override
+  late final GeneratedColumn<String> folderId = GeneratedColumn<String>(
+    'folder_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES library_folders (id) ON DELETE CASCADE',
+    ),
+  );
+  static const VerificationMeta _relativePathMeta = const VerificationMeta(
+    'relativePath',
+  );
+  @override
+  late final GeneratedColumn<String> relativePath = GeneratedColumn<String>(
+    'relative_path',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _fileModifiedMeta = const VerificationMeta(
+    'fileModified',
+  );
+  @override
+  late final GeneratedColumn<int> fileModified = GeneratedColumn<int>(
+    'file_modified',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _availableMeta = const VerificationMeta(
+    'available',
+  );
+  @override
+  late final GeneratedColumn<bool> available = GeneratedColumn<bool>(
+    'available',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("available" IN (0, 1))',
+    ),
+    defaultValue: const Constant(true),
+  );
+  static const VerificationMeta _hiddenMeta = const VerificationMeta('hidden');
+  @override
+  late final GeneratedColumn<bool> hidden = GeneratedColumn<bool>(
+    'hidden',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("hidden" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
   static const VerificationMeta _addedAtMeta = const VerificationMeta(
     'addedAt',
   );
@@ -137,6 +508,11 @@ class $BooksTable extends Books with TableInfo<$BooksTable, Book> {
     fileSizeBytes,
     contentHash,
     readingDirection,
+    folderId,
+    relativePath,
+    fileModified,
+    available,
+    hidden,
     addedAt,
     lastOpenedAt,
   ];
@@ -212,6 +588,42 @@ class $BooksTable extends Books with TableInfo<$BooksTable, Book> {
         ),
       );
     }
+    if (data.containsKey('folder_id')) {
+      context.handle(
+        _folderIdMeta,
+        folderId.isAcceptableOrUnknown(data['folder_id']!, _folderIdMeta),
+      );
+    }
+    if (data.containsKey('relative_path')) {
+      context.handle(
+        _relativePathMeta,
+        relativePath.isAcceptableOrUnknown(
+          data['relative_path']!,
+          _relativePathMeta,
+        ),
+      );
+    }
+    if (data.containsKey('file_modified')) {
+      context.handle(
+        _fileModifiedMeta,
+        fileModified.isAcceptableOrUnknown(
+          data['file_modified']!,
+          _fileModifiedMeta,
+        ),
+      );
+    }
+    if (data.containsKey('available')) {
+      context.handle(
+        _availableMeta,
+        available.isAcceptableOrUnknown(data['available']!, _availableMeta),
+      );
+    }
+    if (data.containsKey('hidden')) {
+      context.handle(
+        _hiddenMeta,
+        hidden.isAcceptableOrUnknown(data['hidden']!, _hiddenMeta),
+      );
+    }
     if (data.containsKey('added_at')) {
       context.handle(
         _addedAtMeta,
@@ -274,6 +686,26 @@ class $BooksTable extends Books with TableInfo<$BooksTable, Book> {
         DriftSqlType.string,
         data['${effectivePrefix}reading_direction'],
       ),
+      folderId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}folder_id'],
+      ),
+      relativePath: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}relative_path'],
+      ),
+      fileModified: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}file_modified'],
+      ),
+      available: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}available'],
+      )!,
+      hidden: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}hidden'],
+      )!,
       addedAt: attachedDatabase.typeMapping.read(
         DriftSqlType.dateTime,
         data['${effectivePrefix}added_at'],
@@ -304,6 +736,11 @@ class Book extends DataClass implements Insertable<Book> {
   final int? fileSizeBytes;
   final String? contentHash;
   final String? readingDirection;
+  final String? folderId;
+  final String? relativePath;
+  final int? fileModified;
+  final bool available;
+  final bool hidden;
   final DateTime addedAt;
   final DateTime? lastOpenedAt;
   const Book({
@@ -316,6 +753,11 @@ class Book extends DataClass implements Insertable<Book> {
     this.fileSizeBytes,
     this.contentHash,
     this.readingDirection,
+    this.folderId,
+    this.relativePath,
+    this.fileModified,
+    required this.available,
+    required this.hidden,
     required this.addedAt,
     this.lastOpenedAt,
   });
@@ -345,6 +787,17 @@ class Book extends DataClass implements Insertable<Book> {
     if (!nullToAbsent || readingDirection != null) {
       map['reading_direction'] = Variable<String>(readingDirection);
     }
+    if (!nullToAbsent || folderId != null) {
+      map['folder_id'] = Variable<String>(folderId);
+    }
+    if (!nullToAbsent || relativePath != null) {
+      map['relative_path'] = Variable<String>(relativePath);
+    }
+    if (!nullToAbsent || fileModified != null) {
+      map['file_modified'] = Variable<int>(fileModified);
+    }
+    map['available'] = Variable<bool>(available);
+    map['hidden'] = Variable<bool>(hidden);
     map['added_at'] = Variable<DateTime>(addedAt);
     if (!nullToAbsent || lastOpenedAt != null) {
       map['last_opened_at'] = Variable<DateTime>(lastOpenedAt);
@@ -373,6 +826,17 @@ class Book extends DataClass implements Insertable<Book> {
       readingDirection: readingDirection == null && nullToAbsent
           ? const Value.absent()
           : Value(readingDirection),
+      folderId: folderId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(folderId),
+      relativePath: relativePath == null && nullToAbsent
+          ? const Value.absent()
+          : Value(relativePath),
+      fileModified: fileModified == null && nullToAbsent
+          ? const Value.absent()
+          : Value(fileModified),
+      available: Value(available),
+      hidden: Value(hidden),
       addedAt: Value(addedAt),
       lastOpenedAt: lastOpenedAt == null && nullToAbsent
           ? const Value.absent()
@@ -397,6 +861,11 @@ class Book extends DataClass implements Insertable<Book> {
       fileSizeBytes: serializer.fromJson<int?>(json['fileSizeBytes']),
       contentHash: serializer.fromJson<String?>(json['contentHash']),
       readingDirection: serializer.fromJson<String?>(json['readingDirection']),
+      folderId: serializer.fromJson<String?>(json['folderId']),
+      relativePath: serializer.fromJson<String?>(json['relativePath']),
+      fileModified: serializer.fromJson<int?>(json['fileModified']),
+      available: serializer.fromJson<bool>(json['available']),
+      hidden: serializer.fromJson<bool>(json['hidden']),
       addedAt: serializer.fromJson<DateTime>(json['addedAt']),
       lastOpenedAt: serializer.fromJson<DateTime?>(json['lastOpenedAt']),
     );
@@ -416,6 +885,11 @@ class Book extends DataClass implements Insertable<Book> {
       'fileSizeBytes': serializer.toJson<int?>(fileSizeBytes),
       'contentHash': serializer.toJson<String?>(contentHash),
       'readingDirection': serializer.toJson<String?>(readingDirection),
+      'folderId': serializer.toJson<String?>(folderId),
+      'relativePath': serializer.toJson<String?>(relativePath),
+      'fileModified': serializer.toJson<int?>(fileModified),
+      'available': serializer.toJson<bool>(available),
+      'hidden': serializer.toJson<bool>(hidden),
       'addedAt': serializer.toJson<DateTime>(addedAt),
       'lastOpenedAt': serializer.toJson<DateTime?>(lastOpenedAt),
     };
@@ -431,6 +905,11 @@ class Book extends DataClass implements Insertable<Book> {
     Value<int?> fileSizeBytes = const Value.absent(),
     Value<String?> contentHash = const Value.absent(),
     Value<String?> readingDirection = const Value.absent(),
+    Value<String?> folderId = const Value.absent(),
+    Value<String?> relativePath = const Value.absent(),
+    Value<int?> fileModified = const Value.absent(),
+    bool? available,
+    bool? hidden,
     DateTime? addedAt,
     Value<DateTime?> lastOpenedAt = const Value.absent(),
   }) => Book(
@@ -447,6 +926,11 @@ class Book extends DataClass implements Insertable<Book> {
     readingDirection: readingDirection.present
         ? readingDirection.value
         : this.readingDirection,
+    folderId: folderId.present ? folderId.value : this.folderId,
+    relativePath: relativePath.present ? relativePath.value : this.relativePath,
+    fileModified: fileModified.present ? fileModified.value : this.fileModified,
+    available: available ?? this.available,
+    hidden: hidden ?? this.hidden,
     addedAt: addedAt ?? this.addedAt,
     lastOpenedAt: lastOpenedAt.present ? lastOpenedAt.value : this.lastOpenedAt,
   );
@@ -467,6 +951,15 @@ class Book extends DataClass implements Insertable<Book> {
       readingDirection: data.readingDirection.present
           ? data.readingDirection.value
           : this.readingDirection,
+      folderId: data.folderId.present ? data.folderId.value : this.folderId,
+      relativePath: data.relativePath.present
+          ? data.relativePath.value
+          : this.relativePath,
+      fileModified: data.fileModified.present
+          ? data.fileModified.value
+          : this.fileModified,
+      available: data.available.present ? data.available.value : this.available,
+      hidden: data.hidden.present ? data.hidden.value : this.hidden,
       addedAt: data.addedAt.present ? data.addedAt.value : this.addedAt,
       lastOpenedAt: data.lastOpenedAt.present
           ? data.lastOpenedAt.value
@@ -486,6 +979,11 @@ class Book extends DataClass implements Insertable<Book> {
           ..write('fileSizeBytes: $fileSizeBytes, ')
           ..write('contentHash: $contentHash, ')
           ..write('readingDirection: $readingDirection, ')
+          ..write('folderId: $folderId, ')
+          ..write('relativePath: $relativePath, ')
+          ..write('fileModified: $fileModified, ')
+          ..write('available: $available, ')
+          ..write('hidden: $hidden, ')
           ..write('addedAt: $addedAt, ')
           ..write('lastOpenedAt: $lastOpenedAt')
           ..write(')'))
@@ -503,6 +1001,11 @@ class Book extends DataClass implements Insertable<Book> {
     fileSizeBytes,
     contentHash,
     readingDirection,
+    folderId,
+    relativePath,
+    fileModified,
+    available,
+    hidden,
     addedAt,
     lastOpenedAt,
   );
@@ -519,6 +1022,11 @@ class Book extends DataClass implements Insertable<Book> {
           other.fileSizeBytes == this.fileSizeBytes &&
           other.contentHash == this.contentHash &&
           other.readingDirection == this.readingDirection &&
+          other.folderId == this.folderId &&
+          other.relativePath == this.relativePath &&
+          other.fileModified == this.fileModified &&
+          other.available == this.available &&
+          other.hidden == this.hidden &&
           other.addedAt == this.addedAt &&
           other.lastOpenedAt == this.lastOpenedAt);
 }
@@ -533,6 +1041,11 @@ class BooksCompanion extends UpdateCompanion<Book> {
   final Value<int?> fileSizeBytes;
   final Value<String?> contentHash;
   final Value<String?> readingDirection;
+  final Value<String?> folderId;
+  final Value<String?> relativePath;
+  final Value<int?> fileModified;
+  final Value<bool> available;
+  final Value<bool> hidden;
   final Value<DateTime> addedAt;
   final Value<DateTime?> lastOpenedAt;
   final Value<int> rowid;
@@ -546,6 +1059,11 @@ class BooksCompanion extends UpdateCompanion<Book> {
     this.fileSizeBytes = const Value.absent(),
     this.contentHash = const Value.absent(),
     this.readingDirection = const Value.absent(),
+    this.folderId = const Value.absent(),
+    this.relativePath = const Value.absent(),
+    this.fileModified = const Value.absent(),
+    this.available = const Value.absent(),
+    this.hidden = const Value.absent(),
     this.addedAt = const Value.absent(),
     this.lastOpenedAt = const Value.absent(),
     this.rowid = const Value.absent(),
@@ -560,6 +1078,11 @@ class BooksCompanion extends UpdateCompanion<Book> {
     this.fileSizeBytes = const Value.absent(),
     this.contentHash = const Value.absent(),
     this.readingDirection = const Value.absent(),
+    this.folderId = const Value.absent(),
+    this.relativePath = const Value.absent(),
+    this.fileModified = const Value.absent(),
+    this.available = const Value.absent(),
+    this.hidden = const Value.absent(),
     this.addedAt = const Value.absent(),
     this.lastOpenedAt = const Value.absent(),
     this.rowid = const Value.absent(),
@@ -577,6 +1100,11 @@ class BooksCompanion extends UpdateCompanion<Book> {
     Expression<int>? fileSizeBytes,
     Expression<String>? contentHash,
     Expression<String>? readingDirection,
+    Expression<String>? folderId,
+    Expression<String>? relativePath,
+    Expression<int>? fileModified,
+    Expression<bool>? available,
+    Expression<bool>? hidden,
     Expression<DateTime>? addedAt,
     Expression<DateTime>? lastOpenedAt,
     Expression<int>? rowid,
@@ -591,6 +1119,11 @@ class BooksCompanion extends UpdateCompanion<Book> {
       if (fileSizeBytes != null) 'file_size_bytes': fileSizeBytes,
       if (contentHash != null) 'content_hash': contentHash,
       if (readingDirection != null) 'reading_direction': readingDirection,
+      if (folderId != null) 'folder_id': folderId,
+      if (relativePath != null) 'relative_path': relativePath,
+      if (fileModified != null) 'file_modified': fileModified,
+      if (available != null) 'available': available,
+      if (hidden != null) 'hidden': hidden,
       if (addedAt != null) 'added_at': addedAt,
       if (lastOpenedAt != null) 'last_opened_at': lastOpenedAt,
       if (rowid != null) 'rowid': rowid,
@@ -607,6 +1140,11 @@ class BooksCompanion extends UpdateCompanion<Book> {
     Value<int?>? fileSizeBytes,
     Value<String?>? contentHash,
     Value<String?>? readingDirection,
+    Value<String?>? folderId,
+    Value<String?>? relativePath,
+    Value<int?>? fileModified,
+    Value<bool>? available,
+    Value<bool>? hidden,
     Value<DateTime>? addedAt,
     Value<DateTime?>? lastOpenedAt,
     Value<int>? rowid,
@@ -621,6 +1159,11 @@ class BooksCompanion extends UpdateCompanion<Book> {
       fileSizeBytes: fileSizeBytes ?? this.fileSizeBytes,
       contentHash: contentHash ?? this.contentHash,
       readingDirection: readingDirection ?? this.readingDirection,
+      folderId: folderId ?? this.folderId,
+      relativePath: relativePath ?? this.relativePath,
+      fileModified: fileModified ?? this.fileModified,
+      available: available ?? this.available,
+      hidden: hidden ?? this.hidden,
       addedAt: addedAt ?? this.addedAt,
       lastOpenedAt: lastOpenedAt ?? this.lastOpenedAt,
       rowid: rowid ?? this.rowid,
@@ -659,6 +1202,21 @@ class BooksCompanion extends UpdateCompanion<Book> {
     if (readingDirection.present) {
       map['reading_direction'] = Variable<String>(readingDirection.value);
     }
+    if (folderId.present) {
+      map['folder_id'] = Variable<String>(folderId.value);
+    }
+    if (relativePath.present) {
+      map['relative_path'] = Variable<String>(relativePath.value);
+    }
+    if (fileModified.present) {
+      map['file_modified'] = Variable<int>(fileModified.value);
+    }
+    if (available.present) {
+      map['available'] = Variable<bool>(available.value);
+    }
+    if (hidden.present) {
+      map['hidden'] = Variable<bool>(hidden.value);
+    }
     if (addedAt.present) {
       map['added_at'] = Variable<DateTime>(addedAt.value);
     }
@@ -683,6 +1241,11 @@ class BooksCompanion extends UpdateCompanion<Book> {
           ..write('fileSizeBytes: $fileSizeBytes, ')
           ..write('contentHash: $contentHash, ')
           ..write('readingDirection: $readingDirection, ')
+          ..write('folderId: $folderId, ')
+          ..write('relativePath: $relativePath, ')
+          ..write('fileModified: $fileModified, ')
+          ..write('available: $available, ')
+          ..write('hidden: $hidden, ')
           ..write('addedAt: $addedAt, ')
           ..write('lastOpenedAt: $lastOpenedAt, ')
           ..write('rowid: $rowid')
@@ -3202,6 +3765,7 @@ class HighlightsCompanion extends UpdateCompanion<Highlight> {
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
+  late final $LibraryFoldersTable libraryFolders = $LibraryFoldersTable(this);
   late final $BooksTable books = $BooksTable(this);
   late final $ReadingProgressTable readingProgress = $ReadingProgressTable(
     this,
@@ -3217,6 +3781,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
   @override
   List<DatabaseSchemaEntity> get allSchemaEntities => [
+    libraryFolders,
     books,
     readingProgress,
     readerPrefs,
@@ -3227,6 +3792,13 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   ];
   @override
   StreamQueryUpdateRules get streamUpdateRules => const StreamQueryUpdateRules([
+    WritePropagation(
+      on: TableUpdateQuery.onTableName(
+        'library_folders',
+        limitUpdateKind: UpdateKind.delete,
+      ),
+      result: [TableUpdate('books', kind: UpdateKind.delete)],
+    ),
     WritePropagation(
       on: TableUpdateQuery.onTableName(
         'books',
@@ -3265,6 +3837,295 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   ]);
 }
 
+typedef $$LibraryFoldersTableCreateCompanionBuilder =
+    LibraryFoldersCompanion Function({
+      required String id,
+      required String location,
+      required String name,
+      Value<DateTime> addedAt,
+      Value<int> rowid,
+    });
+typedef $$LibraryFoldersTableUpdateCompanionBuilder =
+    LibraryFoldersCompanion Function({
+      Value<String> id,
+      Value<String> location,
+      Value<String> name,
+      Value<DateTime> addedAt,
+      Value<int> rowid,
+    });
+
+final class $$LibraryFoldersTableReferences
+    extends BaseReferences<_$AppDatabase, $LibraryFoldersTable, LibraryFolder> {
+  $$LibraryFoldersTableReferences(
+    super.$_db,
+    super.$_table,
+    super.$_typedResult,
+  );
+
+  static MultiTypedResultKey<$BooksTable, List<Book>> _booksRefsTable(
+    _$AppDatabase db,
+  ) => MultiTypedResultKey.fromTable(
+    db.books,
+    aliasName: 'library_folders__id__books__folder_id',
+  );
+
+  $$BooksTableProcessedTableManager get booksRefs {
+    final manager = $$BooksTableTableManager(
+      $_db,
+      $_db.books,
+    ).filter((f) => f.folderId.id.sqlEquals($_itemColumn<String>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(_booksRefsTable($_db));
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+}
+
+class $$LibraryFoldersTableFilterComposer
+    extends Composer<_$AppDatabase, $LibraryFoldersTable> {
+  $$LibraryFoldersTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get location => $composableBuilder(
+    column: $table.location,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get addedAt => $composableBuilder(
+    column: $table.addedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  Expression<bool> booksRefs(
+    Expression<bool> Function($$BooksTableFilterComposer f) f,
+  ) {
+    final $$BooksTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.books,
+      getReferencedColumn: (t) => t.folderId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$BooksTableFilterComposer(
+            $db: $db,
+            $table: $db.books,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+}
+
+class $$LibraryFoldersTableOrderingComposer
+    extends Composer<_$AppDatabase, $LibraryFoldersTable> {
+  $$LibraryFoldersTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get location => $composableBuilder(
+    column: $table.location,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get addedAt => $composableBuilder(
+    column: $table.addedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$LibraryFoldersTableAnnotationComposer
+    extends Composer<_$AppDatabase, $LibraryFoldersTable> {
+  $$LibraryFoldersTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get location =>
+      $composableBuilder(column: $table.location, builder: (column) => column);
+
+  GeneratedColumn<String> get name =>
+      $composableBuilder(column: $table.name, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get addedAt =>
+      $composableBuilder(column: $table.addedAt, builder: (column) => column);
+
+  Expression<T> booksRefs<T extends Object>(
+    Expression<T> Function($$BooksTableAnnotationComposer a) f,
+  ) {
+    final $$BooksTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.books,
+      getReferencedColumn: (t) => t.folderId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$BooksTableAnnotationComposer(
+            $db: $db,
+            $table: $db.books,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+}
+
+class $$LibraryFoldersTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $LibraryFoldersTable,
+          LibraryFolder,
+          $$LibraryFoldersTableFilterComposer,
+          $$LibraryFoldersTableOrderingComposer,
+          $$LibraryFoldersTableAnnotationComposer,
+          $$LibraryFoldersTableCreateCompanionBuilder,
+          $$LibraryFoldersTableUpdateCompanionBuilder,
+          (LibraryFolder, $$LibraryFoldersTableReferences),
+          LibraryFolder,
+          PrefetchHooks Function({bool booksRefs})
+        > {
+  $$LibraryFoldersTableTableManager(
+    _$AppDatabase db,
+    $LibraryFoldersTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$LibraryFoldersTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$LibraryFoldersTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$LibraryFoldersTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> location = const Value.absent(),
+                Value<String> name = const Value.absent(),
+                Value<DateTime> addedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => LibraryFoldersCompanion(
+                id: id,
+                location: location,
+                name: name,
+                addedAt: addedAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String location,
+                required String name,
+                Value<DateTime> addedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => LibraryFoldersCompanion.insert(
+                id: id,
+                location: location,
+                name: name,
+                addedAt: addedAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable(table),
+                  $$LibraryFoldersTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: ({booksRefs = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [if (booksRefs) db.books],
+              addJoins: null,
+              getPrefetchedDataCallback: (items) async {
+                return [
+                  if (booksRefs)
+                    await $_getPrefetchedData<
+                      LibraryFolder,
+                      $LibraryFoldersTable,
+                      Book
+                    >(
+                      currentTable: table,
+                      referencedTable: $$LibraryFoldersTableReferences
+                          ._booksRefsTable(db),
+                      managerFromTypedResult: (p0) =>
+                          $$LibraryFoldersTableReferences(
+                            db,
+                            table,
+                            p0,
+                          ).booksRefs,
+                      referencedItemsForCurrentItem: (item, referencedItems) =>
+                          referencedItems.where((e) => e.folderId == item.id),
+                      typedResults: items,
+                    ),
+                ];
+              },
+            );
+          },
+        ),
+      );
+}
+
+typedef $$LibraryFoldersTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $LibraryFoldersTable,
+      LibraryFolder,
+      $$LibraryFoldersTableFilterComposer,
+      $$LibraryFoldersTableOrderingComposer,
+      $$LibraryFoldersTableAnnotationComposer,
+      $$LibraryFoldersTableCreateCompanionBuilder,
+      $$LibraryFoldersTableUpdateCompanionBuilder,
+      (LibraryFolder, $$LibraryFoldersTableReferences),
+      LibraryFolder,
+      PrefetchHooks Function({bool booksRefs})
+    >;
 typedef $$BooksTableCreateCompanionBuilder = BooksCompanion Function({
   required String id,
   required String title,
@@ -3275,6 +4136,11 @@ typedef $$BooksTableCreateCompanionBuilder = BooksCompanion Function({
   Value<int?> fileSizeBytes,
   Value<String?> contentHash,
   Value<String?> readingDirection,
+  Value<String?> folderId,
+  Value<String?> relativePath,
+  Value<int?> fileModified,
+  Value<bool> available,
+  Value<bool> hidden,
   Value<DateTime> addedAt,
   Value<DateTime?> lastOpenedAt,
   Value<int> rowid,
@@ -3289,6 +4155,11 @@ typedef $$BooksTableUpdateCompanionBuilder = BooksCompanion Function({
   Value<int?> fileSizeBytes,
   Value<String?> contentHash,
   Value<String?> readingDirection,
+  Value<String?> folderId,
+  Value<String?> relativePath,
+  Value<int?> fileModified,
+  Value<bool> available,
+  Value<bool> hidden,
   Value<DateTime> addedAt,
   Value<DateTime?> lastOpenedAt,
   Value<int> rowid,
@@ -3297,6 +4168,23 @@ typedef $$BooksTableUpdateCompanionBuilder = BooksCompanion Function({
 final class $$BooksTableReferences
     extends BaseReferences<_$AppDatabase, $BooksTable, Book> {
   $$BooksTableReferences(super.$_db, super.$_table, super.$_typedResult);
+
+  static $LibraryFoldersTable _folderIdTable(_$AppDatabase db) =>
+      db.libraryFolders.createAlias('books__folder_id__library_folders__id');
+
+  $$LibraryFoldersTableProcessedTableManager? get folderId {
+    final $_column = $_itemColumn<String>('folder_id');
+    if ($_column == null) return null;
+    final manager = $$LibraryFoldersTableTableManager(
+      $_db,
+      $_db.libraryFolders,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_folderIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
 
   static MultiTypedResultKey<$ReadingProgressTable, List<ReadingProgressData>>
   _readingProgressRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
@@ -3430,6 +4318,26 @@ class $$BooksTableFilterComposer extends Composer<_$AppDatabase, $BooksTable> {
     builder: (column) => ColumnFilters(column),
   );
 
+  ColumnFilters<String> get relativePath => $composableBuilder(
+    column: $table.relativePath,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get fileModified => $composableBuilder(
+    column: $table.fileModified,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get available => $composableBuilder(
+    column: $table.available,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get hidden => $composableBuilder(
+    column: $table.hidden,
+    builder: (column) => ColumnFilters(column),
+  );
+
   ColumnFilters<DateTime> get addedAt => $composableBuilder(
     column: $table.addedAt,
     builder: (column) => ColumnFilters(column),
@@ -3439,6 +4347,29 @@ class $$BooksTableFilterComposer extends Composer<_$AppDatabase, $BooksTable> {
     column: $table.lastOpenedAt,
     builder: (column) => ColumnFilters(column),
   );
+
+  $$LibraryFoldersTableFilterComposer get folderId {
+    final $$LibraryFoldersTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.folderId,
+      referencedTable: $db.libraryFolders,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$LibraryFoldersTableFilterComposer(
+            $db: $db,
+            $table: $db.libraryFolders,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
 
   Expression<bool> readingProgressRefs(
     Expression<bool> Function($$ReadingProgressTableFilterComposer f) f,
@@ -3595,6 +4526,26 @@ class $$BooksTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get relativePath => $composableBuilder(
+    column: $table.relativePath,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get fileModified => $composableBuilder(
+    column: $table.fileModified,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get available => $composableBuilder(
+    column: $table.available,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get hidden => $composableBuilder(
+    column: $table.hidden,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<DateTime> get addedAt => $composableBuilder(
     column: $table.addedAt,
     builder: (column) => ColumnOrderings(column),
@@ -3604,6 +4555,29 @@ class $$BooksTableOrderingComposer
     column: $table.lastOpenedAt,
     builder: (column) => ColumnOrderings(column),
   );
+
+  $$LibraryFoldersTableOrderingComposer get folderId {
+    final $$LibraryFoldersTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.folderId,
+      referencedTable: $db.libraryFolders,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$LibraryFoldersTableOrderingComposer(
+            $db: $db,
+            $table: $db.libraryFolders,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
 }
 
 class $$BooksTableAnnotationComposer
@@ -3648,6 +4622,22 @@ class $$BooksTableAnnotationComposer
     builder: (column) => column,
   );
 
+  GeneratedColumn<String> get relativePath => $composableBuilder(
+    column: $table.relativePath,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get fileModified => $composableBuilder(
+    column: $table.fileModified,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<bool> get available =>
+      $composableBuilder(column: $table.available, builder: (column) => column);
+
+  GeneratedColumn<bool> get hidden =>
+      $composableBuilder(column: $table.hidden, builder: (column) => column);
+
   GeneratedColumn<DateTime> get addedAt =>
       $composableBuilder(column: $table.addedAt, builder: (column) => column);
 
@@ -3655,6 +4645,29 @@ class $$BooksTableAnnotationComposer
     column: $table.lastOpenedAt,
     builder: (column) => column,
   );
+
+  $$LibraryFoldersTableAnnotationComposer get folderId {
+    final $$LibraryFoldersTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.folderId,
+      referencedTable: $db.libraryFolders,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$LibraryFoldersTableAnnotationComposer(
+            $db: $db,
+            $table: $db.libraryFolders,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
 
   Expression<T> readingProgressRefs<T extends Object>(
     Expression<T> Function($$ReadingProgressTableAnnotationComposer a) f,
@@ -3772,6 +4785,7 @@ class $$BooksTableTableManager
           (Book, $$BooksTableReferences),
           Book,
           PrefetchHooks Function({
+            bool folderId,
             bool readingProgressRefs,
             bool bookmarksRefs,
             bool collectionEntriesRefs,
@@ -3800,6 +4814,11 @@ class $$BooksTableTableManager
                 Value<int?> fileSizeBytes = const Value.absent(),
                 Value<String?> contentHash = const Value.absent(),
                 Value<String?> readingDirection = const Value.absent(),
+                Value<String?> folderId = const Value.absent(),
+                Value<String?> relativePath = const Value.absent(),
+                Value<int?> fileModified = const Value.absent(),
+                Value<bool> available = const Value.absent(),
+                Value<bool> hidden = const Value.absent(),
                 Value<DateTime> addedAt = const Value.absent(),
                 Value<DateTime?> lastOpenedAt = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
@@ -3813,6 +4832,11 @@ class $$BooksTableTableManager
                 fileSizeBytes: fileSizeBytes,
                 contentHash: contentHash,
                 readingDirection: readingDirection,
+                folderId: folderId,
+                relativePath: relativePath,
+                fileModified: fileModified,
+                available: available,
+                hidden: hidden,
                 addedAt: addedAt,
                 lastOpenedAt: lastOpenedAt,
                 rowid: rowid,
@@ -3828,6 +4852,11 @@ class $$BooksTableTableManager
                 Value<int?> fileSizeBytes = const Value.absent(),
                 Value<String?> contentHash = const Value.absent(),
                 Value<String?> readingDirection = const Value.absent(),
+                Value<String?> folderId = const Value.absent(),
+                Value<String?> relativePath = const Value.absent(),
+                Value<int?> fileModified = const Value.absent(),
+                Value<bool> available = const Value.absent(),
+                Value<bool> hidden = const Value.absent(),
                 Value<DateTime> addedAt = const Value.absent(),
                 Value<DateTime?> lastOpenedAt = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
@@ -3841,6 +4870,11 @@ class $$BooksTableTableManager
                 fileSizeBytes: fileSizeBytes,
                 contentHash: contentHash,
                 readingDirection: readingDirection,
+                folderId: folderId,
+                relativePath: relativePath,
+                fileModified: fileModified,
+                available: available,
+                hidden: hidden,
                 addedAt: addedAt,
                 lastOpenedAt: lastOpenedAt,
                 rowid: rowid,
@@ -3853,6 +4887,7 @@ class $$BooksTableTableManager
               .toList(),
           prefetchHooksCallback:
               ({
+                folderId = false,
                 readingProgressRefs = false,
                 bookmarksRefs = false,
                 collectionEntriesRefs = false,
@@ -3866,7 +4901,36 @@ class $$BooksTableTableManager
                     if (collectionEntriesRefs) db.collectionEntries,
                     if (highlightsRefs) db.highlights,
                   ],
-                  addJoins: null,
+                  addJoins:
+                      <
+                        T extends TableManagerState<
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic
+                        >
+                      >(state) {
+                        if (folderId) {
+                          state = state.withJoin(
+                            currentTable: table,
+                            currentColumn: table.folderId,
+                            referencedTable: $$BooksTableReferences
+                                ._folderIdTable(db),
+                            referencedColumn: $$BooksTableReferences
+                                ._folderIdTable(db)
+                                .id,
+                          ) as T;
+                        }
+
+                        return state;
+                      },
                   getPrefetchedDataCallback: (items) async {
                     return [
                       if (readingProgressRefs)
@@ -3966,6 +5030,7 @@ typedef $$BooksTableProcessedTableManager =
       (Book, $$BooksTableReferences),
       Book,
       PrefetchHooks Function({
+        bool folderId,
         bool readingProgressRefs,
         bool bookmarksRefs,
         bool collectionEntriesRefs,
@@ -5990,6 +7055,8 @@ typedef $$HighlightsTableProcessedTableManager =
 class $AppDatabaseManager {
   final _$AppDatabase _db;
   $AppDatabaseManager(this._db);
+  $$LibraryFoldersTableTableManager get libraryFolders =>
+      $$LibraryFoldersTableTableManager(_db, _db.libraryFolders);
   $$BooksTableTableManager get books =>
       $$BooksTableTableManager(_db, _db.books);
   $$ReadingProgressTableTableManager get readingProgress =>

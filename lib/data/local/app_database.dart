@@ -22,6 +22,7 @@ class CollectionWithCount {
 
 @DriftDatabase(
   tables: [
+    LibraryFolders,
     Books,
     ReadingProgress,
     ReaderPrefs,
@@ -37,7 +38,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 13;
+  int get schemaVersion => 14;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -79,6 +80,14 @@ class AppDatabase extends _$AppDatabase {
       if (from < 13) {
         await m.addColumn(books, books.readingDirection);
       }
+      if (from < 14) {
+        await m.createTable(libraryFolders);
+        await m.addColumn(books, books.folderId);
+        await m.addColumn(books, books.relativePath);
+        await m.addColumn(books, books.fileModified);
+        await m.addColumn(books, books.available);
+        await m.addColumn(books, books.hidden);
+      }
     },
     beforeOpen: (details) async {
       await customStatement('PRAGMA foreign_keys = ON');
@@ -86,9 +95,40 @@ class AppDatabase extends _$AppDatabase {
   );
 
   Stream<List<Book>> watchLibrary() {
+    return (select(books)
+          ..where((b) => b.hidden.equals(false))
+          ..orderBy([(b) => OrderingTerm.desc(b.addedAt)]))
+        .watch();
+  }
+
+  Stream<List<LibraryFolder>> watchFolders() {
     return (select(
-      books,
-    )..orderBy([(b) => OrderingTerm.desc(b.addedAt)])).watch();
+      libraryFolders,
+    )..orderBy([(f) => OrderingTerm.asc(f.addedAt)])).watch();
+  }
+
+  Future<List<LibraryFolder>> allFolders() => select(libraryFolders).get();
+
+  Future<LibraryFolder?> findFolderByLocation(String location) {
+    return (select(
+      libraryFolders,
+    )..where((f) => f.location.equals(location))).getSingleOrNull();
+  }
+
+  Future<void> addFolder(LibraryFoldersCompanion folder) {
+    return into(libraryFolders).insert(folder);
+  }
+
+  Future<void> deleteFolder(String id) {
+    return (delete(libraryFolders)..where((f) => f.id.equals(id))).go();
+  }
+
+  Future<List<Book>> booksInFolder(String folderId) {
+    return (select(books)..where((b) => b.folderId.equals(folderId))).get();
+  }
+
+  Future<void> updateBook(String id, BooksCompanion changes) {
+    return (update(books)..where((b) => b.id.equals(id))).write(changes);
   }
 
   Stream<List<BookWithProgress>> watchContinueReading({int limit = 4}) {
@@ -99,7 +139,10 @@ class AppDatabase extends _$AppDatabase {
               readingProgress.bookId.equalsExp(books.id),
             ),
           ])
-          ..where(readingProgress.percent.isSmallerThanValue(0.99))
+          ..where(
+            readingProgress.percent.isSmallerThanValue(0.99) &
+                books.hidden.equals(false),
+          )
           ..orderBy([OrderingTerm.desc(readingProgress.updatedAt)])
           ..limit(limit);
 

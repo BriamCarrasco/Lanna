@@ -5,28 +5,33 @@ import 'dart:typed_data';
 
 import 'package:crypto/crypto.dart';
 
+import '../storage/random_source.dart';
+
 const fingerprintChunk = 256 * 1024;
 
 String fingerprintSync(String path) {
-  final raf = File(path).openSync();
+  final source = FileSource(path);
   try {
-    final size = raf.lengthSync();
-    final header = ByteData(8)..setUint64(0, size);
-    final sink = _DigestSink();
-    final input = sha256.startChunkedConversion(sink)
-      ..add(header.buffer.asUint8List());
-    if (size <= fingerprintChunk * 2) {
-      input.add(raf.readSync(size));
-    } else {
-      input.add(raf.readSync(fingerprintChunk));
-      raf.setPositionSync(size - fingerprintChunk);
-      input.add(raf.readSync(fingerprintChunk));
-    }
-    input.close();
-    return sink.value.toString();
+    return fingerprintSource(source);
   } finally {
-    raf.closeSync();
+    source.close();
   }
+}
+
+String fingerprintSource(RandomSource source) {
+  final size = source.length;
+  final header = ByteData(8)..setUint64(0, size);
+  final sink = _DigestSink();
+  final input = sha256.startChunkedConversion(sink)
+    ..add(header.buffer.asUint8List());
+  if (size <= fingerprintChunk * 2) {
+    input.add(source.read(0, size));
+  } else {
+    input.add(source.read(0, fingerprintChunk));
+    input.add(source.read(size - fingerprintChunk, fingerprintChunk));
+  }
+  input.close();
+  return sink.value.toString();
 }
 
 Future<String> fingerprintFile(String path) =>
