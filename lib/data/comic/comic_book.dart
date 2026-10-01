@@ -6,20 +6,23 @@ class ComicBook {
     required this.pages,
     this.title,
     this.writer,
+    this.series,
     this.rtl = false,
   });
 
   final List<String> pages;
   final String? title;
   final String? writer;
+  final String? series;
   final bool rtl;
 }
 
 class ComicInfo {
-  const ComicInfo({this.title, this.writer, this.rtl = false});
+  const ComicInfo({this.title, this.writer, this.series, this.rtl = false});
 
   final String? title;
   final String? writer;
+  final String? series;
   final bool rtl;
 
   static ComicInfo parse(String source) {
@@ -60,6 +63,7 @@ class ComicInfo {
     return ComicInfo(
       title: title,
       writer: field('Writer'),
+      series: series,
       rtl: manga == 'yesandrighttoleft',
     );
   }

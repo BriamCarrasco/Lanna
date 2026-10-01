@@ -210,7 +210,7 @@ class _Folders extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final folders = ref.watch(libraryFoldersProvider).valueOrNull ?? const [];
-    final scanning = ref.watch(libraryScanProvider).running;
+    final scanning = ref.watch(libraryScanProvider.select((s) => s.running));
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [

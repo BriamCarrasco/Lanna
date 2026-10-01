@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 import 'dart:io';
+import 'dart:math' as math;
 import 'dart:ui' as ui;
 
 import 'package:flutter/foundation.dart';
@@ -11,6 +12,8 @@ import '../epub/epub_book.dart';
 import '../epub/epub_package.dart';
 import '../models/book_format.dart';
 import '../storage/random_source.dart';
+
+const coverWidth = 450;
 
 BookFormat? formatForName(String name) =>
     switch (p.extension(name).toLowerCase()) {
@@ -54,10 +57,11 @@ EpubMetadata _readEpubMetadata(SourceSpec spec) {
 }
 
 class BookMeta {
-  const BookMeta({this.title, this.author, this.coverPath});
+  const BookMeta({this.title, this.author, this.series, this.coverPath});
 
   final String? title;
   final String? author;
+  final String? series;
   final String? coverPath;
 }
 
@@ -73,10 +77,14 @@ Future<BookMeta> readBookMeta({
       final meta = await compute(_readEpubMetadata, spec);
       String? coverPath;
       if (meta.coverBytes case final bytes?) {
-        final ext = p.extension(meta.coverFileName ?? 'cover.jpg');
-        final dest = File(p.join(coversDir, '$id$ext'));
-        await dest.writeAsBytes(bytes);
-        coverPath = dest.path;
+        try {
+          coverPath = await _renderImageCover(bytes, id, coversDir);
+        } catch (_) {
+          final ext = p.extension(meta.coverFileName ?? 'cover.jpg');
+          final dest = File(p.join(coversDir, '$id$ext'));
+          await dest.writeAsBytes(bytes);
+          coverPath = dest.path;
+        }
       }
       return BookMeta(
         title: meta.title,
@@ -106,6 +114,7 @@ Future<BookMeta> readBookMeta({
         return BookMeta(
           title: comic.book.title,
           author: comic.book.writer,
+          series: comic.book.series,
           coverPath: coverPath,
         );
       } finally {
@@ -123,7 +132,7 @@ Future<String?> _renderPdfCover(
   try {
     if (document.pages.isEmpty) return null;
     final page = document.pages.first;
-    const width = 600.0;
+    const width = coverWidth * 1.0;
     final rendered = await page.render(
       fullWidth: width,
       fullHeight: width * page.height / page.width,
@@ -148,19 +157,40 @@ Future<String?> _renderPdfCover(
 Future<String?> _renderImageCover(
   Uint8List image,
   String id,
-  String covers,
-) async {
-  final codec = await ui.instantiateImageCodec(image, targetWidth: 600);
+  String covers, {
+  String suffix = '',
+}) async {
+  final buffer = await ui.ImmutableBuffer.fromUint8List(image);
+  final descriptor = await ui.ImageDescriptor.encoded(buffer);
   try {
-    final frame = await codec.getNextFrame();
+    final codec = await descriptor.instantiateCodec(
+      targetWidth: math.min(descriptor.width, coverWidth),
+    );
     try {
-      return await _writePng(frame.image, id, covers);
+      final frame = await codec.getNextFrame();
+      try {
+        return await _writePng(frame.image, '$id$suffix', covers);
+      } finally {
+        frame.image.dispose();
+      }
     } finally {
-      frame.image.dispose();
+      codec.dispose();
     }
   } finally {
-    codec.dispose();
+    descriptor.dispose();
+    buffer.dispose();
   }
+}
+
+Future<String?> shrinkCover(String path, String id, String covers) async {
+  final bytes = await File(path).readAsBytes();
+  final buffer = await ui.ImmutableBuffer.fromUint8List(bytes);
+  final descriptor = await ui.ImageDescriptor.encoded(buffer);
+  final width = descriptor.width;
+  descriptor.dispose();
+  buffer.dispose();
+  if (width <= coverWidth + coverWidth ~/ 10) return null;
+  return _renderImageCover(bytes, id, covers, suffix: '-$coverWidth');
 }
 
 Future<String?> _writePng(ui.Image image, String id, String covers) async {

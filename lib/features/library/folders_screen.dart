@@ -2,6 +2,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/text_search.dart';
@@ -197,6 +198,7 @@ class _LevelView extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return CustomScrollView(
+      scrollCacheExtent: const ScrollCacheExtent.viewport(1),
       slivers: [
         if (level.folders.isNotEmpty)
           SliverPadding(

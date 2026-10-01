@@ -2,6 +2,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/text_search.dart';
@@ -14,12 +15,14 @@ import '../../data/local/app_database.dart';
 import 'book_search.dart';
 import 'library_scan_controller.dart';
 import 'library_shell.dart';
+import 'series_group.dart';
 import 'widgets/book_actions.dart';
 import 'widgets/book_cover.dart';
 import 'widgets/book_grid.dart';
 import 'widgets/continue_reading_row.dart';
 import 'widgets/empty_library_view.dart';
 import 'widgets/section_scaffold.dart';
+import 'widgets/series_sheet.dart';
 
 enum _SortMode {
   recent('Recientes'),
@@ -115,7 +118,6 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
     final library = ref.watch(libraryProvider);
     final continueReading =
         ref.watch(continueReadingProvider).valueOrNull ?? const [];
-    final scan = ref.watch(libraryScanProvider);
     final hasFolders =
         ref.watch(libraryFoldersProvider).valueOrNull?.isNotEmpty ?? false;
     final query = ref.watch(librarySearchProvider);
@@ -141,11 +143,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                     PopupMenuItem(value: m, child: Text(m.label)),
                 ],
               ),
-              IconButton(
-                onPressed: scan.running ? null : _rescan,
-                icon: const Icon(Icons.refresh),
-                tooltip: 'Actualizar biblioteca',
-              ),
+              _RescanButton(onPressed: _rescan),
               IconButton(
                 onPressed: _addFolder,
                 icon: const Icon(Icons.create_new_folder_outlined),
@@ -161,12 +159,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                 sort: _sort,
                 onChanged: (s) => setState(() => _sort = s),
               ),
-              IconButton(
-                onPressed: scan.running ? null : _rescan,
-                icon: const Icon(Icons.refresh, size: 20),
-                color: LannaColors.textMuted,
-                tooltip: 'Actualizar biblioteca',
-              ),
+              _RescanButton(onPressed: _rescan, muted: true),
               FilledButton.icon(
                 onPressed: _addFolder,
                 icon: const Icon(Icons.create_new_folder_outlined, size: 18),
@@ -175,7 +168,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
             ],
       child: Column(
         children: [
-          if (scan.running) _ScanBanner(scan: scan),
+          const _ScanBanner(),
           Expanded(
             child: _LibraryBody(
               library: library.whenData(
@@ -185,7 +178,6 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
               query: query,
               view: _view,
               hasFolders: hasFolders,
-              scanning: scan.running,
               onAddFolder: _addFolder,
               onRescan: _rescan,
               onBookMenu: _showBookMenu,
@@ -197,13 +189,31 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
   }
 }
 
-class _ScanBanner extends StatelessWidget {
-  const _ScanBanner({required this.scan});
+class _RescanButton extends ConsumerWidget {
+  const _RescanButton({required this.onPressed, this.muted = false});
 
-  final ScanState scan;
+  final VoidCallback onPressed;
+  final bool muted;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final running = ref.watch(libraryScanProvider.select((s) => s.running));
+    return IconButton(
+      onPressed: running ? null : onPressed,
+      icon: Icon(Icons.refresh, size: muted ? 20 : null),
+      color: muted ? LannaColors.textMuted : null,
+      tooltip: 'Actualizar biblioteca',
+    );
+  }
+}
+
+class _ScanBanner extends ConsumerWidget {
+  const _ScanBanner();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final scan = ref.watch(libraryScanProvider);
+    if (!scan.running) return const SizedBox.shrink();
     return Padding(
       padding: const EdgeInsets.fromLTRB(
         LannaSpacing.s6,
@@ -242,7 +252,6 @@ class _LibraryBody extends StatelessWidget {
     required this.query,
     required this.view,
     required this.hasFolders,
-    required this.scanning,
     required this.onAddFolder,
     required this.onRescan,
     required this.onBookMenu,
@@ -253,7 +262,6 @@ class _LibraryBody extends StatelessWidget {
   final String query;
   final _ViewMode view;
   final bool hasFolders;
-  final bool scanning;
   final VoidCallback onAddFolder;
   final Future<void> Function() onRescan;
   final void Function(Book book, Offset globalPosition) onBookMenu;
@@ -274,15 +282,18 @@ class _LibraryBody extends StatelessWidget {
               : FadeIn(
                   child: EmptyLibraryView(
                     hasFolders: hasFolders,
-                    scanning: scanning,
                     onAddFolder: onAddFolder,
                     onRescan: onRescan,
                   ),
                 );
         }
+        final entries = searching
+            ? [for (final b in books) BookEntry(b)]
+            : groupSeries(books);
         return RefreshIndicator(
           onRefresh: onRescan,
           child: CustomScrollView(
+            scrollCacheExtent: const ScrollCacheExtent.viewport(1),
             physics: const AlwaysScrollableScrollPhysics(),
             slivers: [
               if (continueReading.isNotEmpty) ...[
@@ -296,9 +307,14 @@ class _LibraryBody extends StatelessWidget {
                 trailing: '${books.length}',
               ),
               if (view == _ViewMode.grid)
-                BookGridSliver(books: books, onMenu: onBookMenu)
+                LibraryGridSliver(
+                  entries: entries,
+                  onMenu: onBookMenu,
+                  onOpenSeries: (series) =>
+                      unawaited(showSeries(context, series)),
+                )
               else
-                _BookListSliver(books: books, onMenu: onBookMenu),
+                _BookListSliver(entries: entries, onMenu: onBookMenu),
               const SliverToBoxAdapter(
                 child: SizedBox(height: LannaSpacing.s6),
               ),
@@ -435,8 +451,8 @@ class _SortButton extends StatelessWidget {
 }
 
 class _BookListSliver extends StatelessWidget {
-  const _BookListSliver({required this.books, required this.onMenu});
-  final List<Book> books;
+  const _BookListSliver({required this.entries, required this.onMenu});
+  final List<LibraryEntry> entries;
   final void Function(Book book, Offset globalPosition) onMenu;
 
   @override
@@ -444,10 +460,57 @@ class _BookListSliver extends StatelessWidget {
     return SliverPadding(
       padding: const EdgeInsets.symmetric(horizontal: LannaSpacing.s6),
       sliver: SliverList.separated(
-        itemCount: books.length,
+        itemCount: entries.length,
         separatorBuilder: (_, _) =>
             const Divider(height: 1, color: LannaColors.borderSubtle),
-        itemBuilder: (context, i) => _BookRow(book: books[i], onMenu: onMenu),
+        itemBuilder: (context, i) => switch (entries[i]) {
+          BookEntry(:final book) => _BookRow(book: book, onMenu: onMenu),
+          final SeriesEntry series => _SeriesRow(series: series),
+        },
+      ),
+    );
+  }
+}
+
+class _SeriesRow extends StatelessWidget {
+  const _SeriesRow({required this.series});
+  final SeriesEntry series;
+
+  @override
+  Widget build(BuildContext context) {
+    final count = series.volumes.length;
+    return InkWell(
+      onTap: () => unawaited(showSeries(context, series)),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: LannaSpacing.s3),
+        child: Row(
+          children: [
+            SizedBox(width: 34, child: BookCover(book: series.first)),
+            const SizedBox(width: LannaSpacing.s3),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    series.name,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: LannaType.md.copyWith(fontWeight: FontWeight.w600),
+                  ),
+                  Text(
+                    '$count ${count == 1 ? 'tomo' : 'tomos'}',
+                    style: LannaType.sm.copyWith(color: LannaColors.textMuted),
+                  ),
+                ],
+              ),
+            ),
+            const Icon(
+              Icons.layers_outlined,
+              size: 18,
+              color: LannaColors.textMuted,
+            ),
+          ],
+        ),
       ),
     );
   }

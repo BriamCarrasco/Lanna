@@ -121,6 +121,76 @@ void main() {
     await tester.pump(const Duration(milliseconds: 50));
   });
 
+  testWidgets('los tomos de una serie se agrupan y se abren en un modal', (
+    tester,
+  ) async {
+    final db = AppDatabase.forTesting(NativeDatabase.memory());
+    addTearDown(db.close);
+    for (final (id, path) in [
+      ('n2', 'Naruto Vol. 2.cbz'),
+      ('n10', 'Naruto Vol. 10.cbz'),
+      ('n1', 'Naruto Vol. 1.cbz'),
+    ]) {
+      await db.upsertBook(
+        BooksCompanion.insert(
+          id: id,
+          title: 'Tomo $id',
+          filePath: '/Libros/$path',
+          format: BookFormat.comic,
+          relativePath: Value(path),
+          series: const Value('Naruto'),
+        ),
+      );
+    }
+    await db.upsertBook(
+      BooksCompanion.insert(
+        id: 'r',
+        title: 'Rayuela',
+        filePath: '/Libros/Rayuela.epub',
+        format: BookFormat.epub,
+      ),
+    );
+    await db.saveProgress(bookId: 'n1', percent: 1);
+
+    await _pumpApp(tester, db);
+
+    expect(find.text('Naruto'), findsOneWidget);
+    expect(find.text('3 tomos'), findsOneWidget);
+    expect(find.text('Rayuela'), findsWidgets);
+    expect(find.text('Tomo n2'), findsNothing);
+    expect(find.text('Tomo n10'), findsNothing);
+
+    await tester.tap(find.text('Naruto'));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(Dialog), findsOneWidget);
+    expect(find.text('3 tomos · 1 leídos'), findsOneWidget);
+    final order = [
+      for (final id in ['n1', 'n2', 'n10'])
+        tester.getTopLeft(
+          find
+              .descendant(
+                of: find.byType(Dialog),
+                matching: find.text('Tomo $id'),
+              )
+              .last,
+        ),
+    ];
+    expect(order[0].dx < order[1].dx && order[1].dx < order[2].dx, isTrue);
+
+    await tester.tap(find.byTooltip('Cerrar'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(EditableText), 'naruto 10');
+    await tester.pumpAndSettle();
+
+    expect(find.text('Tomo n10'), findsWidgets);
+    expect(find.text('Tomo n2'), findsNothing);
+    expect(find.text('3 tomos'), findsNothing);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(const Duration(milliseconds: 50));
+  });
+
   testWidgets('cada portada lleva la etiqueta de su formato', (tester) async {
     final db = AppDatabase.forTesting(NativeDatabase.memory());
     addTearDown(db.close);

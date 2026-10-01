@@ -17,6 +17,13 @@ String formatLabel(Book book) => switch (book.format) {
         : 'CBZ',
 };
 
+const _coverStep = 64;
+
+int coverDecodeWidth(double logicalWidth, double pixelRatio) {
+  final physical = (logicalWidth * pixelRatio).ceil();
+  return ((physical + _coverStep - 1) ~/ _coverStep) * _coverStep;
+}
+
 class BookCover extends StatelessWidget {
   const BookCover({super.key, required this.book, this.showFormat = false});
 
@@ -33,9 +40,24 @@ class BookCover extends StatelessWidget {
         child: Stack(
           fit: StackFit.expand,
           children: [
-            (cover != null && File(cover).existsSync())
-                ? Image.file(File(cover), fit: BoxFit.cover)
-                : _FallbackCover(title: book.title),
+            if (cover == null)
+              _FallbackCover(title: book.title)
+            else
+              LayoutBuilder(
+                builder: (context, constraints) => Image(
+                  image: ResizeImage(
+                    FileImage(File(cover)),
+                    width: coverDecodeWidth(
+                      constraints.maxWidth,
+                      MediaQuery.devicePixelRatioOf(context),
+                    ),
+                    policy: ResizeImagePolicy.fit,
+                  ),
+                  fit: BoxFit.cover,
+                  gaplessPlayback: true,
+                  errorBuilder: (_, _, _) => _FallbackCover(title: book.title),
+                ),
+              ),
             if (showFormat)
               Positioned(
                 left: LannaSpacing.s1 + 2,

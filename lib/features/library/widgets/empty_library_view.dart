@@ -1,20 +1,20 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/tokens.dart';
+import '../library_scan_controller.dart';
 
 class EmptyLibraryView extends StatelessWidget {
   const EmptyLibraryView({
     super.key,
     required this.hasFolders,
-    required this.scanning,
     required this.onAddFolder,
     required this.onRescan,
   });
 
   final bool hasFolders;
-  final bool scanning;
   final VoidCallback onAddFolder;
   final VoidCallback onRescan;
 
@@ -61,10 +61,17 @@ class EmptyLibraryView extends StatelessWidget {
             ),
             const SizedBox(height: LannaSpacing.s5),
             if (hasFolders)
-              OutlinedButton.icon(
-                onPressed: scanning ? null : onRescan,
-                icon: const Icon(Icons.refresh, size: 18),
-                label: const Text('Actualizar'),
+              Consumer(
+                builder: (context, ref, _) {
+                  final running = ref.watch(
+                    libraryScanProvider.select((s) => s.running),
+                  );
+                  return OutlinedButton.icon(
+                    onPressed: running ? null : onRescan,
+                    icon: const Icon(Icons.refresh, size: 18),
+                    label: const Text('Actualizar'),
+                  );
+                },
               )
             else
               FilledButton.icon(

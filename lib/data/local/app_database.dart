@@ -38,7 +38,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 15;
+  int get schemaVersion => 16;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -90,6 +90,9 @@ class AppDatabase extends _$AppDatabase {
       }
       if (from < 15) {
         await m.addColumn(books, books.favoritedAt);
+      }
+      if (from < 16) {
+        await m.addColumn(books, books.series);
       }
     },
     beforeOpen: (details) async {
@@ -218,6 +221,12 @@ class AppDatabase extends _$AppDatabase {
     return (update(books)..where((b) => b.id.equals(id))).write(
       BooksCompanion(lastOpenedAt: Value(DateTime.now())),
     );
+  }
+
+  Stream<Map<String, double>> watchAllProgress() {
+    return select(readingProgress)
+        .watch()
+        .map((rows) => {for (final r in rows) r.bookId: r.percent});
   }
 
   Stream<ReadingProgressData?> watchProgress(String bookId) {

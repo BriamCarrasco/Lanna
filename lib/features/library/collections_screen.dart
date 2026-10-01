@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -154,6 +155,7 @@ class CollectionScreen extends ConsumerWidget {
               message: 'Esta colección está vacía',
             )
           : CustomScrollView(
+              scrollCacheExtent: const ScrollCacheExtent.viewport(1),
               slivers: [
                 const SliverToBoxAdapter(
                   child: SizedBox(height: LannaSpacing.s5),

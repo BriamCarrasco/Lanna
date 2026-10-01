@@ -1,11 +1,13 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 import 'dart:io';
+import 'dart:ui' as ui;
 
 import 'package:drift/drift.dart' show Value;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lanna/data/book_repository.dart';
 import 'package:lanna/data/import/fingerprint.dart';
+import 'package:lanna/data/library/book_metadata.dart';
 import 'package:lanna/data/library/folder_access.dart';
 import 'package:lanna/data/local/app_database.dart';
 import 'package:lanna/data/models/book_format.dart';
@@ -209,10 +211,116 @@ void main() {
     expect(file.existsSync(), isTrue);
   });
 
+  test('los cómics nuevos traen su serie, de ComicInfo o del nombre', () async {
+    File comic(String name, {String? info}) => File(p.join(libros.path, name))
+      ..writeAsBytesSync(buildComicZip(pages: ['$name.png'], comicInfo: info));
+    comic('Naruto Vol. 1.cbz');
+    comic('Naruto Vol. 2.cbz');
+    comic('abc.cbz', info: '<ComicInfo><Series>Saga</Series></ComicInfo>');
+    epub('Novela 1.epub', 'Novela');
+
+    await repo.pickFolder();
+    await repo.scan();
+
+    final byPath = {for (final b in await allBooks()) b.relativePath: b};
+    expect(byPath['Naruto Vol. 1.cbz']?.series, 'Naruto');
+    expect(byPath['Naruto Vol. 2.cbz']?.series, 'Naruto');
+    expect(byPath['abc.cbz']?.series, 'Saga');
+    expect(byPath['Novela 1.epub']?.series, isNull);
+  });
+
+  test('un cómic que ya estaba recibe su serie al volver a escanear', () async {
+    File(p.join(libros.path, 'Akira - Tomo 03.cbz'))
+        .writeAsBytesSync(buildComicZip(pages: const ['1.png']));
+    await repo.pickFolder();
+    await repo.scan();
+    final id = (await allBooks()).single.id;
+    await db.updateBook(id, const BooksCompanion(series: Value(null)));
+
+    await repo.scan();
+
+    expect((await db.findBook(id))?.series, 'Akira');
+  });
+
+  test('las portadas grandes se achican una sola vez', () async {
+    final covers = Directory(p.join(tmp.path, 'covers'))..createSync();
+    final big = File(p.join(covers.path, 'grande.png'))
+      ..writeAsBytesSync(await _png(1200, 1800));
+    final small = File(p.join(covers.path, 'chica.png'))
+      ..writeAsBytesSync(await _png(300, 450));
+    for (final (id, cover) in [('g', big), ('c', small)]) {
+      await db.upsertBook(
+        BooksCompanion.insert(
+          id: id,
+          title: id,
+          filePath: '/x/$id.epub',
+          format: BookFormat.epub,
+          coverPath: Value(cover.path),
+        ),
+      );
+    }
+
+    expect(await repo.shrinkCovers(), 1);
+    expect(await repo.shrinkCovers(), 0);
+
+    final shrunk = (await db.findBook('g'))!.coverPath!;
+    expect(shrunk, isNot(big.path));
+    expect(big.existsSync(), isFalse);
+    expect(await _width(File(shrunk)), coverWidth);
+    expect((await db.findBook('c'))!.coverPath, small.path);
+  });
+
+  test('una copia idéntica en otra carpeta no le roba el lugar', () async {
+    final original = epub('ERASED/Tomo 01.epub', 'Tomo 01');
+    await repo.pickFolder();
+    await repo.scan();
+    final id = (await allBooks()).single.id;
+
+    final descargas = Directory(p.join(tmp.path, 'Descargas'))..createSync();
+    original.copySync(p.join(descargas.path, 'Tomo 01.epub'));
+    original.copySync(p.join(libros.path, 'Tomo 01.epub'));
+    access.next = descargas.path;
+    await repo.pickFolder();
+
+    for (var i = 0; i < 3; i++) {
+      final report = await repo.scan();
+      expect(report.relocated, 0, reason: 'escaneo $i');
+      expect(report.missing, 0, reason: 'escaneo $i');
+    }
+
+    final book = (await allBooks()).single;
+    expect(book.id, id);
+    expect(book.relativePath, 'ERASED/Tomo 01.epub');
+    expect(book.available, isTrue);
+  });
+
   test('elegir la misma carpeta dos veces no la duplica', () async {
     await repo.pickFolder();
     await repo.pickFolder();
 
     expect(await db.allFolders(), hasLength(1));
   });
+}
+
+Future<List<int>> _png(int width, int height) async {
+  final recorder = ui.PictureRecorder();
+  ui.Canvas(recorder).drawRect(
+    ui.Rect.fromLTWH(0, 0, width.toDouble(), height.toDouble()),
+    ui.Paint()..color = const ui.Color(0xFF884422),
+  );
+  final image = await recorder.endRecording().toImage(width, height);
+  final data = await image.toByteData(format: ui.ImageByteFormat.png);
+  image.dispose();
+  return data!.buffer.asUint8List();
+}
+
+Future<int> _width(File file) async {
+  final buffer = await ui.ImmutableBuffer.fromUint8List(
+    await file.readAsBytes(),
+  );
+  final descriptor = await ui.ImageDescriptor.encoded(buffer);
+  final width = descriptor.width;
+  descriptor.dispose();
+  buffer.dispose();
+  return width;
 }

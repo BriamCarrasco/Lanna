@@ -9,6 +9,7 @@ const _bookColumnsSince = {
   13: ['reading_direction'],
   14: ['folder_id', 'relative_path', 'file_modified', 'available', 'hidden'],
   15: ['favorited_at'],
+  16: ['series'],
 };
 
 void main() {

@@ -8,9 +8,11 @@ import 'package:uuid/uuid.dart';
 
 import '../import/fingerprint.dart';
 import '../local/app_database.dart';
+import '../models/book_format.dart';
 import '../storage/random_source.dart';
 import 'book_metadata.dart';
 import 'folder_access.dart';
+import 'series.dart';
 
 typedef LibraryDirs = ({String covers, String cache, String legacyBooks});
 
@@ -56,37 +58,43 @@ class LibraryScanner {
 
     var added = 0, relocated = 0, missing = 0, failed = 0;
     final unreachable = <String>[];
+    final seen = <String>{};
+    final claimed = <(LibraryFolder, FolderEntry, Book?)>[];
+    final others = <(LibraryFolder, FolderEntry, Book?)>[];
+    final reachable = <LibraryFolder>[];
     for (final (folder, entries) in listed) {
       if (entries == null) {
         unreachable.add(folder.name);
         missing += await _markMissing(folder.id, const {});
         continue;
       }
-      final seen = <String>{};
+      reachable.add(folder);
       final known = {
         for (final b in await _db.booksInFolder(folder.id))
           if (b.relativePath != null) b.relativePath!: b,
       };
       for (final entry in entries) {
-        try {
-          switch (await _scanEntry(
-            folder,
-            entry,
-            known[entry.relativePath],
-            seen,
-          )) {
-            case _Outcome.added:
-              added++;
-            case _Outcome.relocated:
-              relocated++;
-            case _Outcome.unchanged:
-              break;
-          }
-        } catch (_) {
-          failed++;
-        }
-        onProgress?.call(++done, total);
+        final book = known[entry.relativePath];
+        (book != null ? claimed : others).add((folder, entry, book));
       }
+    }
+
+    for (final (folder, entry, book) in [...claimed, ...others]) {
+      try {
+        switch (await _scanEntry(folder, entry, book, seen)) {
+          case _Outcome.added:
+            added++;
+          case _Outcome.relocated:
+            relocated++;
+          case _Outcome.unchanged:
+            break;
+        }
+      } catch (_) {
+        failed++;
+      }
+      onProgress?.call(++done, total);
+    }
+    for (final folder in reachable) {
       missing += await _markMissing(folder.id, seen);
     }
     return ScanReport(
@@ -116,12 +124,16 @@ class LibraryScanner {
         known.fileModified == entry.modified &&
         !seen.contains(known.id)) {
       seen.add(known.id);
-      if (!known.available || known.filePath != entry.location) {
+      final series = _missingSeries(known, entry);
+      if (!known.available ||
+          known.filePath != entry.location ||
+          series != null) {
         await _db.updateBook(
           known.id,
           BooksCompanion(
             filePath: Value(entry.location),
             available: const Value(true),
+            series: series == null ? const Value.absent() : Value(series),
           ),
         );
       }
@@ -145,7 +157,13 @@ class LibraryScanner {
       if (match != null) {
         if (seen.contains(match.id)) return _Outcome.unchanged;
         seen.add(match.id);
-        await _db.updateBook(match.id, _location(folder, entry, hash));
+        final series = _missingSeries(match, entry);
+        await _db.updateBook(
+          match.id,
+          _location(folder, entry, hash).copyWith(
+            series: series == null ? const Value.absent() : Value(series),
+          ),
+        );
         if (match.folderId == null) await _discardLegacyCopy(match.filePath);
         return _Outcome.relocated;
       }
@@ -171,6 +189,11 @@ class LibraryScanner {
           author: Value(meta.author),
           coverPath: Value(meta.coverPath),
           format: Value(format),
+          series: Value(
+            format == BookFormat.comic
+                ? (meta.series ?? seriesFromFileName(entry.relativePath))
+                : null,
+          ),
         ),
       );
       seen.add(id);
@@ -178,6 +201,11 @@ class LibraryScanner {
     } finally {
       opened.close();
     }
+  }
+
+  String? _missingSeries(Book book, FolderEntry entry) {
+    if (book.format != BookFormat.comic || book.series != null) return null;
+    return seriesFromFileName(entry.relativePath);
   }
 
   BooksCompanion _location(

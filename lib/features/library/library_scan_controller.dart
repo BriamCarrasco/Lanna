@@ -25,10 +25,12 @@ class LibraryScanController extends Notifier<ScanState> {
   @override
   ScanState build() => const ScanState();
 
-  Future<ScanReport?> scanOnStartup() {
-    if (_startedOnce) return Future.value();
+  Future<ScanReport?> scanOnStartup() async {
+    if (_startedOnce) return null;
     _startedOnce = true;
-    return scan();
+    final report = await scan();
+    await ref.read(bookRepositoryProvider).shrinkCovers();
+    return report;
   }
 
   Future<ScanReport?> scan() async {

@@ -7,6 +7,7 @@ import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:uuid/uuid.dart';
 
+import 'library/book_metadata.dart';
 import 'library/folder_access.dart';
 import 'library/library_scanner.dart';
 import 'local/app_database.dart';
@@ -27,9 +28,11 @@ class BookRepository {
     this._db,
     this._access, {
     Future<LibraryDirs> Function() dirs = defaultLibraryDirs,
-  }) : _scanner = LibraryScanner(_db, _access, dirs);
+  }) : _dirs = dirs,
+       _scanner = LibraryScanner(_db, _access, dirs);
 
   final AppDatabase _db;
+  final Future<LibraryDirs> Function() _dirs;
   final FolderAccess _access;
   final LibraryScanner _scanner;
 
@@ -68,6 +71,32 @@ class BookRepository {
       _scanner.scanAll(onProgress: onProgress);
 
   Future<OpenedFile> openBookFile(Book book) => _access.open(book.filePath);
+
+  Future<int> shrinkCovers() async {
+    final dirs = await _dirs();
+    final marker = File(p.join(dirs.covers, '.miniaturas-$coverWidth'));
+    if (marker.existsSync()) return 0;
+    var shrunk = 0;
+    for (final book in await _db.select(_db.books).get()) {
+      final cover = book.coverPath;
+      if (cover == null || !File(cover).existsSync()) continue;
+      try {
+        final smaller = await shrinkCover(cover, book.id, dirs.covers);
+        if (smaller == null || smaller == cover) continue;
+        await _db.updateBook(
+          book.id,
+          BooksCompanion(coverPath: Value(smaller)),
+        );
+        await File(cover).delete();
+        shrunk++;
+      } catch (_) {}
+    }
+    try {
+      await marker.parent.create(recursive: true);
+      await marker.writeAsString('');
+    } catch (_) {}
+    return shrunk;
+  }
 
   Stream<List<Book>> watchFavorites() => _db.watchFavorites();
 
@@ -225,6 +254,10 @@ final bookRepositoryProvider = Provider<BookRepository>((ref) {
 
 final libraryFoldersProvider = StreamProvider<List<LibraryFolder>>((ref) {
   return ref.watch(bookRepositoryProvider).watchFolders();
+});
+
+final progressByBookProvider = StreamProvider<Map<String, double>>((ref) {
+  return ref.watch(appDatabaseProvider).watchAllProgress();
 });
 
 final favoritesProvider = StreamProvider<List<Book>>((ref) {

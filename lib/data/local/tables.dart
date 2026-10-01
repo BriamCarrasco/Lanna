@@ -38,6 +38,8 @@ class Books extends Table {
 
   DateTimeColumn get favoritedAt => dateTime().nullable()();
 
+  TextColumn get series => text().nullable()();
+
   DateTimeColumn get addedAt => dateTime().withDefault(currentDateAndTime)();
 
   DateTimeColumn get lastOpenedAt => dateTime().nullable()();

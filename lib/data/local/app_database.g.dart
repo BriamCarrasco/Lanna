@@ -485,6 +485,15 @@ class $BooksTable extends Books with TableInfo<$BooksTable, Book> {
     type: DriftSqlType.dateTime,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _seriesMeta = const VerificationMeta('series');
+  @override
+  late final GeneratedColumn<String> series = GeneratedColumn<String>(
+    'series',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _addedAtMeta = const VerificationMeta(
     'addedAt',
   );
@@ -525,6 +534,7 @@ class $BooksTable extends Books with TableInfo<$BooksTable, Book> {
     available,
     hidden,
     favoritedAt,
+    series,
     addedAt,
     lastOpenedAt,
   ];
@@ -645,6 +655,12 @@ class $BooksTable extends Books with TableInfo<$BooksTable, Book> {
         ),
       );
     }
+    if (data.containsKey('series')) {
+      context.handle(
+        _seriesMeta,
+        series.isAcceptableOrUnknown(data['series']!, _seriesMeta),
+      );
+    }
     if (data.containsKey('added_at')) {
       context.handle(
         _addedAtMeta,
@@ -731,6 +747,10 @@ class $BooksTable extends Books with TableInfo<$BooksTable, Book> {
         DriftSqlType.dateTime,
         data['${effectivePrefix}favorited_at'],
       ),
+      series: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}series'],
+      ),
       addedAt: attachedDatabase.typeMapping.read(
         DriftSqlType.dateTime,
         data['${effectivePrefix}added_at'],
@@ -767,6 +787,7 @@ class Book extends DataClass implements Insertable<Book> {
   final bool available;
   final bool hidden;
   final DateTime? favoritedAt;
+  final String? series;
   final DateTime addedAt;
   final DateTime? lastOpenedAt;
   const Book({
@@ -785,6 +806,7 @@ class Book extends DataClass implements Insertable<Book> {
     required this.available,
     required this.hidden,
     this.favoritedAt,
+    this.series,
     required this.addedAt,
     this.lastOpenedAt,
   });
@@ -828,6 +850,9 @@ class Book extends DataClass implements Insertable<Book> {
     if (!nullToAbsent || favoritedAt != null) {
       map['favorited_at'] = Variable<DateTime>(favoritedAt);
     }
+    if (!nullToAbsent || series != null) {
+      map['series'] = Variable<String>(series);
+    }
     map['added_at'] = Variable<DateTime>(addedAt);
     if (!nullToAbsent || lastOpenedAt != null) {
       map['last_opened_at'] = Variable<DateTime>(lastOpenedAt);
@@ -870,6 +895,9 @@ class Book extends DataClass implements Insertable<Book> {
       favoritedAt: favoritedAt == null && nullToAbsent
           ? const Value.absent()
           : Value(favoritedAt),
+      series: series == null && nullToAbsent
+          ? const Value.absent()
+          : Value(series),
       addedAt: Value(addedAt),
       lastOpenedAt: lastOpenedAt == null && nullToAbsent
           ? const Value.absent()
@@ -900,6 +928,7 @@ class Book extends DataClass implements Insertable<Book> {
       available: serializer.fromJson<bool>(json['available']),
       hidden: serializer.fromJson<bool>(json['hidden']),
       favoritedAt: serializer.fromJson<DateTime?>(json['favoritedAt']),
+      series: serializer.fromJson<String?>(json['series']),
       addedAt: serializer.fromJson<DateTime>(json['addedAt']),
       lastOpenedAt: serializer.fromJson<DateTime?>(json['lastOpenedAt']),
     );
@@ -925,6 +954,7 @@ class Book extends DataClass implements Insertable<Book> {
       'available': serializer.toJson<bool>(available),
       'hidden': serializer.toJson<bool>(hidden),
       'favoritedAt': serializer.toJson<DateTime?>(favoritedAt),
+      'series': serializer.toJson<String?>(series),
       'addedAt': serializer.toJson<DateTime>(addedAt),
       'lastOpenedAt': serializer.toJson<DateTime?>(lastOpenedAt),
     };
@@ -946,6 +976,7 @@ class Book extends DataClass implements Insertable<Book> {
     bool? available,
     bool? hidden,
     Value<DateTime?> favoritedAt = const Value.absent(),
+    Value<String?> series = const Value.absent(),
     DateTime? addedAt,
     Value<DateTime?> lastOpenedAt = const Value.absent(),
   }) => Book(
@@ -968,6 +999,7 @@ class Book extends DataClass implements Insertable<Book> {
     available: available ?? this.available,
     hidden: hidden ?? this.hidden,
     favoritedAt: favoritedAt.present ? favoritedAt.value : this.favoritedAt,
+    series: series.present ? series.value : this.series,
     addedAt: addedAt ?? this.addedAt,
     lastOpenedAt: lastOpenedAt.present ? lastOpenedAt.value : this.lastOpenedAt,
   );
@@ -1000,6 +1032,7 @@ class Book extends DataClass implements Insertable<Book> {
       favoritedAt: data.favoritedAt.present
           ? data.favoritedAt.value
           : this.favoritedAt,
+      series: data.series.present ? data.series.value : this.series,
       addedAt: data.addedAt.present ? data.addedAt.value : this.addedAt,
       lastOpenedAt: data.lastOpenedAt.present
           ? data.lastOpenedAt.value
@@ -1025,6 +1058,7 @@ class Book extends DataClass implements Insertable<Book> {
           ..write('available: $available, ')
           ..write('hidden: $hidden, ')
           ..write('favoritedAt: $favoritedAt, ')
+          ..write('series: $series, ')
           ..write('addedAt: $addedAt, ')
           ..write('lastOpenedAt: $lastOpenedAt')
           ..write(')'))
@@ -1048,6 +1082,7 @@ class Book extends DataClass implements Insertable<Book> {
     available,
     hidden,
     favoritedAt,
+    series,
     addedAt,
     lastOpenedAt,
   );
@@ -1070,6 +1105,7 @@ class Book extends DataClass implements Insertable<Book> {
           other.available == this.available &&
           other.hidden == this.hidden &&
           other.favoritedAt == this.favoritedAt &&
+          other.series == this.series &&
           other.addedAt == this.addedAt &&
           other.lastOpenedAt == this.lastOpenedAt);
 }
@@ -1090,6 +1126,7 @@ class BooksCompanion extends UpdateCompanion<Book> {
   final Value<bool> available;
   final Value<bool> hidden;
   final Value<DateTime?> favoritedAt;
+  final Value<String?> series;
   final Value<DateTime> addedAt;
   final Value<DateTime?> lastOpenedAt;
   final Value<int> rowid;
@@ -1109,6 +1146,7 @@ class BooksCompanion extends UpdateCompanion<Book> {
     this.available = const Value.absent(),
     this.hidden = const Value.absent(),
     this.favoritedAt = const Value.absent(),
+    this.series = const Value.absent(),
     this.addedAt = const Value.absent(),
     this.lastOpenedAt = const Value.absent(),
     this.rowid = const Value.absent(),
@@ -1129,6 +1167,7 @@ class BooksCompanion extends UpdateCompanion<Book> {
     this.available = const Value.absent(),
     this.hidden = const Value.absent(),
     this.favoritedAt = const Value.absent(),
+    this.series = const Value.absent(),
     this.addedAt = const Value.absent(),
     this.lastOpenedAt = const Value.absent(),
     this.rowid = const Value.absent(),
@@ -1152,6 +1191,7 @@ class BooksCompanion extends UpdateCompanion<Book> {
     Expression<bool>? available,
     Expression<bool>? hidden,
     Expression<DateTime>? favoritedAt,
+    Expression<String>? series,
     Expression<DateTime>? addedAt,
     Expression<DateTime>? lastOpenedAt,
     Expression<int>? rowid,
@@ -1172,6 +1212,7 @@ class BooksCompanion extends UpdateCompanion<Book> {
       if (available != null) 'available': available,
       if (hidden != null) 'hidden': hidden,
       if (favoritedAt != null) 'favorited_at': favoritedAt,
+      if (series != null) 'series': series,
       if (addedAt != null) 'added_at': addedAt,
       if (lastOpenedAt != null) 'last_opened_at': lastOpenedAt,
       if (rowid != null) 'rowid': rowid,
@@ -1194,6 +1235,7 @@ class BooksCompanion extends UpdateCompanion<Book> {
     Value<bool>? available,
     Value<bool>? hidden,
     Value<DateTime?>? favoritedAt,
+    Value<String?>? series,
     Value<DateTime>? addedAt,
     Value<DateTime?>? lastOpenedAt,
     Value<int>? rowid,
@@ -1214,6 +1256,7 @@ class BooksCompanion extends UpdateCompanion<Book> {
       available: available ?? this.available,
       hidden: hidden ?? this.hidden,
       favoritedAt: favoritedAt ?? this.favoritedAt,
+      series: series ?? this.series,
       addedAt: addedAt ?? this.addedAt,
       lastOpenedAt: lastOpenedAt ?? this.lastOpenedAt,
       rowid: rowid ?? this.rowid,
@@ -1270,6 +1313,9 @@ class BooksCompanion extends UpdateCompanion<Book> {
     if (favoritedAt.present) {
       map['favorited_at'] = Variable<DateTime>(favoritedAt.value);
     }
+    if (series.present) {
+      map['series'] = Variable<String>(series.value);
+    }
     if (addedAt.present) {
       map['added_at'] = Variable<DateTime>(addedAt.value);
     }
@@ -1300,6 +1346,7 @@ class BooksCompanion extends UpdateCompanion<Book> {
           ..write('available: $available, ')
           ..write('hidden: $hidden, ')
           ..write('favoritedAt: $favoritedAt, ')
+          ..write('series: $series, ')
           ..write('addedAt: $addedAt, ')
           ..write('lastOpenedAt: $lastOpenedAt, ')
           ..write('rowid: $rowid')
@@ -4196,6 +4243,7 @@ typedef $$BooksTableCreateCompanionBuilder = BooksCompanion Function({
   Value<bool> available,
   Value<bool> hidden,
   Value<DateTime?> favoritedAt,
+  Value<String?> series,
   Value<DateTime> addedAt,
   Value<DateTime?> lastOpenedAt,
   Value<int> rowid,
@@ -4216,6 +4264,7 @@ typedef $$BooksTableUpdateCompanionBuilder = BooksCompanion Function({
   Value<bool> available,
   Value<bool> hidden,
   Value<DateTime?> favoritedAt,
+  Value<String?> series,
   Value<DateTime> addedAt,
   Value<DateTime?> lastOpenedAt,
   Value<int> rowid,
@@ -4396,6 +4445,11 @@ class $$BooksTableFilterComposer extends Composer<_$AppDatabase, $BooksTable> {
 
   ColumnFilters<DateTime> get favoritedAt => $composableBuilder(
     column: $table.favoritedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get series => $composableBuilder(
+    column: $table.series,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -4612,6 +4666,11 @@ class $$BooksTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get series => $composableBuilder(
+    column: $table.series,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<DateTime> get addedAt => $composableBuilder(
     column: $table.addedAt,
     builder: (column) => ColumnOrderings(column),
@@ -4708,6 +4767,9 @@ class $$BooksTableAnnotationComposer
     column: $table.favoritedAt,
     builder: (column) => column,
   );
+
+  GeneratedColumn<String> get series =>
+      $composableBuilder(column: $table.series, builder: (column) => column);
 
   GeneratedColumn<DateTime> get addedAt =>
       $composableBuilder(column: $table.addedAt, builder: (column) => column);
@@ -4891,6 +4953,7 @@ class $$BooksTableTableManager
                 Value<bool> available = const Value.absent(),
                 Value<bool> hidden = const Value.absent(),
                 Value<DateTime?> favoritedAt = const Value.absent(),
+                Value<String?> series = const Value.absent(),
                 Value<DateTime> addedAt = const Value.absent(),
                 Value<DateTime?> lastOpenedAt = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
@@ -4910,6 +4973,7 @@ class $$BooksTableTableManager
                 available: available,
                 hidden: hidden,
                 favoritedAt: favoritedAt,
+                series: series,
                 addedAt: addedAt,
                 lastOpenedAt: lastOpenedAt,
                 rowid: rowid,
@@ -4931,6 +4995,7 @@ class $$BooksTableTableManager
                 Value<bool> available = const Value.absent(),
                 Value<bool> hidden = const Value.absent(),
                 Value<DateTime?> favoritedAt = const Value.absent(),
+                Value<String?> series = const Value.absent(),
                 Value<DateTime> addedAt = const Value.absent(),
                 Value<DateTime?> lastOpenedAt = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
@@ -4950,6 +5015,7 @@ class $$BooksTableTableManager
                 available: available,
                 hidden: hidden,
                 favoritedAt: favoritedAt,
+                series: series,
                 addedAt: addedAt,
                 lastOpenedAt: lastOpenedAt,
                 rowid: rowid,

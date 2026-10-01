@@ -164,6 +164,7 @@ class ComicArchive {
         pages: pages,
         title: meta.title,
         writer: meta.writer,
+        series: meta.series,
         rtl: meta.rtl,
       ),
       requests,
