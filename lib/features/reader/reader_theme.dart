@@ -119,6 +119,7 @@ class ReaderSettings {
     this.pageAnimation = 'slide',
     this.edgeTaps = true,
     this.keepAwake = false,
+    this.pageNumbers = true,
   });
 
   static const lineHeights = [1.45, 1.7, 2.0];
@@ -138,6 +139,7 @@ class ReaderSettings {
   final String pageAnimation;
   final bool edgeTaps;
   final bool keepAwake;
+  final bool pageNumbers;
 
   static const minScale = 70;
   static const maxScale = 220;
@@ -153,6 +155,7 @@ class ReaderSettings {
       pageAnimation: sanitizeAnimation(row.pageAnimation),
       edgeTaps: row.edgeTaps,
       keepAwake: row.keepAwake,
+      pageNumbers: row.pageNumbers,
     );
   }
 
@@ -165,6 +168,7 @@ class ReaderSettings {
     pageAnimation: Value(pageAnimation),
     edgeTaps: Value(edgeTaps),
     keepAwake: Value(keepAwake),
+    pageNumbers: Value(pageNumbers),
   );
 
   ReaderSettings copyWith({
@@ -176,6 +180,7 @@ class ReaderSettings {
     String? pageAnimation,
     bool? edgeTaps,
     bool? keepAwake,
+    bool? pageNumbers,
   }) => ReaderSettings(
     preset: preset ?? this.preset,
     fontScale: (fontScale ?? this.fontScale).clamp(minScale, maxScale),
@@ -185,6 +190,7 @@ class ReaderSettings {
     pageAnimation: sanitizeAnimation(pageAnimation ?? this.pageAnimation),
     edgeTaps: edgeTaps ?? this.edgeTaps,
     keepAwake: keepAwake ?? this.keepAwake,
+    pageNumbers: pageNumbers ?? this.pageNumbers,
   );
 
   static const fontFamilies = ['serif', 'sans', 'book'];
@@ -199,5 +205,6 @@ class ReaderSettings {
     columnMode: columns,
     pageAnimation: pageAnimation,
     edgeTaps: edgeTaps,
+    pageNumbers: pageNumbers,
   );
 }

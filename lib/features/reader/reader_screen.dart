@@ -1052,6 +1052,11 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
                                 .setColumns(m),
                             rtl: _rtl,
                             onDirection: _caps.directional ? _setRtl : null,
+                            onPageNumbers: !_caps.reflowable
+                                ? null
+                                : (v) => ref
+                                      .read(readerSettingsControllerProvider)
+                                      .setPageNumbers(v),
                           )
                         : const SizedBox.shrink(),
                   ),

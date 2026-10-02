@@ -48,6 +48,11 @@ void main() {
     await db.customStatement('DROP TABLE books');
     await db.customStatement('ALTER TABLE books_old RENAME TO books');
     if (version < 14) await db.customStatement('DROP TABLE library_folders');
+    if (version < 17) {
+      await db.customStatement(
+        'ALTER TABLE reader_prefs DROP COLUMN page_numbers',
+      );
+    }
     if (withDeadTable) {
       await db.customStatement(
         'CREATE TABLE book_locations ('
@@ -147,6 +152,15 @@ void main() {
     final book = await db.findBook('uno');
     expect(book?.favoritedAt, isNull);
     expect(await db.watchFavorites().first, isEmpty);
+  });
+
+  test('de v16 a v17 llega el número de página, activado', () async {
+    final db = await atSchema(16);
+    addTearDown(db.close);
+
+    await db.migration.onUpgrade(Migrator(db), 16, 17);
+
+    expect(await columns(db, 'reader_prefs'), contains('page_numbers'));
   });
 
   test('una base ya en la versión actual no se toca', () async {

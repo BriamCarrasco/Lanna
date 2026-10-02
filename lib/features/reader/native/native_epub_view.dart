@@ -11,6 +11,7 @@ import '../../../data/epub/epub_document.dart';
 import '../reader_engine.dart';
 import 'book_source.dart';
 import 'page_canvas.dart';
+import 'page_estimate.dart';
 import 'paginator.dart';
 
 class NativeEpubView extends StatefulWidget {
@@ -53,6 +54,7 @@ class _NativeEpubViewState extends State<NativeEpubView>
   double _insetTop = 0;
   double _insetBottom = 0;
   String _columnMode = 'auto';
+  bool _pageNumbers = true;
 
   @override
   void initState() {
@@ -443,6 +445,7 @@ class _NativeEpubViewState extends State<NativeEpubView>
     _background = _parseColor(presentation.background, _background);
     _foreground = _parseColor(presentation.foreground, _foreground);
     _link = _parseColor(presentation.link, _link);
+    _pageNumbers = presentation.pageNumbers;
 
     final before = _layoutKey;
     _columnMode = presentation.columnMode;
@@ -651,26 +654,91 @@ class _NativeEpubViewState extends State<NativeEpubView>
       key: _boundary,
       child: ColoredBox(
         color: _background,
-        child: SelectionArea(
-          key: _selectionKey,
-          contextMenuBuilder: (_, _) => const SizedBox.shrink(),
-          child: page == null
-              ? const SizedBox.expand()
-              : NativePage(
-                  key: ValueKey('$_chapter/${page.index}'),
-                  page: page,
-                  style: _style,
-                  metrics: _metrics,
-                  source: widget.source,
-                  foreground: _foreground,
-                  linkColor: _link,
-                  highlights: _pageHighlights,
-                  onSelection: _onSelection,
-                  onHighlightTap: widget.callbacks.onHighlightTapped,
-                ),
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            SelectionArea(
+              key: _selectionKey,
+              contextMenuBuilder: (_, _) => const SizedBox.shrink(),
+              child: page == null
+                  ? const SizedBox.expand()
+                  : NativePage(
+                      key: ValueKey('$_chapter/${page.index}'),
+                      page: page,
+                      style: _style,
+                      metrics: _metrics,
+                      source: widget.source,
+                      foreground: _foreground,
+                      linkColor: _link,
+                      highlights: _pageHighlights,
+                      onSelection: _onSelection,
+                      onHighlightTap: widget.callbacks.onHighlightTapped,
+                    ),
+            ),
+            if (page != null) ..._pageFooter(page),
+          ],
         ),
       ),
     );
+  }
+
+  List<Widget> _pageFooter(PageLayout page) {
+    if (!_pageNumbers) return const [];
+    final estimate = estimatePage(
+      chapter: _chapter,
+      pageInChapter: page.index,
+      weights: [
+        for (var c = 0; c < widget.source.chapterCount; c++)
+          widget.source.weightOf(c),
+      ],
+      knownPages: {
+        for (final entry in _jobs.entries)
+          if (entry.value.isDone) entry.key: entry.value.pageCount,
+      },
+    );
+    if (estimate == null) return const [];
+
+    final style = TextStyle(
+      fontFamily: AppFonts.ui,
+      fontSize: 11.5,
+      height: 1,
+      color: _foreground.withValues(alpha: 0.45),
+      fontFeatures: const [FontFeature.tabularFigures()],
+    );
+    final metrics = _metrics;
+    final bottom = (metrics.padding.bottom / 2 - 6).clamp(6.0, 200.0);
+    if (metrics.columns <= 1) {
+      return [
+        Positioned(
+          left: 0,
+          right: 0,
+          bottom: bottom,
+          child: Text(
+            '${estimate.current} / ${estimate.total}',
+            textAlign: TextAlign.center,
+            style: style,
+          ),
+        ),
+      ];
+    }
+    final used = {for (final f in page.fragments) f.column};
+    return [
+      for (var column = 0; column < metrics.columns; column++)
+        if (used.contains(column))
+          Positioned(
+            left:
+                metrics.padding.left +
+                (widget.source.rtl ? metrics.columns - 1 - column : column) *
+                    (metrics.columnWidth + metrics.columnGap),
+            width: metrics.columnWidth,
+            bottom: bottom,
+            child: Text(
+              '${(estimate.current - 1) * metrics.columns + column + 1}',
+              textAlign: TextAlign.center,
+              style: style,
+            ),
+          ),
+    ];
   }
 
   @override

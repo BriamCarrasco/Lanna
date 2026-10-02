@@ -64,6 +64,7 @@ class ReaderPresentation {
     this.columnMode = 'auto',
     this.pageAnimation = 'slide',
     this.edgeTaps = true,
+    this.pageNumbers = true,
   });
 
   final String background;
@@ -76,6 +77,7 @@ class ReaderPresentation {
   final String columnMode;
   final String pageAnimation;
   final bool edgeTaps;
+  final bool pageNumbers;
 }
 
 class ReaderCapabilities {

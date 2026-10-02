@@ -1844,6 +1844,21 @@ class $ReaderPrefsTable extends ReaderPrefs
     ),
     defaultValue: const Constant(false),
   );
+  static const VerificationMeta _pageNumbersMeta = const VerificationMeta(
+    'pageNumbers',
+  );
+  @override
+  late final GeneratedColumn<bool> pageNumbers = GeneratedColumn<bool>(
+    'page_numbers',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("page_numbers" IN (0, 1))',
+    ),
+    defaultValue: const Constant(true),
+  );
   static const VerificationMeta _engineMeta = const VerificationMeta('engine');
   @override
   late final GeneratedColumn<String> engine = GeneratedColumn<String>(
@@ -1865,6 +1880,7 @@ class $ReaderPrefsTable extends ReaderPrefs
     pageAnimation,
     edgeTaps,
     keepAwake,
+    pageNumbers,
     engine,
   ];
   @override
@@ -1933,6 +1949,15 @@ class $ReaderPrefsTable extends ReaderPrefs
         keepAwake.isAcceptableOrUnknown(data['keep_awake']!, _keepAwakeMeta),
       );
     }
+    if (data.containsKey('page_numbers')) {
+      context.handle(
+        _pageNumbersMeta,
+        pageNumbers.isAcceptableOrUnknown(
+          data['page_numbers']!,
+          _pageNumbersMeta,
+        ),
+      );
+    }
     if (data.containsKey('engine')) {
       context.handle(
         _engineMeta,
@@ -1984,6 +2009,10 @@ class $ReaderPrefsTable extends ReaderPrefs
         DriftSqlType.bool,
         data['${effectivePrefix}keep_awake'],
       )!,
+      pageNumbers: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}page_numbers'],
+      )!,
       engine: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}engine'],
@@ -2007,6 +2036,7 @@ class ReaderPref extends DataClass implements Insertable<ReaderPref> {
   final String pageAnimation;
   final bool edgeTaps;
   final bool keepAwake;
+  final bool pageNumbers;
   final String engine;
   const ReaderPref({
     required this.id,
@@ -2018,6 +2048,7 @@ class ReaderPref extends DataClass implements Insertable<ReaderPref> {
     required this.pageAnimation,
     required this.edgeTaps,
     required this.keepAwake,
+    required this.pageNumbers,
     required this.engine,
   });
   @override
@@ -2032,6 +2063,7 @@ class ReaderPref extends DataClass implements Insertable<ReaderPref> {
     map['page_animation'] = Variable<String>(pageAnimation);
     map['edge_taps'] = Variable<bool>(edgeTaps);
     map['keep_awake'] = Variable<bool>(keepAwake);
+    map['page_numbers'] = Variable<bool>(pageNumbers);
     map['engine'] = Variable<String>(engine);
     return map;
   }
@@ -2047,6 +2079,7 @@ class ReaderPref extends DataClass implements Insertable<ReaderPref> {
       pageAnimation: Value(pageAnimation),
       edgeTaps: Value(edgeTaps),
       keepAwake: Value(keepAwake),
+      pageNumbers: Value(pageNumbers),
       engine: Value(engine),
     );
   }
@@ -2066,6 +2099,7 @@ class ReaderPref extends DataClass implements Insertable<ReaderPref> {
       pageAnimation: serializer.fromJson<String>(json['pageAnimation']),
       edgeTaps: serializer.fromJson<bool>(json['edgeTaps']),
       keepAwake: serializer.fromJson<bool>(json['keepAwake']),
+      pageNumbers: serializer.fromJson<bool>(json['pageNumbers']),
       engine: serializer.fromJson<String>(json['engine']),
     );
   }
@@ -2082,6 +2116,7 @@ class ReaderPref extends DataClass implements Insertable<ReaderPref> {
       'pageAnimation': serializer.toJson<String>(pageAnimation),
       'edgeTaps': serializer.toJson<bool>(edgeTaps),
       'keepAwake': serializer.toJson<bool>(keepAwake),
+      'pageNumbers': serializer.toJson<bool>(pageNumbers),
       'engine': serializer.toJson<String>(engine),
     };
   }
@@ -2096,6 +2131,7 @@ class ReaderPref extends DataClass implements Insertable<ReaderPref> {
     String? pageAnimation,
     bool? edgeTaps,
     bool? keepAwake,
+    bool? pageNumbers,
     String? engine,
   }) => ReaderPref(
     id: id ?? this.id,
@@ -2107,6 +2143,7 @@ class ReaderPref extends DataClass implements Insertable<ReaderPref> {
     pageAnimation: pageAnimation ?? this.pageAnimation,
     edgeTaps: edgeTaps ?? this.edgeTaps,
     keepAwake: keepAwake ?? this.keepAwake,
+    pageNumbers: pageNumbers ?? this.pageNumbers,
     engine: engine ?? this.engine,
   );
   ReaderPref copyWithCompanion(ReaderPrefsCompanion data) {
@@ -2126,6 +2163,9 @@ class ReaderPref extends DataClass implements Insertable<ReaderPref> {
           : this.pageAnimation,
       edgeTaps: data.edgeTaps.present ? data.edgeTaps.value : this.edgeTaps,
       keepAwake: data.keepAwake.present ? data.keepAwake.value : this.keepAwake,
+      pageNumbers: data.pageNumbers.present
+          ? data.pageNumbers.value
+          : this.pageNumbers,
       engine: data.engine.present ? data.engine.value : this.engine,
     );
   }
@@ -2142,6 +2182,7 @@ class ReaderPref extends DataClass implements Insertable<ReaderPref> {
           ..write('pageAnimation: $pageAnimation, ')
           ..write('edgeTaps: $edgeTaps, ')
           ..write('keepAwake: $keepAwake, ')
+          ..write('pageNumbers: $pageNumbers, ')
           ..write('engine: $engine')
           ..write(')'))
         .toString();
@@ -2158,6 +2199,7 @@ class ReaderPref extends DataClass implements Insertable<ReaderPref> {
     pageAnimation,
     edgeTaps,
     keepAwake,
+    pageNumbers,
     engine,
   );
   @override
@@ -2173,6 +2215,7 @@ class ReaderPref extends DataClass implements Insertable<ReaderPref> {
           other.pageAnimation == this.pageAnimation &&
           other.edgeTaps == this.edgeTaps &&
           other.keepAwake == this.keepAwake &&
+          other.pageNumbers == this.pageNumbers &&
           other.engine == this.engine);
 }
 
@@ -2186,6 +2229,7 @@ class ReaderPrefsCompanion extends UpdateCompanion<ReaderPref> {
   final Value<String> pageAnimation;
   final Value<bool> edgeTaps;
   final Value<bool> keepAwake;
+  final Value<bool> pageNumbers;
   final Value<String> engine;
   const ReaderPrefsCompanion({
     this.id = const Value.absent(),
@@ -2197,6 +2241,7 @@ class ReaderPrefsCompanion extends UpdateCompanion<ReaderPref> {
     this.pageAnimation = const Value.absent(),
     this.edgeTaps = const Value.absent(),
     this.keepAwake = const Value.absent(),
+    this.pageNumbers = const Value.absent(),
     this.engine = const Value.absent(),
   });
   ReaderPrefsCompanion.insert({
@@ -2209,6 +2254,7 @@ class ReaderPrefsCompanion extends UpdateCompanion<ReaderPref> {
     this.pageAnimation = const Value.absent(),
     this.edgeTaps = const Value.absent(),
     this.keepAwake = const Value.absent(),
+    this.pageNumbers = const Value.absent(),
     this.engine = const Value.absent(),
   });
   static Insertable<ReaderPref> custom({
@@ -2221,6 +2267,7 @@ class ReaderPrefsCompanion extends UpdateCompanion<ReaderPref> {
     Expression<String>? pageAnimation,
     Expression<bool>? edgeTaps,
     Expression<bool>? keepAwake,
+    Expression<bool>? pageNumbers,
     Expression<String>? engine,
   }) {
     return RawValuesInsertable({
@@ -2233,6 +2280,7 @@ class ReaderPrefsCompanion extends UpdateCompanion<ReaderPref> {
       if (pageAnimation != null) 'page_animation': pageAnimation,
       if (edgeTaps != null) 'edge_taps': edgeTaps,
       if (keepAwake != null) 'keep_awake': keepAwake,
+      if (pageNumbers != null) 'page_numbers': pageNumbers,
       if (engine != null) 'engine': engine,
     });
   }
@@ -2247,6 +2295,7 @@ class ReaderPrefsCompanion extends UpdateCompanion<ReaderPref> {
     Value<String>? pageAnimation,
     Value<bool>? edgeTaps,
     Value<bool>? keepAwake,
+    Value<bool>? pageNumbers,
     Value<String>? engine,
   }) {
     return ReaderPrefsCompanion(
@@ -2259,6 +2308,7 @@ class ReaderPrefsCompanion extends UpdateCompanion<ReaderPref> {
       pageAnimation: pageAnimation ?? this.pageAnimation,
       edgeTaps: edgeTaps ?? this.edgeTaps,
       keepAwake: keepAwake ?? this.keepAwake,
+      pageNumbers: pageNumbers ?? this.pageNumbers,
       engine: engine ?? this.engine,
     );
   }
@@ -2293,6 +2343,9 @@ class ReaderPrefsCompanion extends UpdateCompanion<ReaderPref> {
     if (keepAwake.present) {
       map['keep_awake'] = Variable<bool>(keepAwake.value);
     }
+    if (pageNumbers.present) {
+      map['page_numbers'] = Variable<bool>(pageNumbers.value);
+    }
     if (engine.present) {
       map['engine'] = Variable<String>(engine.value);
     }
@@ -2311,6 +2364,7 @@ class ReaderPrefsCompanion extends UpdateCompanion<ReaderPref> {
           ..write('pageAnimation: $pageAnimation, ')
           ..write('edgeTaps: $edgeTaps, ')
           ..write('keepAwake: $keepAwake, ')
+          ..write('pageNumbers: $pageNumbers, ')
           ..write('engine: $engine')
           ..write(')'))
         .toString();
@@ -5517,6 +5571,7 @@ typedef $$ReaderPrefsTableCreateCompanionBuilder =
       Value<String> pageAnimation,
       Value<bool> edgeTaps,
       Value<bool> keepAwake,
+      Value<bool> pageNumbers,
       Value<String> engine,
     });
 typedef $$ReaderPrefsTableUpdateCompanionBuilder =
@@ -5530,6 +5585,7 @@ typedef $$ReaderPrefsTableUpdateCompanionBuilder =
       Value<String> pageAnimation,
       Value<bool> edgeTaps,
       Value<bool> keepAwake,
+      Value<bool> pageNumbers,
       Value<String> engine,
     });
 
@@ -5584,6 +5640,11 @@ class $$ReaderPrefsTableFilterComposer
 
   ColumnFilters<bool> get keepAwake => $composableBuilder(
     column: $table.keepAwake,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get pageNumbers => $composableBuilder(
+    column: $table.pageNumbers,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -5647,6 +5708,11 @@ class $$ReaderPrefsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<bool> get pageNumbers => $composableBuilder(
+    column: $table.pageNumbers,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get engine => $composableBuilder(
     column: $table.engine,
     builder: (column) => ColumnOrderings(column),
@@ -5695,6 +5761,11 @@ class $$ReaderPrefsTableAnnotationComposer
   GeneratedColumn<bool> get keepAwake =>
       $composableBuilder(column: $table.keepAwake, builder: (column) => column);
 
+  GeneratedColumn<bool> get pageNumbers => $composableBuilder(
+    column: $table.pageNumbers,
+    builder: (column) => column,
+  );
+
   GeneratedColumn<String> get engine =>
       $composableBuilder(column: $table.engine, builder: (column) => column);
 }
@@ -5739,6 +5810,7 @@ class $$ReaderPrefsTableTableManager
                 Value<String> pageAnimation = const Value.absent(),
                 Value<bool> edgeTaps = const Value.absent(),
                 Value<bool> keepAwake = const Value.absent(),
+                Value<bool> pageNumbers = const Value.absent(),
                 Value<String> engine = const Value.absent(),
               }) => ReaderPrefsCompanion(
                 id: id,
@@ -5750,6 +5822,7 @@ class $$ReaderPrefsTableTableManager
                 pageAnimation: pageAnimation,
                 edgeTaps: edgeTaps,
                 keepAwake: keepAwake,
+                pageNumbers: pageNumbers,
                 engine: engine,
               ),
           createCompanionCallback:
@@ -5763,6 +5836,7 @@ class $$ReaderPrefsTableTableManager
                 Value<String> pageAnimation = const Value.absent(),
                 Value<bool> edgeTaps = const Value.absent(),
                 Value<bool> keepAwake = const Value.absent(),
+                Value<bool> pageNumbers = const Value.absent(),
                 Value<String> engine = const Value.absent(),
               }) => ReaderPrefsCompanion.insert(
                 id: id,
@@ -5774,6 +5848,7 @@ class $$ReaderPrefsTableTableManager
                 pageAnimation: pageAnimation,
                 edgeTaps: edgeTaps,
                 keepAwake: keepAwake,
+                pageNumbers: pageNumbers,
                 engine: engine,
               ),
           withReferenceMapper: (p0) => p0

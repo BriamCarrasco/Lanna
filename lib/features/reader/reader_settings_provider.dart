@@ -46,6 +46,9 @@ class ReaderSettingsController {
 
   Future<void> setKeepAwake(bool value) =>
       _save(_current.copyWith(keepAwake: value));
+
+  Future<void> setPageNumbers(bool value) =>
+      _save(_current.copyWith(pageNumbers: value));
 }
 
 final readerSettingsControllerProvider = Provider(ReaderSettingsController.new);

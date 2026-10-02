@@ -18,6 +18,7 @@ class AppearancePanel extends StatelessWidget {
     this.onLineHeight,
     this.rtl = false,
     this.onDirection,
+    this.onPageNumbers,
   });
 
   final ReaderSettings settings;
@@ -30,6 +31,7 @@ class AppearancePanel extends StatelessWidget {
   final ValueChanged<double>? onLineHeight;
   final bool rtl;
   final ValueChanged<bool>? onDirection;
+  final ValueChanged<bool>? onPageNumbers;
 
   bool get _typography =>
       onFontFamily != null && onFontScale != null && onLineHeight != null;
@@ -136,6 +138,19 @@ class AppearancePanel extends StatelessWidget {
               onChanged: onColumns,
             ),
           ),
+          if (onPageNumbers case final onPageNumbers?) ...[
+            const SizedBox(height: LannaSpacing.s3),
+            _Row(
+              label: 'N.º pág.',
+              chrome: chrome,
+              child: _Segmented(
+                options: const {'on': 'Mostrar', 'off': 'Ocultar'},
+                value: settings.pageNumbers ? 'on' : 'off',
+                chrome: chrome,
+                onChanged: (v) => onPageNumbers(v == 'on'),
+              ),
+            ),
+          ],
           if (onDirection case final onDirection?) ...[
             const SizedBox(height: LannaSpacing.s3),
             _Row(

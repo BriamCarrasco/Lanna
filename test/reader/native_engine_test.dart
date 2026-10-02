@@ -767,7 +767,12 @@ void main() {
         final page = tester.widget<NativePage>(find.byType(NativePage));
         expect(page.metrics.columns, 2);
         return tester
-            .widgetList<Positioned>(find.byType(Positioned))
+            .widgetList<Positioned>(
+              find.descendant(
+                of: find.byType(NativePage),
+                matching: find.byType(Positioned),
+              ),
+            )
             .map((p) => p.left ?? 0)
             .toList();
       }
@@ -1287,5 +1292,75 @@ void main() {
     await act(tester, () => controller.next());
 
     expect(tester.takeException(), isNull);
+  });
+
+  group('número de página', () {
+    Finder footer(Pattern text) => find.descendant(
+      of: find.byType(NativeEpubView),
+      matching: text is String ? find.text(text) : find.textContaining(text),
+    );
+
+    testWidgets('el pie muestra la página estimada del libro', (tester) async {
+      final source = sourceWith([
+        '<p>${'palabra ' * 500}</p>',
+        '<p>${'palabra ' * 500}</p>',
+      ]);
+      final controller = await mount(tester, source);
+      final number = footer(RegExp(r'^\d+ / \d+$'));
+
+      expect(number, findsOneWidget);
+      final first = tester.widget<Text>(number).data!;
+      expect(first, startsWith('1 / '));
+      final total = int.parse(first.split(' / ').last);
+      expect(total, greaterThan(1));
+
+      await act(tester, () => controller.next());
+      expect(tester.widget<Text>(number).data, startsWith('2 / '));
+    });
+
+    testWidgets('se puede ocultar desde la presentación', (tester) async {
+      final source = sourceWith(['<p>${'palabra ' * 500}</p>']);
+      final controller = await mount(tester, source);
+      expect(footer(RegExp(r'^\d+ / \d+$')), findsOneWidget);
+
+      await act(
+        tester,
+        () => controller.applyPresentation(
+          const ReaderPresentation(
+            background: '#101014',
+            foreground: '#E8E4E9',
+            pageNumbers: false,
+          ),
+        ),
+      );
+
+      expect(footer(RegExp(r'^\d+ / \d+$')), findsNothing);
+    });
+
+    testWidgets('con dos columnas cada una lleva su número, en su orden', (
+      tester,
+    ) async {
+      tester.view.physicalSize = const Size(1000, 700);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      Future<(double, double)> columnas({required bool rtl}) async {
+        await tester.pumpWidget(const SizedBox.shrink());
+        final source = sourceWith([
+          '<p>${'كان يا مكان في قديم ' * 120}</p>',
+        ], rtl: rtl);
+        await mount(tester, source, size: const Size(900, 600));
+        return (
+          tester.getCenter(footer('1')).dx,
+          tester.getCenter(footer('2')).dx,
+        );
+      }
+
+      final (uno, dos) = await columnas(rtl: false);
+      expect(uno, lessThan(dos));
+      final (unoRtl, dosRtl) = await columnas(rtl: true);
+      expect(unoRtl, greaterThan(dosRtl));
+    });
   });
 }

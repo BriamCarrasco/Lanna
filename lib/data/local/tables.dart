@@ -164,6 +164,8 @@ class ReaderPrefs extends Table {
 
   BoolColumn get keepAwake => boolean().withDefault(const Constant(false))();
 
+  BoolColumn get pageNumbers => boolean().withDefault(const Constant(true))();
+
   TextColumn get engine => text().withDefault(const Constant('webview'))();
 
   @override
