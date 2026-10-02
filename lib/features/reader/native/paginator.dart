@@ -5,6 +5,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/painting.dart';
 
 import '../../../data/epub/epub_document.dart';
+import '../../../data/epub/epub_styles.dart';
 
 typedef ImageSizeResolver = Size? Function(String src);
 
@@ -541,19 +542,33 @@ class PaginationJob {
       document.blocks.first.kind == BlockKind.image;
 
   Size _imageSize(DocBlock block) {
-    final width = _soleImageDocument
+    final full = _soleImageDocument
         ? metrics.size.width - metrics.padding.horizontal
         : columnWidth;
+    final box = full * block.boxFraction;
     final maxHeight = columnHeight;
     final intrinsic = block.src == null ? null : images?.call(block.src!);
     if (intrinsic == null || intrinsic.width <= 0 || intrinsic.height <= 0) {
-      return Size(width, math.min(maxHeight, width * 1.3));
+      return Size(box, math.min(maxHeight, box * 1.3));
     }
+    final declared = _declaredWidth(block.width, full);
+    final wanted =
+        declared ?? (_soleImageDocument ? box : math.min(intrinsic.width, box));
     final scale = math.min(
-      width / intrinsic.width,
+      wanted / intrinsic.width,
       maxHeight / intrinsic.height,
     );
     return Size(intrinsic.width * scale, intrinsic.height * scale);
+  }
+
+  double? _declaredWidth(CssLength? width, double full) {
+    if (width == null) return null;
+    final resolved = switch (width.unit) {
+      CssUnit.percent => full * width.value / 100,
+      CssUnit.em => style.fontSize * width.value,
+      CssUnit.px => width.value,
+    };
+    return math.min(resolved, full);
   }
 
   static int _safeCut(String text, int at) {

@@ -9,6 +9,7 @@ import '../../../data/epub/epub_book.dart';
 import '../../../data/epub/epub_document.dart';
 import '../../../data/epub/epub_fonts.dart';
 import '../../../data/epub/epub_paths.dart';
+import '../../../data/epub/epub_styles.dart';
 import '../../../data/epub/woff.dart';
 
 class NativeBookSource {
@@ -61,6 +62,11 @@ class NativeBookSource {
     }
     if (registered) _bookFont = sheet.preferred;
   }
+
+  EpubStyles? _styles;
+
+  Future<EpubStyles> _bookStyles() async =>
+      _styles ??= EpubStyles.parse((await _styleSheets()).values);
 
   Future<Map<String, String>> _styleSheets() async {
     final sheets = <String, String>{};
@@ -123,6 +129,7 @@ class NativeBookSource {
       spineIndex: chapter,
       href: item.href,
       rtl: book.rtl,
+      styles: await _bookStyles(),
     );
     _documents[chapter] = parsed;
     _lengths[chapter] = parsed.length;

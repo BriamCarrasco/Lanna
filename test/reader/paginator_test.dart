@@ -2,15 +2,17 @@
 import 'package:flutter/painting.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lanna/data/epub/epub_document.dart';
+import 'package:lanna/data/epub/epub_styles.dart';
 import 'package:lanna/features/reader/native/paginator.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  EpubDocument doc(String body) => EpubDocumentParser.parse(
+  EpubDocument doc(String body, {String css = ''}) => EpubDocumentParser.parse(
     '<html><body>$body</body></html>',
     spineIndex: 0,
     href: 'OEBPS/cap1.xhtml',
+    styles: EpubStyles.parse([css]),
   );
 
   String words(int count) =>
@@ -325,6 +327,78 @@ void main() {
       expect(size.width, lessThanOrEqualTo(400 - 48 + 0.01));
       expect(size.height, lessThanOrEqualTo(600 - 48 + 0.01));
       expect(size.width / size.height, closeTo(2.0, 0.01));
+    });
+
+    Size imageIn(EpubDocument document, Size intrinsic) {
+      final result = paginate(document, images: (_) => intrinsic);
+      return [
+        for (final page in result.pages)
+          for (final fragment in page.fragments)
+            if (fragment.block.kind == BlockKind.image) fragment.imageSize!,
+      ].single;
+    }
+
+    test('las pequeñas no se agrandan más allá de su tamaño real', () {
+      final size = imageIn(
+        doc('<p>Texto</p><p><img src="icono.png"/></p>'),
+        const Size(50, 38),
+      );
+      expect(size, const Size(50, 38));
+    });
+
+    test('respetan un ancho en porcentaje declarado por clase', () {
+      final size = imageIn(
+        doc(
+          '<p>Texto</p><p><img class="icono" src="icono.png"/></p>',
+          css: '.icono { width: 7%; height: auto; }',
+        ),
+        const Size(50, 38),
+      );
+      expect(size.width, closeTo(352 * 0.07, 0.01));
+    });
+
+    test('el porcentaje es relativo a la caja del contenedor', () {
+      final size = imageIn(
+        doc(
+          '<div class="tlogo"><img class="ancho_full" src="logo.png"/></div>'
+          '<p class="tautor">Autor</p>',
+          css:
+              'div.tlogo { margin: 15% 37.5% 8%; width: 25%; } '
+              '.ancho_full { width: 100%; }',
+        ),
+        const Size(258, 175),
+      );
+      expect(size.width, closeTo(352 * 0.25, 0.01));
+    });
+
+    test('sin ancho declarado no pasan de la caja del contenedor', () {
+      final size = imageIn(
+        doc(
+          '<div class="sello"><img src="sello.png"/></div><p>Texto</p>',
+          css: '.sello { width: 25% }',
+        ),
+        const Size(300, 300),
+      );
+      expect(size.width, closeTo(352 * 0.25, 0.01));
+    });
+
+    test('max-width no se confunde con width', () {
+      final size = imageIn(
+        doc(
+          '<p>Texto</p><p><img class="i" src="i.png"/></p>',
+          css: '.i { max-width: 100%; }',
+        ),
+        const Size(50, 38),
+      );
+      expect(size, const Size(50, 38));
+    });
+
+    test('un ancho en em se resuelve con el tamaño de letra', () {
+      final size = imageIn(
+        doc('<p>Texto</p><p><img style="width: 2em" src="i.png"/></p>'),
+        const Size(50, 50),
+      );
+      expect(size.width, closeTo(36, 0.01));
     });
 
     test('sin tamaño conocido se usa una proporción por defecto', () {

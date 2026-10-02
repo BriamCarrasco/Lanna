@@ -7,6 +7,7 @@ import 'package:html/parser.dart' as html_parser;
 import 'package:path/path.dart' as p;
 
 import 'epub_paths.dart';
+import 'epub_styles.dart';
 
 const String objectReplacement = '￼';
 
@@ -58,6 +59,8 @@ class DocBlock {
     this.listOrdered = false,
     this.listIndex = 0,
     this.rtl = false,
+    this.width,
+    this.boxFraction = 1,
   });
 
   final BlockKind kind;
@@ -72,6 +75,8 @@ class DocBlock {
   final bool listOrdered;
   final int listIndex;
   final bool rtl;
+  final CssLength? width;
+  final double boxFraction;
 
   bool get isEmpty => end == start;
 
@@ -129,19 +134,27 @@ abstract final class EpubDocumentParser {
     required int spineIndex,
     required String href,
     bool rtl = false,
-  }) => parse(_decode(bytes), spineIndex: spineIndex, href: href, rtl: rtl);
+    EpubStyles styles = EpubStyles.empty,
+  }) => parse(
+    _decode(bytes),
+    spineIndex: spineIndex,
+    href: href,
+    rtl: rtl,
+    styles: styles,
+  );
 
   static EpubDocument parse(
     String source, {
     required int spineIndex,
     required String href,
     bool rtl = false,
+    EpubStyles styles = EpubStyles.empty,
   }) {
     final document = html_parser.parse(source);
     final root = document.documentElement;
     final body = document.body ?? root;
     final declared = _dirOf(root) ?? _dirOf(document.body);
-    final builder = _Builder(href, declared ?? rtl);
+    final builder = _Builder(href, declared ?? rtl, styles);
     if (body != null) builder.visit(body);
     builder.flush();
     return EpubDocument(
@@ -338,9 +351,11 @@ const _markTags = {
 };
 
 class _Builder {
-  _Builder(this.docHref, this._rtl);
+  _Builder(this.docHref, this._rtl, this.styles);
 
   final String docHref;
+  final EpubStyles styles;
+  double _boxFraction = 1;
   bool _rtl;
   final List<DocBlock> blocks = [];
   final Map<String, int> anchors = {};
@@ -380,11 +395,26 @@ class _Builder {
     final id = node.id.isEmpty ? null : node.id;
     if (id != null) anchors[id] = _cursor();
 
+    final box = _boxFraction;
+    if (!_imageTags.contains(tag)) {
+      final width = styles.widthOf(node);
+      if (width?.unit == CssUnit.percent) {
+        _boxFraction = box * (width!.value / 100).clamp(0, 1);
+      }
+    }
+    _dispatch(tag, node, id);
+    _boxFraction = box;
+  }
+
+  static const _imageTags = {'img', 'image'};
+
+  void _dispatch(String tag, dom.Element node, String? id) {
     if (_isPageBreak(node)) {
       _emitMarker(BlockKind.pageBreak, id);
-    } else if (_visitSpecial(tag, node, id)) {
       return;
-    } else if (_leafBlocks.contains(tag)) {
+    }
+    if (_visitSpecial(tag, node, id)) return;
+    if (_leafBlocks.contains(tag)) {
       _openBlock(tag, node, id);
     } else if (_promotable.contains(tag) && _hasOnlyInline(node)) {
       _openBlock('p', node, id);
@@ -575,11 +605,20 @@ class _Builder {
         src: _resolve(raw),
         alt: node.attributes['alt'],
         align: BlockAlign.center,
+        width: _imageWidth(node),
+        boxFraction: _boxFraction,
         id: id,
         rtl: _rtl,
         runs: [InlineRun(text: objectReplacement, start: start)],
       ),
     );
+  }
+
+  CssLength? _imageWidth(dom.Element node) {
+    if (node.localName?.toLowerCase() != 'img') return null;
+    final width = styles.widthOf(node, attribute: true);
+    if (width == null || width.unit != CssUnit.percent) return width;
+    return CssLength(width.value * _boxFraction, CssUnit.percent);
   }
 
   void _appendText(String raw) {
