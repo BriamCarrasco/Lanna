@@ -103,6 +103,14 @@ class BookRepository {
   Future<void> setFavorite(String id, bool favorite) =>
       _db.setFavorite(id, favorite);
 
+  Stream<List<Book>> watchArchived() => _db.watchArchived();
+
+  Future<void> setSeries(List<String> ids, String? name) =>
+      _db.setSeries(ids, name?.trim() ?? '');
+
+  Future<void> restoreBook(String id) =>
+      _db.updateBook(id, const BooksCompanion(hidden: Value(false)));
+
   Future<void> hideBook(String id) =>
       _db.updateBook(id, const BooksCompanion(hidden: Value(true)));
 
@@ -258,6 +266,10 @@ final libraryFoldersProvider = StreamProvider<List<LibraryFolder>>((ref) {
 
 final progressByBookProvider = StreamProvider<Map<String, double>>((ref) {
   return ref.watch(appDatabaseProvider).watchAllProgress();
+});
+
+final archivedProvider = StreamProvider<List<Book>>((ref) {
+  return ref.watch(bookRepositoryProvider).watchArchived();
 });
 
 final favoritesProvider = StreamProvider<List<Book>>((ref) {

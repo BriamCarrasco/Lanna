@@ -9,6 +9,9 @@ import 'package:lanna/app.dart';
 import 'package:lanna/data/local/app_database.dart';
 import 'package:lanna/data/local/database_provider.dart';
 import 'package:lanna/data/models/book_format.dart';
+import 'package:lanna/features/library/library_screen.dart';
+import 'package:lanna/features/library/widgets/book_grid.dart';
+import 'package:lanna/features/library/widgets/filters_panel.dart';
 
 Future<void> _pumpApp(
   WidgetTester tester,
@@ -121,6 +124,210 @@ void main() {
     await tester.pump(const Duration(milliseconds: 50));
   });
 
+  testWidgets('los filtros de formato y estado acotan la biblioteca', (
+    tester,
+  ) async {
+    final db = AppDatabase.forTesting(NativeDatabase.memory());
+    addTearDown(db.close);
+    for (final (id, format) in [
+      ('Novela leída', BookFormat.epub),
+      ('Novela a medias', BookFormat.epub),
+      ('Manual nuevo', BookFormat.pdf),
+    ]) {
+      await db.upsertBook(
+        BooksCompanion.insert(
+          id: id,
+          title: id,
+          filePath: '/Libros/$id',
+          format: format,
+        ),
+      );
+    }
+    await db.saveProgress(bookId: 'Novela leída', percent: 1);
+    await db.saveProgress(bookId: 'Novela a medias', percent: 0.4);
+
+    await _pumpApp(tester, db);
+    Finder tile(String title) => find.descendant(
+      of: find.byType(BookGridTile),
+      matching: find.text(title),
+    );
+    Future<void> pick(String option) async {
+      await tester.tap(
+        find.descendant(
+          of: find.byType(FiltersPanel),
+          matching: find.text(option),
+        ),
+      );
+      await tester.pumpAndSettle();
+    }
+
+    await tester.tap(find.byTooltip('Filtros'));
+    await tester.pumpAndSettle();
+    expect(find.byType(FiltersPanel), findsOneWidget);
+    await pick('EPUB');
+    expect(tile('Novela leída'), findsWidgets);
+    expect(tile('Novela a medias'), findsWidgets);
+    expect(tile('Manual nuevo'), findsNothing);
+
+    await pick('Terminados');
+    expect(tile('Novela leída'), findsWidgets);
+    expect(tile('Novela a medias'), findsNothing);
+
+    await tester.tap(find.text('Listo'));
+    await tester.pumpAndSettle();
+    expect(find.byType(FiltersPanel), findsNothing);
+    expect(find.text('2'), findsWidgets);
+    expect(find.text('Seguir leyendo'.toUpperCase()), findsNothing);
+
+    await tester.tap(find.byTooltip('Filtros'));
+    await tester.pumpAndSettle();
+    await pick('PDF');
+    await tester.tap(find.text('Listo'));
+    await tester.pumpAndSettle();
+    expect(find.text('Ningún libro coincide con los filtros'), findsOneWidget);
+
+    await tester.tap(find.text('Quitar filtros'));
+    await tester.pumpAndSettle();
+    for (final title in ['Novela leída', 'Novela a medias', 'Manual nuevo']) {
+      expect(tile(title), findsWidgets, reason: title);
+    }
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(const Duration(milliseconds: 50));
+  });
+
+  testWidgets('el panel de filtros se adapta al cambiar la ventana', (
+    tester,
+  ) async {
+    final db = AppDatabase.forTesting(NativeDatabase.memory());
+    addTearDown(db.close);
+    await db.upsertBook(
+      BooksCompanion.insert(
+        id: 'a',
+        title: 'Rayuela',
+        filePath: '/a.epub',
+        format: BookFormat.epub,
+      ),
+    );
+
+    await _pumpApp(tester, db);
+    await tester.tap(find.byTooltip('Filtros'));
+    await tester.pumpAndSettle();
+    await tester.tap(
+      find.descendant(
+        of: find.byType(FiltersPanel),
+        matching: find.text('EPUB'),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    void expectPopover() {
+      final button = tester.getRect(find.byType(FiltersButton));
+      final panel = tester.getRect(find.byType(FiltersPanel));
+      expect(panel.right, moreOrLessEquals(button.right, epsilon: 1));
+      expect(panel.top, greaterThan(button.bottom));
+    }
+
+    bool epubSelected() => tester
+        .widget<FilterPill>(
+          find.ancestor(
+            of: find.descendant(
+              of: find.byType(FiltersPanel),
+              matching: find.text('EPUB'),
+            ),
+            matching: find.byType(FilterPill),
+          ),
+        )
+        .selected;
+
+    expectPopover();
+    tester.view.physicalSize = const Size(1000, 760);
+    await tester.pumpAndSettle();
+    expectPopover();
+
+    tester.view.physicalSize = const Size(500, 700);
+    await tester.pumpAndSettle();
+    final sheet = tester.getRect(find.byType(FiltersPanel));
+    expect(sheet.bottom, moreOrLessEquals(700, epsilon: 1));
+    expect(sheet.width, moreOrLessEquals(500, epsilon: 1));
+    expect(epubSelected(), isTrue);
+
+    tester.view.physicalSize = const Size(1400, 900);
+    await tester.pumpAndSettle();
+    expectPopover();
+    expect(epubSelected(), isTrue);
+    expect(tester.takeException(), isNull);
+
+    await tester.tap(find.text('Listo'));
+    await tester.pumpAndSettle();
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(const Duration(milliseconds: 50));
+  });
+
+  testWidgets('el panel flotante no se corta en una ventana baja', (
+    tester,
+  ) async {
+    final db = AppDatabase.forTesting(NativeDatabase.memory());
+    addTearDown(db.close);
+    await db.upsertBook(
+      BooksCompanion.insert(
+        id: 'a',
+        title: 'Rayuela',
+        filePath: '/a.epub',
+        format: BookFormat.epub,
+      ),
+    );
+
+    await _pumpApp(tester, db, size: const Size(1000, 420));
+    await tester.tap(find.byTooltip('Filtros'));
+    await tester.pumpAndSettle();
+
+    final panel = tester.getRect(
+      find
+          .ancestor(
+            of: find.byType(FiltersPanel),
+            matching: find.byType(Material),
+          )
+          .first,
+    );
+    expect(panel.bottom, lessThanOrEqualTo(420));
+    expect(tester.takeException(), isNull);
+
+    await tester.tap(find.text('Listo'), warnIfMissed: false);
+    await tester.pumpAndSettle();
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(const Duration(milliseconds: 50));
+  });
+
+  testWidgets('en pantalla estrecha los filtros salen como hoja inferior', (
+    tester,
+  ) async {
+    final db = AppDatabase.forTesting(NativeDatabase.memory());
+    addTearDown(db.close);
+    await db.upsertBook(
+      BooksCompanion.insert(
+        id: 'a',
+        title: 'Rayuela',
+        filePath: '/a.epub',
+        format: BookFormat.epub,
+      ),
+    );
+
+    await _pumpApp(tester, db, size: const Size(400, 860));
+    await tester.tap(find.byTooltip('Filtros'));
+    await tester.pumpAndSettle();
+
+    final panel = tester.getRect(find.byType(FiltersPanel));
+    expect(panel.bottom, moreOrLessEquals(860, epsilon: 1));
+    expect(panel.width, moreOrLessEquals(400, epsilon: 1));
+    expect(tester.takeException(), isNull);
+
+    await tester.tap(find.text('Listo'));
+    await tester.pumpAndSettle();
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(const Duration(milliseconds: 50));
+  });
+
   testWidgets('los tomos de una serie se agrupan y se abren en un modal', (
     tester,
   ) async {
@@ -186,6 +393,174 @@ void main() {
     expect(find.text('Tomo n10'), findsWidgets);
     expect(find.text('Tomo n2'), findsNothing);
     expect(find.text('3 tomos'), findsNothing);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(const Duration(milliseconds: 50));
+  });
+
+  testWidgets('un libro archivado se recupera con Deshacer y desde Ajustes', (
+    tester,
+  ) async {
+    final db = AppDatabase.forTesting(NativeDatabase.memory());
+    addTearDown(db.close);
+    await db.addFolder(
+      LibraryFoldersCompanion.insert(
+        id: 'libros',
+        location: '/Libros',
+        name: 'Libros',
+      ),
+    );
+    await db.upsertBook(
+      BooksCompanion.insert(
+        id: 'a',
+        title: 'Rayuela',
+        filePath: '/Libros/Rayuela.epub',
+        format: BookFormat.epub,
+        folderId: const Value('libros'),
+        relativePath: const Value('Rayuela.epub'),
+      ),
+    );
+    await db.saveProgress(bookId: 'a', percent: 0.4);
+
+    await _pumpApp(tester, db);
+    Future<void> archive() async {
+      await tester.longPress(find.text('Rayuela').last);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Archivar'));
+      await tester.pumpAndSettle();
+      expect(
+        find.textContaining('Ajustes → Libros archivados'),
+        findsOneWidget,
+      );
+      await tester.tap(find.widgetWithText(FilledButton, 'Archivar'));
+      await tester.pumpAndSettle();
+    }
+
+    await archive();
+    expect(find.text('Rayuela'), findsNothing);
+    await tester.tap(find.text('Deshacer'));
+    await tester.pumpAndSettle();
+    expect(find.text('Rayuela'), findsWidgets);
+
+    await archive();
+    expect(find.text('Rayuela'), findsNothing);
+    ScaffoldMessenger.of(tester.element(find.byType(LibraryScreen)))
+        .hideCurrentSnackBar();
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Ajustes'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Libros archivados · 1'));
+    await tester.pumpAndSettle();
+    expect(find.text('Libros · Rayuela.epub'), findsOneWidget);
+
+    await tester.tap(find.text('Restaurar'));
+    await tester.pumpAndSettle();
+    expect(find.text('No hay libros archivados'), findsOneWidget);
+    await tester.tap(find.text('Cerrar'));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('Libros archivados'), findsNothing);
+
+    final book = await tester.runAsync(() => db.findBook('a'));
+    expect(book?.hidden, isFalse);
+    final progress = await tester.runAsync(() => db.readProgress('a'));
+    expect(progress?.percent, 0.4);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(const Duration(milliseconds: 50));
+  });
+
+  testWidgets('las series se renombran, se fusionan y se separan a mano', (
+    tester,
+  ) async {
+    final db = AppDatabase.forTesting(NativeDatabase.memory());
+    addTearDown(db.close);
+    for (final (id, path, series) in [
+      ('a1', 'NARUTO 1-27/Tomo 01.cbr', 'NARUTO 1-27'),
+      ('a2', 'NARUTO 1-27/Tomo 02.cbr', 'NARUTO 1-27'),
+      ('b28', 'NARUTO 28-72/Tomo 28.cbr', 'NARUTO 28-72'),
+      ('b29', 'NARUTO 28-72/Tomo 29.cbr', 'NARUTO 28-72'),
+    ]) {
+      await db.upsertBook(
+        BooksCompanion.insert(
+          id: id,
+          title: 'Tomo $id',
+          filePath: '/Libros/$path',
+          format: BookFormat.comic,
+          relativePath: Value(path),
+          series: Value(series),
+        ),
+      );
+    }
+
+    await _pumpApp(tester, db);
+    Future<void> renameTo(String series, String name) async {
+      await tester.tap(find.text(series).last);
+      await tester.pumpAndSettle();
+      await tester.tap(find.byTooltip('Opciones de la serie'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Renombrar serie'));
+      await tester.pumpAndSettle();
+      await tester.enterText(
+        find.descendant(
+          of: find.byType(AlertDialog),
+          matching: find.byType(EditableText),
+        ),
+        name,
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Renombrar'));
+      await tester.pumpAndSettle();
+    }
+
+    await renameTo('NARUTO 1-27', 'Naruto');
+    expect(
+      find.descendant(of: find.byType(Dialog), matching: find.text('Naruto')),
+      findsOneWidget,
+    );
+    await tester.tap(find.byTooltip('Cerrar'));
+    await tester.pumpAndSettle();
+
+    await renameTo('NARUTO 28-72', 'naruto');
+    expect(
+      find.descendant(of: find.byType(Dialog), matching: find.text('4 tomos')),
+      findsOneWidget,
+    );
+    await tester.tap(find.byTooltip('Cerrar'));
+    await tester.pumpAndSettle();
+    expect(find.text('4 tomos'), findsOneWidget);
+    expect(find.textContaining('NARUTO'), findsNothing);
+
+    await tester.tap(find.text('4 tomos'));
+    await tester.pumpAndSettle();
+    expect(find.byType(Dialog), findsOneWidget);
+    await tester.longPress(
+      find
+          .descendant(of: find.byType(Dialog), matching: find.text('Tomo b29'))
+          .last,
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Serie…'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Quitar de la serie'));
+    await tester.pumpAndSettle();
+    expect(
+      find.descendant(of: find.byType(Dialog), matching: find.text('3 tomos')),
+      findsOneWidget,
+    );
+
+    await tester.tap(find.byTooltip('Opciones de la serie'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Separar tomos'));
+    await tester.pumpAndSettle();
+    expect(find.byType(Dialog), findsNothing);
+    expect(find.textContaining('tomos'), findsNothing);
+
+    final rows = await tester.runAsync(() => db.select(db.books).get());
+    expect(
+      {for (final b in rows!) b.id: b.series},
+      {'a1': '', 'a2': '', 'b28': '', 'b29': ''},
+    );
 
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pump(const Duration(milliseconds: 50));

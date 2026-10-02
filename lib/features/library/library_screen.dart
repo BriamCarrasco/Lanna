@@ -13,6 +13,7 @@ import '../../data/book_repository.dart';
 import '../../data/library/library_scanner.dart';
 import '../../data/local/app_database.dart';
 import 'book_search.dart';
+import 'library_filters.dart';
 import 'library_scan_controller.dart';
 import 'library_shell.dart';
 import 'series_group.dart';
@@ -21,6 +22,7 @@ import 'widgets/book_cover.dart';
 import 'widgets/book_grid.dart';
 import 'widgets/continue_reading_row.dart';
 import 'widgets/empty_library_view.dart';
+import 'widgets/filters_panel.dart';
 import 'widgets/section_scaffold.dart';
 import 'widgets/series_sheet.dart';
 
@@ -45,6 +47,7 @@ class LibraryScreen extends ConsumerStatefulWidget {
 class _LibraryScreenState extends ConsumerState<LibraryScreen> {
   _SortMode _sort = _SortMode.recent;
   _ViewMode _view = _ViewMode.grid;
+  LibraryFilters _filters = const LibraryFilters();
 
   @override
   void initState() {
@@ -86,11 +89,18 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
     unawaited(showBookMenu(context, ref, book, globalPosition));
   }
 
-  List<Book> _filteredSorted(List<Book> books, String rawQuery) {
+  List<Book> _filteredSorted(
+    List<Book> books,
+    String rawQuery,
+    Map<String, double> progress,
+  ) {
     final query = foldForSearch(rawQuery);
-    final matched = query.isEmpty
-        ? books
-        : books.where((b) => bookMatches(b, query)).toList();
+    final matched = [
+      for (final b in books)
+        if ((query.isEmpty || bookMatches(b, query)) &&
+            _filters.matches(b, progress[b.id]))
+          b,
+    ];
     return _sorted(matched);
   }
 
@@ -121,6 +131,9 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
     final hasFolders =
         ref.watch(libraryFoldersProvider).valueOrNull?.isNotEmpty ?? false;
     final query = ref.watch(librarySearchProvider);
+    final progress =
+        ref.watch(progressByBookProvider).valueOrNull ??
+        const <String, double>{};
     final count = library.valueOrNull?.length ?? 0;
     final compact = MediaQuery.sizeOf(context).width < 900;
 
@@ -172,9 +185,14 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
           Expanded(
             child: _LibraryBody(
               library: library.whenData(
-                (books) => _filteredSorted(books, query),
+                (books) => _filteredSorted(books, query, progress),
               ),
-              continueReading: query.isEmpty ? continueReading : const [],
+              libraryEmpty: count == 0,
+              filters: _filters,
+              onFilters: (f) => setState(() => _filters = f),
+              continueReading: query.isEmpty && !_filters.active
+                  ? continueReading
+                  : const [],
               query: query,
               view: _view,
               hasFolders: hasFolders,
@@ -248,6 +266,9 @@ class _ScanBanner extends ConsumerWidget {
 class _LibraryBody extends StatelessWidget {
   const _LibraryBody({
     required this.library,
+    required this.libraryEmpty,
+    required this.filters,
+    required this.onFilters,
     required this.continueReading,
     required this.query,
     required this.view,
@@ -258,6 +279,9 @@ class _LibraryBody extends StatelessWidget {
   });
 
   final AsyncValue<List<Book>> library;
+  final bool libraryEmpty;
+  final LibraryFilters filters;
+  final ValueChanged<LibraryFilters> onFilters;
   final List<BookWithProgress> continueReading;
   final String query;
   final _ViewMode view;
@@ -273,7 +297,7 @@ class _LibraryBody extends StatelessWidget {
       loading: () => const Center(child: CircularProgressIndicator()),
       error: (e, _) => Center(child: Text('Error: $e')),
       data: (books) {
-        if (books.isEmpty) {
+        if (libraryEmpty || (books.isEmpty && !filters.active)) {
           return searching
               ? SectionEmpty(
                   icon: Icons.search_off,
@@ -305,8 +329,25 @@ class _LibraryBody extends StatelessWidget {
               _SectionLabel(
                 searching ? 'Resultados' : 'Todos los libros',
                 trailing: '${books.length}',
+                action: FiltersButton(filters: filters, onChanged: onFilters),
               ),
-              if (view == _ViewMode.grid)
+              if (books.isEmpty)
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      vertical: LannaSpacing.s8,
+                    ),
+                    child: SectionEmpty(
+                      icon: Icons.filter_alt_off_outlined,
+                      message: 'Ningún libro coincide con los filtros',
+                      action: TextButton(
+                        onPressed: () => onFilters(const LibraryFilters()),
+                        child: const Text('Quitar filtros'),
+                      ),
+                    ),
+                  ),
+                )
+              else if (view == _ViewMode.grid)
                 LibraryGridSliver(
                   entries: entries,
                   onMenu: onBookMenu,
@@ -327,9 +368,10 @@ class _LibraryBody extends StatelessWidget {
 }
 
 class _SectionLabel extends StatelessWidget {
-  const _SectionLabel(this.text, {this.trailing});
+  const _SectionLabel(this.text, {this.trailing, this.action});
   final String text;
   final String? trailing;
+  final Widget? action;
 
   @override
   Widget build(BuildContext context) {
@@ -343,16 +385,32 @@ class _SectionLabel extends StatelessWidget {
         ),
         child: Row(
           children: [
-            Text(
-              text.toUpperCase(),
-              style: LannaType.xs.copyWith(color: LannaColors.textMuted),
-            ),
-            if (trailing != null) ...[
-              const SizedBox(width: LannaSpacing.s2),
-              Text(
-                trailing!,
-                style: LannaType.xs.copyWith(color: LannaColors.border),
+            Expanded(
+              child: Row(
+                children: [
+                  Flexible(
+                    child: Text(
+                      text.toUpperCase(),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: LannaType.xs.copyWith(
+                        color: LannaColors.textMuted,
+                      ),
+                    ),
+                  ),
+                  if (trailing != null) ...[
+                    const SizedBox(width: LannaSpacing.s2),
+                    Text(
+                      trailing!,
+                      style: LannaType.xs.copyWith(color: LannaColors.border),
+                    ),
+                  ],
+                ],
               ),
+            ),
+            if (action != null) ...[
+              const SizedBox(width: LannaSpacing.s3),
+              action!,
             ],
           ],
         ),

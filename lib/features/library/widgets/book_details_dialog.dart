@@ -27,13 +27,15 @@ Future<bool> confirmDeleteBook(
       backgroundColor: LannaColors.surfaceHigh,
       title: Text(
         book.folderId != null
-            ? '¿Quitar «${book.title}»?'
+            ? '¿Archivar «${book.title}»?'
             : '¿Eliminar «${book.title}»?',
       ),
       content: Text(
         book.folderId != null
-            ? 'Dejará de aparecer en la biblioteca. El archivo se queda en '
-                  'su carpeta, no se borra.'
+            ? 'Dejará de aparecer en la biblioteca, pero conserva su '
+                  'progreso, marcadores y subrayados. El archivo se queda en '
+                  'su carpeta. Puedes recuperarlo desde Ajustes → Libros '
+                  'archivados.'
             : 'Se quitará de la biblioteca y se borrará el archivo importado, '
                   'junto con su progreso y marcadores. No se puede deshacer.',
       ),
@@ -43,12 +45,14 @@ Future<bool> confirmDeleteBook(
           child: const Text('Cancelar'),
         ),
         FilledButton(
-          style: FilledButton.styleFrom(
-            backgroundColor: LannaColors.danger,
-            foregroundColor: LannaColors.surface,
-          ),
+          style: book.folderId != null
+              ? null
+              : FilledButton.styleFrom(
+                  backgroundColor: LannaColors.danger,
+                  foregroundColor: LannaColors.surface,
+                ),
           onPressed: () => Navigator.of(context).pop(true),
-          child: Text(book.folderId != null ? 'Quitar' : 'Eliminar'),
+          child: Text(book.folderId != null ? 'Archivar' : 'Eliminar'),
         ),
       ],
     ),

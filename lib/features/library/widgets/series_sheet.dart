@@ -4,6 +4,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/text_search.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/tokens.dart';
 import '../../../data/book_repository.dart';
@@ -11,6 +12,7 @@ import '../../../data/local/app_database.dart';
 import '../series_group.dart';
 import 'book_actions.dart';
 import 'book_grid.dart';
+import 'series_dialogs.dart';
 
 Future<void> showSeries(BuildContext context, SeriesEntry series) {
   return showDialog(
@@ -19,14 +21,45 @@ Future<void> showSeries(BuildContext context, SeriesEntry series) {
   );
 }
 
-class SeriesSheet extends ConsumerWidget {
+class SeriesSheet extends ConsumerStatefulWidget {
   const SeriesSheet({super.key, required this.seriesKey, required this.name});
 
   final String seriesKey;
   final String name;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<SeriesSheet> createState() => _SeriesSheetState();
+}
+
+class _SeriesSheetState extends ConsumerState<SeriesSheet> {
+  late String _key = widget.seriesKey;
+  late String _name = widget.name;
+
+  Future<void> _rename(List<Book> volumes) async {
+    final name = await renameSeries(
+      context,
+      ref,
+      SeriesEntry(key: _key, name: _name, volumes: volumes),
+    );
+    if (name == null || !mounted) return;
+    setState(() {
+      _key = foldForSearch(name);
+      _name = name;
+    });
+  }
+
+  Future<void> _split(List<Book> volumes) async {
+    final navigator = Navigator.of(context);
+    await ref.read(bookRepositoryProvider).setSeries([
+      for (final b in volumes) b.id,
+    ], '');
+    navigator.pop();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final seriesKey = _key;
+    final name = _name;
     final library = ref.watch(libraryProvider).valueOrNull ?? const <Book>[];
     final progress =
         ref.watch(progressByBookProvider).valueOrNull ??
@@ -88,6 +121,25 @@ class SeriesSheet extends ConsumerWidget {
                         ),
                       ],
                     ),
+                  ),
+                  PopupMenuButton<String>(
+                    tooltip: 'Opciones de la serie',
+                    icon: const Icon(Icons.more_vert),
+                    position: PopupMenuPosition.under,
+                    onSelected: (action) => switch (action) {
+                      'rename' => unawaited(_rename(volumes)),
+                      _ => unawaited(_split(volumes)),
+                    },
+                    itemBuilder: (_) => const [
+                      PopupMenuItem(
+                        value: 'rename',
+                        child: Text('Renombrar serie'),
+                      ),
+                      PopupMenuItem(
+                        value: 'split',
+                        child: Text('Separar tomos'),
+                      ),
+                    ],
                   ),
                   IconButton(
                     onPressed: () => Navigator.of(context).pop(),

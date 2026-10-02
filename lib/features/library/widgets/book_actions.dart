@@ -9,7 +9,9 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/tokens.dart';
 import '../../../data/book_repository.dart';
 import '../../../data/local/app_database.dart';
+import '../../../data/models/book_format.dart';
 import 'book_details_dialog.dart';
+import 'series_dialogs.dart';
 
 void openBook(BuildContext context, Book book) {
   if (!book.available) {
@@ -54,11 +56,11 @@ Future<void> showBookMenu(
         value: 'collection',
         child: Text('Añadir a colección'),
       ),
+      if (book.format == BookFormat.comic)
+        const PopupMenuItem(value: 'series', child: Text('Serie…')),
       PopupMenuItem(
         value: 'delete',
-        child: Text(
-          book.folderId != null ? 'Quitar de la biblioteca' : 'Eliminar',
-        ),
+        child: Text(book.folderId != null ? 'Archivar' : 'Eliminar'),
       ),
     ],
   );
@@ -76,12 +78,26 @@ Future<void> showBookMenu(
       );
     case 'collection':
       unawaited(showCollectionPicker(context, ref, book));
+    case 'series':
+      unawaited(editBookSeries(context, ref, book));
     case 'delete':
       final deleted = await confirmDeleteBook(context, ref, book);
       if (deleted && context.mounted) {
-        final verb = book.folderId != null ? 'quitado' : 'eliminado';
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('«${book.title}» $verb')));
+        final archived = book.folderId != null;
+        final repo = ref.read(bookRepositoryProvider);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              '«${book.title}» ${archived ? 'archivado' : 'eliminado'}',
+            ),
+            action: archived
+                ? SnackBarAction(
+                    label: 'Deshacer',
+                    onPressed: () => unawaited(repo.restoreBook(book.id)),
+                  )
+                : null,
+          ),
+        );
       }
   }
 }

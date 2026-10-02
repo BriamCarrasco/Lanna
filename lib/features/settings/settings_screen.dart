@@ -11,6 +11,7 @@ import '../library/library_scan_controller.dart';
 import '../library/widgets/section_scaffold.dart';
 import '../reader/reader_settings_provider.dart';
 import '../reader/reader_theme.dart';
+import 'archived_books_dialog.dart';
 
 const _appVersion = '0.1.0';
 const _license = 'GPL-3.0-or-later';
@@ -210,6 +211,7 @@ class _Folders extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final folders = ref.watch(libraryFoldersProvider).valueOrNull ?? const [];
+    final archived = ref.watch(archivedProvider).valueOrNull?.length ?? 0;
     final scanning = ref.watch(libraryScanProvider.select((s) => s.running));
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -263,6 +265,25 @@ class _Folders extends ConsumerWidget {
         ],
         const SizedBox(height: LannaSpacing.s3),
         _LinkText('Añadir carpeta', onTap: () => _add(context, ref)),
+        if (archived > 0) ...[
+          const SizedBox(height: LannaSpacing.s4),
+          const Divider(height: 1, color: LannaColors.borderSubtle),
+          const SizedBox(height: LannaSpacing.s3),
+          Row(
+            children: [
+              const Icon(
+                Icons.inventory_2_outlined,
+                size: 18,
+                color: LannaColors.textMuted,
+              ),
+              const SizedBox(width: LannaSpacing.s2),
+              _LinkText(
+                'Libros archivados · $archived',
+                onTap: () => showArchivedBooks(context),
+              ),
+            ],
+          ),
+        ],
       ],
     );
   }

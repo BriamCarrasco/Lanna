@@ -107,6 +107,21 @@ class AppDatabase extends _$AppDatabase {
         .watch();
   }
 
+  Future<void> setSeries(List<String> ids, String series) {
+    return transaction(() async {
+      for (final id in ids) {
+        await updateBook(id, BooksCompanion(series: Value(series)));
+      }
+    });
+  }
+
+  Stream<List<Book>> watchArchived() {
+    return (select(books)
+          ..where((b) => b.hidden.equals(true))
+          ..orderBy([(b) => OrderingTerm.asc(b.title)]))
+        .watch();
+  }
+
   Stream<List<Book>> watchFavorites() {
     return (select(books)
           ..where((b) => b.hidden.equals(false) & b.favoritedAt.isNotNull())

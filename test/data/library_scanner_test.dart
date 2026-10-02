@@ -294,6 +294,25 @@ void main() {
     expect(book.available, isTrue);
   });
 
+  test(
+    'un tomo que se quitó de su serie no vuelve a ella al escanear',
+    () async {
+      File(p.join(libros.path, 'Akira - Tomo 03.cbz'))
+          .writeAsBytesSync(buildComicZip(pages: const ['1.png']));
+      await repo.pickFolder();
+      await repo.scan();
+      final id = (await allBooks()).single.id;
+
+      await repo.setSeries([id], null);
+      await repo.scan();
+      expect((await db.findBook(id))?.series, '');
+
+      await repo.setSeries([id], '  Akira  ');
+      await repo.scan();
+      expect((await db.findBook(id))?.series, 'Akira');
+    },
+  );
+
   test('elegir la misma carpeta dos veces no la duplica', () async {
     await repo.pickFolder();
     await repo.pickFolder();
