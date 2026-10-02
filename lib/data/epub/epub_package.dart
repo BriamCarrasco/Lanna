@@ -176,8 +176,6 @@ abstract final class EpubPackage {
 
   static bool _isNumberish(String label) => _numberLabel.hasMatch(label.trim());
 
-  /// Quita entradas que son solo un número de capítulo (típico de NCX que
-  /// listan «Título» y debajo «3»), pero solo si quedan entradas con título.
   static List<EpubTocEntry> _pruneToc(List<EpubTocEntry> toc) {
     var titled = 0;
     void count(List<EpubTocEntry> items) {

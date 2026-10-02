@@ -45,6 +45,6 @@ class ReaderBarButton extends StatelessWidget {
               ),
       ),
     );
-    return tooltip == null ? child : Tooltip(message: tooltip!, child: child);
+    return tooltip == null ? child : Tooltip(message: tooltip, child: child);
   }
 }

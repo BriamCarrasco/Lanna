@@ -77,7 +77,6 @@ void main() {
       await Future<void>.delayed(const Duration(milliseconds: 50));
     }
     expect(find.byType(NativePage), findsOneWidget);
-    // Dejar que termine la paginacion de fondo y el prefetch antes de medir.
     await Future<void>.delayed(const Duration(seconds: 4));
     await tester.pumpAndSettle();
 
@@ -107,8 +106,7 @@ void main() {
           ..sort();
     final perdidos = total.where((t) => t > 16666).length;
 
-    // ignore: avoid_print
-    print(
+    debugPrint(
       'MEDIDA[$animacion] frames=${frames.length} '
       'build p50=${_ms(_pct(build, 0.5))} p90=${_ms(_pct(build, 0.9))} '
       'p99=${_ms(_pct(build, 0.99))} max=${_ms(build.last)} | '

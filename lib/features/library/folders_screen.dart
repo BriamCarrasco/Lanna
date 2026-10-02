@@ -70,7 +70,7 @@ class _FoldersScreenState extends ConsumerState<FoldersScreen> {
 
   void _enter(String name) => setState(() => _path = [..._path, name]);
 
-  void _up(bool single) => setState(() {
+  void _up({required bool single}) => setState(() {
     if (_path.isNotEmpty) {
       _path = _path.sublist(0, _path.length - 1);
     } else if (!single) {
@@ -78,19 +78,10 @@ class _FoldersScreenState extends ConsumerState<FoldersScreen> {
     }
   });
 
-  Future<void> _addFolder() async {
-    final messenger = ScaffoldMessenger.of(context);
-    try {
-      final report = await ref.read(libraryScanProvider.notifier).addFolder();
-      if (report != null) {
-        messenger.showSnackBar(SnackBar(content: Text(describeScan(report))));
-      }
-    } catch (e) {
-      messenger.showSnackBar(
-        SnackBar(content: Text('No se pudo revisar la carpeta: $e')),
-      );
-    }
-  }
+  Future<void> _addFolder() => reportScan(
+    ScaffoldMessenger.of(context),
+    ref.read(libraryScanProvider.notifier).addFolder(),
+  );
 
   @override
   Widget build(BuildContext context) {
@@ -98,93 +89,105 @@ class _FoldersScreenState extends ConsumerState<FoldersScreen> {
     final books = ref.watch(libraryProvider).valueOrNull ?? const <Book>[];
     final query = foldForSearch(ref.watch(librarySearchProvider));
 
-    if (folders.isEmpty) {
-      return SectionScaffold(
-        title: 'Carpetas',
-        child: SectionEmpty(
-          icon: Icons.folder_outlined,
-          message: 'Todavía no elegiste ninguna carpeta',
-          action: FilledButton.icon(
-            onPressed: _addFolder,
-            icon: const Icon(Icons.create_new_folder_outlined, size: 18),
-            label: const Text('Elegir carpeta'),
-          ),
-        ),
-      );
-    }
-
+    if (folders.isEmpty) return _noFolders();
     final single = folders.length == 1;
     final folder = single
         ? folders.single
         : folders.where((f) => f.id == _folderId).firstOrNull;
+    if (folder == null) return _folderPicker(folders, books, query);
+    return _folderView(folder, books, query, single: single);
+  }
 
-    if (folder == null) {
-      return SectionScaffold(
-        title: 'Carpetas',
-        subtitle:
-            '${folders.length} ${folders.length == 1 ? 'carpeta' : 'carpetas'}',
-        child: _FolderList(
-          entries: [
-            for (final f in folders)
-              if (query.isEmpty || matchesQuery(f.name, query))
-                (
-                  name: f.name,
-                  count: books.where((b) => b.folderId == f.id).length,
-                ),
-          ],
-          onTap: (name) => setState(() {
-            _folderId = folders.firstWhere((f) => f.name == name).id;
-            _path = const [];
-          }),
+  Widget _noFolders() {
+    return SectionScaffold(
+      title: 'Carpetas',
+      child: SectionEmpty(
+        icon: Icons.folder_outlined,
+        message: 'Todavía no elegiste ninguna carpeta',
+        action: FilledButton.icon(
+          onPressed: _addFolder,
+          icon: const Icon(Icons.create_new_folder_outlined, size: 18),
+          label: const Text('Elegir carpeta'),
         ),
-      );
-    }
+      ),
+    );
+  }
 
+  Widget _folderPicker(
+    List<LibraryFolder> folders,
+    List<Book> books,
+    String query,
+  ) {
+    return SectionScaffold(
+      title: 'Carpetas',
+      subtitle:
+          '${folders.length} ${folders.length == 1 ? 'carpeta' : 'carpetas'}',
+      child: _FolderList(
+        entries: [
+          for (final f in folders)
+            if (query.isEmpty || matchesQuery(f.name, query))
+              (
+                name: f.name,
+                count: books.where((b) => b.folderId == f.id).length,
+              ),
+        ],
+        onTap: (name) => setState(() {
+          _folderId = folders.firstWhere((f) => f.name == name).id;
+          _path = const [];
+        }),
+      ),
+    );
+  }
+
+  Widget _folderView(
+    LibraryFolder folder,
+    List<Book> books,
+    String query, {
+    required bool single,
+  }) {
     final inFolder = [
       for (final b in books)
         if (b.folderId == folder.id) b,
     ];
-    final atRoot = _path.isEmpty;
-    final title = atRoot ? folder.name : _path.last;
-    final crumbs = [folder.name, ..._path];
-
-    final Widget body;
-    if (query.isNotEmpty) {
-      final matches = [
-        for (final b in booksUnder(inFolder, _path))
-          if (bookMatches(b, query)) b,
-      ];
-      body = matches.isEmpty
-          ? const SectionEmpty(
-              icon: Icons.search_off,
-              message: 'Sin resultados en esta carpeta',
-            )
-          : _LevelView(
-              level: FolderLevel(folders: const [], books: matches),
-              onEnter: _enter,
-            );
-    } else {
-      final level = browseFolder(inFolder, _path);
-      body = level.folders.isEmpty && level.books.isEmpty
-          ? const SectionEmpty(
-              icon: Icons.folder_open_outlined,
-              message: 'Esta carpeta no tiene libros',
-            )
-          : _LevelView(level: level, onEnter: _enter);
-    }
-
-    final canGoUp = !atRoot || !single;
+    final canGoUp = _path.isNotEmpty || !single;
     return PopScope(
       canPop: !canGoUp,
       onPopInvokedWithResult: (didPop, _) {
-        if (!didPop && canGoUp) _up(single);
+        if (!didPop && canGoUp) _up(single: single);
       },
       child: SectionScaffold(
-        title: title,
-        subtitle: crumbs.join('  ›  '),
-        onBack: canGoUp ? () => _up(single) : null,
-        child: body,
+        title: _path.isEmpty ? folder.name : _path.last,
+        subtitle: [folder.name, ..._path].join('  ›  '),
+        onBack: canGoUp ? () => _up(single: single) : null,
+        child: _levelBody(inFolder, query),
       ),
+    );
+  }
+
+  Widget _levelBody(List<Book> inFolder, String query) {
+    if (query.isEmpty) {
+      final level = browseFolder(inFolder, _path);
+      if (level.folders.isEmpty && level.books.isEmpty) {
+        return const SectionEmpty(
+          icon: Icons.folder_open_outlined,
+          message: 'Esta carpeta no tiene libros',
+        );
+      }
+      return _LevelView(level: level, onEnter: _enter);
+    }
+    final matches = [
+      for (final b in booksUnder(inFolder, _path))
+        if (bookMatches(b, query)) b,
+    ];
+    if (matches.isEmpty) {
+      return const SectionEmpty(
+        icon: Icons.search_off,
+        message: 'Sin resultados en esta carpeta',
+      );
+    }
+    return _LevelView(
+      level: FolderLevel(folders: const [], books: matches),
+      onEnter: _enter,
     );
   }
 }

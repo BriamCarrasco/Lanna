@@ -11,7 +11,6 @@ import '../../core/theme/tokens.dart';
 import '../../core/widgets/fade_in.dart';
 import '../../core/widgets/lanna_menu.dart';
 import '../../data/book_repository.dart';
-import '../../data/library/library_scanner.dart';
 import '../../data/local/app_database.dart';
 import 'book_search.dart';
 import 'library_filters.dart';
@@ -21,6 +20,7 @@ import 'series_group.dart';
 import 'widgets/book_actions.dart';
 import 'widgets/book_cover.dart';
 import 'widgets/book_grid.dart';
+import 'widgets/compact_book_tile.dart';
 import 'widgets/continue_reading_row.dart';
 import 'widgets/empty_library_view.dart';
 import 'widgets/filters_panel.dart';
@@ -64,27 +64,15 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
     });
   }
 
-  Future<void> _addFolder() async {
-    await _report(ref.read(libraryScanProvider.notifier).addFolder());
-  }
+  Future<void> _addFolder() => reportScan(
+    ScaffoldMessenger.of(context),
+    ref.read(libraryScanProvider.notifier).addFolder(),
+  );
 
-  Future<void> _rescan() async {
-    await _report(ref.read(libraryScanProvider.notifier).scan());
-  }
-
-  Future<void> _report(Future<ScanReport?> work) async {
-    final messenger = ScaffoldMessenger.of(context);
-    try {
-      final report = await work;
-      if (report == null || !mounted) return;
-      messenger.showSnackBar(SnackBar(content: Text(describeScan(report))));
-    } catch (e) {
-      if (!mounted) return;
-      messenger.showSnackBar(
-        SnackBar(content: Text('No se pudo revisar la carpeta: $e')),
-      );
-    }
-  }
+  Future<void> _rescan() => reportScan(
+    ScaffoldMessenger.of(context),
+    ref.read(libraryScanProvider.notifier).scan(),
+  );
 
   void _showBookMenu(Book book, Offset globalPosition) {
     unawaited(showBookMenu(context, ref, book, globalPosition));
@@ -599,43 +587,7 @@ class _BookRow extends StatelessWidget {
       onTap: () => openBook(context, book),
       onLongPress: () => _menuFromCenter(context),
       onSecondaryTapUp: (d) => onMenu(book, d.globalPosition),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: LannaSpacing.s3),
-        child: Row(
-          children: [
-            SizedBox(
-              width: 34,
-              child: Opacity(
-                opacity: book.available ? 1 : 0.4,
-                child: BookCover(book: book),
-              ),
-            ),
-            const SizedBox(width: LannaSpacing.s3),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    book.title,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: LannaType.md.copyWith(fontWeight: FontWeight.w600),
-                  ),
-                  if (book.author != null)
-                    Text(
-                      book.author!,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: LannaType.sm.copyWith(
-                        color: LannaColors.textMuted,
-                      ),
-                    ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
+      child: CompactBookTile(book: book, subtitle: book.author),
     );
   }
 }

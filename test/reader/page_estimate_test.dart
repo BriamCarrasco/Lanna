@@ -57,4 +57,19 @@ void main() {
     )!;
     expect(e.total, greaterThanOrEqualTo(e.current));
   });
+
+  test('un capítulo a medio paginar se proyecta por lo que lleva', () {
+    expect(
+      projectedPages(pagesSoFar: 5, reachedOffset: 2500, length: 10000),
+      20,
+    );
+    expect(
+      projectedPages(pagesSoFar: 12, reachedOffset: 10000, length: 10000),
+      12,
+    );
+    expect(
+      projectedPages(pagesSoFar: 0, reachedOffset: 0, length: 100),
+      isNull,
+    );
+  });
 }

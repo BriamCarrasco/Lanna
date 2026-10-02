@@ -7,6 +7,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/tokens.dart';
+import '../../../core/widgets/lanna_dialog.dart';
 import '../../../core/widgets/lanna_menu.dart';
 import '../../../data/book_repository.dart';
 import '../../../data/local/app_database.dart';
@@ -172,98 +173,77 @@ class _CollectionPickerState extends ConsumerState<_CollectionPicker> {
         const <String>{};
     final repo = ref.read(bookRepositoryProvider);
 
-    return Dialog(
-      backgroundColor: LannaColors.surfaceHigh,
-      shape: const RoundedRectangleBorder(borderRadius: LannaRadii.brLg),
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 380, maxHeight: 460),
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(
-            LannaSpacing.s5,
-            LannaSpacing.s5,
-            LannaSpacing.s5,
-            LannaSpacing.s3,
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Text(
-                'Añadir a colección',
-                style: LannaType.title.copyWith(color: LannaColors.textStrong),
-              ),
-              const SizedBox(height: LannaSpacing.s3),
-              Flexible(
-                child: collections.isEmpty
-                    ? Padding(
-                        padding: const EdgeInsets.symmetric(
-                          vertical: LannaSpacing.s5,
-                        ),
-                        child: Text(
-                          'Todavía no tienes colecciones',
-                          style: LannaType.md.copyWith(
-                            color: LannaColors.textMuted,
-                          ),
-                        ),
-                      )
-                    : ListView(
-                        shrinkWrap: true,
-                        children: [
-                          for (final c in collections)
-                            CheckboxListTile(
-                              dense: true,
-                              contentPadding: EdgeInsets.zero,
-                              title: Text(c.collection.name),
-                              value: selected.contains(c.collection.id),
-                              onChanged: (v) {
-                                if (v == true) {
-                                  repo.addBookToCollection(
-                                    c.collection.id,
-                                    widget.book.id,
-                                  );
-                                } else {
-                                  repo.removeBookFromCollection(
-                                    c.collection.id,
-                                    widget.book.id,
-                                  );
-                                }
-                              },
-                            ),
-                        ],
-                      ),
-              ),
-              const Divider(height: LannaSpacing.s5),
-              Row(
-                children: [
-                  Expanded(
-                    child: TextField(
-                      controller: _newController,
-                      decoration: const InputDecoration(
-                        isDense: true,
-                        hintText: 'Nueva colección',
-                      ),
-                      onSubmitted: (_) => _createAndAdd(),
-                    ),
+    return LannaDialog(
+      title: 'Añadir a colección',
+      maxWidth: 380,
+      maxHeight: 460,
+      children: [
+        Flexible(
+          child: collections.isEmpty
+              ? Padding(
+                  padding: const EdgeInsets.symmetric(
+                    vertical: LannaSpacing.s5,
                   ),
-                  const SizedBox(width: LannaSpacing.s2),
-                  IconButton(
-                    icon: const Icon(Icons.add),
-                    color: LannaColors.accent,
-                    onPressed: _createAndAdd,
+                  child: Text(
+                    'Todavía no tienes colecciones',
+                    style: LannaType.md.copyWith(color: LannaColors.textMuted),
                   ),
-                ],
-              ),
-              Align(
-                alignment: Alignment.centerRight,
-                child: TextButton(
-                  onPressed: () => Navigator.of(context).pop(),
-                  child: const Text('Listo'),
+                )
+              : ListView(
+                  shrinkWrap: true,
+                  children: [
+                    for (final c in collections)
+                      CheckboxListTile(
+                        dense: true,
+                        contentPadding: EdgeInsets.zero,
+                        title: Text(c.collection.name),
+                        value: selected.contains(c.collection.id),
+                        onChanged: (v) {
+                          if (v ?? false) {
+                            repo.addBookToCollection(
+                              c.collection.id,
+                              widget.book.id,
+                            );
+                          } else {
+                            repo.removeBookFromCollection(
+                              c.collection.id,
+                              widget.book.id,
+                            );
+                          }
+                        },
+                      ),
+                  ],
                 ),
+        ),
+        const Divider(height: LannaSpacing.s5),
+        Row(
+          children: [
+            Expanded(
+              child: TextField(
+                controller: _newController,
+                decoration: const InputDecoration(
+                  isDense: true,
+                  hintText: 'Nueva colección',
+                ),
+                onSubmitted: (_) => _createAndAdd(),
               ),
-            ],
+            ),
+            const SizedBox(width: LannaSpacing.s2),
+            IconButton(
+              icon: const Icon(Icons.add),
+              color: LannaColors.accent,
+              onPressed: _createAndAdd,
+            ),
+          ],
+        ),
+        Align(
+          alignment: Alignment.centerRight,
+          child: TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Listo'),
           ),
         ),
-      ),
+      ],
     );
   }
 }

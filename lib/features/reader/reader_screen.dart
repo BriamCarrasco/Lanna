@@ -236,10 +236,6 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
 
   double _dragTravel = 0;
 
-  /// beginDrag() hace un readback de GPU antes de marcar `dragging`: si el
-  /// dedo se levanta durante ese hueco (mas probable en telefonos lentos),
-  /// _onDragEnd no debe decidir nada hasta que ese arranque termine, o el
-  /// avance queda sin su reversa.
   Future<bool>? _curlStart;
 
   void _onDragStart(DragStartDetails details) {
@@ -313,48 +309,53 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
     _dragProgress = 0;
   }
 
-  void _onReaderPointerUp(Offset up) {
-    if (_curl.dragging || _curl.busy) {
-      _tapDownPos = null;
-      _tapDownAt = null;
-      return;
-    }
+  static const _tapSlop = 16.0;
+  static const _tapTimeout = Duration(milliseconds: 350);
+  static const _edgeWidth = 96.0;
+
+  ({Offset down, Duration elapsed})? _takeTap() {
     final down = _tapDownPos;
     final at = _tapDownAt;
     _tapDownPos = null;
     _tapDownAt = null;
-    if (down == null || at == null || !mounted) return;
+    if (down == null || at == null) return null;
+    return (down: down, elapsed: DateTime.now().difference(at));
+  }
 
-    final elapsed = DateTime.now().difference(at);
-    final delta = up - down;
-    final panelOpen = _showToc || _showAppearance || _showSearch;
+  bool _isTap(Offset down, Offset up, Duration elapsed) =>
+      (up - down).distance <= _tapSlop && elapsed <= _tapTimeout;
 
-    if (panelOpen) {
-      if (delta.distance <= 16 &&
-          elapsed <= const Duration(milliseconds: 350)) {
-        setState(() => _showToc = _showAppearance = _showSearch = false);
-      }
-      return;
-    }
-
+  bool _onChromeBars(Offset point) {
+    if (!_chromeVisible) return false;
     final size = MediaQuery.sizeOf(context);
     final safe = MediaQuery.viewPaddingOf(context);
-    if (_chromeVisible &&
-        (down.dy < safe.top + 52 || down.dy > size.height - safe.bottom - 48)) {
+    return point.dy < safe.top + 52 ||
+        point.dy > size.height - safe.bottom - 48;
+  }
+
+  int? _edgeTurn(double x) {
+    if (!_settings.edgeTaps) return null;
+    if (x < _edgeWidth) return turnForEdge(leading: true, rtl: _rtl);
+    if (x > MediaQuery.sizeOf(context).width - _edgeWidth) {
+      return turnForEdge(leading: false, rtl: _rtl);
+    }
+    return null;
+  }
+
+  void _onReaderPointerUp(Offset up) {
+    final tap = _takeTap();
+    if (tap == null || _curl.dragging || _curl.busy || !mounted) return;
+    if (!_isTap(tap.down, up, tap.elapsed)) return;
+
+    if (_showToc || _showAppearance || _showSearch) {
+      setState(() => _showToc = _showAppearance = _showSearch = false);
       return;
     }
+    if (_onChromeBars(tap.down)) return;
 
-    if (delta.distance > 16) return;
-
-    if (elapsed > const Duration(milliseconds: 350)) return;
-
-    const edge = 96.0;
-    if (_settings.edgeTaps && up.dx < edge) {
-      _turn(turnForEdge(leading: true, rtl: _rtl));
-      return;
-    }
-    if (_settings.edgeTaps && up.dx > size.width - edge) {
-      _turn(turnForEdge(leading: false, rtl: _rtl));
+    final turn = _edgeTurn(up.dx);
+    if (turn != null) {
+      _turn(turn);
       return;
     }
     setState(() => _chromeVisible = !_chromeVisible);
@@ -363,14 +364,6 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
 
   (double, double)? _lastInsets;
 
-  /// Ocultar los controles pone la barra de estado/navegacion en modo
-  /// inmersivo, y eso reduce el `viewPadding` que reporta Android. Si
-  /// paginaramos con ese valor en vivo, cada toggle de los controles
-  /// re-paginaria el capitulo con un margen distinto y la posicion de
-  /// lectura podria caer en otra pagina. Se fija el margen real la
-  /// primera vez que los controles estan visibles (barras reales) y se
-  /// reusa siempre, para que mostrar/ocultar controles nunca dispare un
-  /// relayout.
   EdgeInsets? _stableSafeArea;
 
   void _pushInsets({bool force = false}) {
@@ -708,7 +701,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
             ListTile(
               leading: const Icon(Icons.notes),
               title: Text(
-                highlight.note?.isNotEmpty == true
+                highlight.note?.isNotEmpty ?? false
                     ? 'Editar nota'
                     : 'Añadir nota',
               ),
@@ -765,8 +758,6 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
 
   Timer? _primeTimer;
 
-  /// La instantanea de la pagina se prepara cuando el lector lleva un momento
-  /// quieto, no al empezar el giro: el readback de GPU cuesta un frame.
   void _refreshSnapshot() {
     _curl.invalidate();
     _primeTimer?.cancel();
@@ -901,6 +892,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
   Widget build(BuildContext context) {
     final settings = _settings;
     WidgetsBinding.instance.addPostFrameCallback((_) => _pushInsets());
+    final barsVisible = _chromeVisible && !_showToc && !_showSearch;
 
     return Scaffold(
       backgroundColor: settings.preset.background,
@@ -914,109 +906,17 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
               onKeyEvent: _onKey,
               child: Stack(
                 children: [
-                  Positioned.fill(
-                    child: AnimatedBuilder(
-                      animation: _curl.animation,
-                      builder: (context, child) => FractionalTranslation(
-                        key: readerIncomingKey,
-                        translation: Offset(_curl.incomingShift, 0),
-                        child: child,
-                      ),
-                      child: _engine!(
-                        ReaderEngineCallbacks(
-                          onReady: (c) {
-                            _controller = c;
-                            _applySettings(settings);
-                            c.applyHighlights([
-                              for (final h in _highlights)
-                                HighlightSpec(cfi: h.cfi, color: h.color),
-                            ]);
-                            _pushInsets(force: true);
-                            _focusNode.requestFocus();
-                          },
-                          onLocationChanged: _onLocation,
-                          onTocLoaded: (toc) {
-                            if (!mounted) return;
-                            setState(() => _toc = toc);
-                          },
-                          onPageCount: (total) {
-                            if (!mounted || total == _pageCount) return;
-                            setState(() => _pageCount = total);
-                          },
-                          onSearchResults: (query, hits) {
-                            if (!mounted || query != _searchQuery) return;
-                            setState(() {
-                              _searchHits = hits;
-                              _searchBusy = false;
-                            });
-                          },
-                          onTextSelected: (sel) {
-                            if (!mounted) return;
-                            setState(() => _selection = sel);
-                            _refreshSnapshot();
-                          },
-                          onSelectionCleared: () {
-                            if (mounted && _selection != null) {
-                              setState(() => _selection = null);
-                            }
-                          },
-                          onHighlightTapped: _openHighlight,
-                          onError: (m) {
-                            if (!mounted) return;
-                            setState(() => _error = m);
-                          },
-                        ),
-                        _initialLocator,
-                        _initialPercent,
-                      ),
-                    ),
-                  ),
-                  Positioned.fill(
-                    child: RawGestureDetector(
-                      behavior: HitTestBehavior.translucent,
-                      gestures: {
-                        HorizontalDragGestureRecognizer:
-                            GestureRecognizerFactoryWithHandlers<
-                              HorizontalDragGestureRecognizer
-                            >(
-                              () => HorizontalDragGestureRecognizer(
-                                supportedDevices: {
-                                  PointerDeviceKind.touch,
-                                  PointerDeviceKind.stylus,
-                                },
-                              ),
-                              (instance) {
-                                instance
-                                  ..onStart = _onDragStart
-                                  ..onUpdate = _onDragUpdate
-                                  ..onEnd = _onDragEnd
-                                  ..onCancel = _onDragCancel;
-                              },
-                            ),
-                      },
-                      child: Listener(
-                        behavior: HitTestBehavior.translucent,
-                        onPointerDown: (e) {
-                          _tapDownPos = e.position;
-                          _tapDownAt = DateTime.now();
-                        },
-                        onPointerUp: (e) => _onReaderPointerUp(e.position),
-                        onPointerCancel: (_) {
-                          _tapDownPos = null;
-                          _tapDownAt = null;
-                        },
-                      ),
-                    ),
-                  ),
+                  _engineLayer(settings),
+                  _gestureLayer(),
                   ?_curl.overlay(),
                   ?_selectionToolbar(),
                   ReaderBar(
-                    visible: _chromeVisible && !_showToc && !_showSearch,
+                    visible: barsVisible,
                     fromTop: true,
                     child: _topBar(),
                   ),
                   ReaderBar(
-                    visible: _chromeVisible && !_showToc && !_showSearch,
+                    visible: barsVisible,
                     fromTop: false,
                     child: _bottomBar(),
                   ),
@@ -1025,101 +925,190 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
                     right: 26,
                     bottom: 58,
                     child: _showAppearance
-                        ? AppearancePanel(
-                            settings: settings,
-                            bookFontAvailable: _caps.bookFontAvailable,
-                            bookFontUnsupported: _caps.bookFontUnsupported,
-                            onPreset: (p) => ref
-                                .read(readerSettingsControllerProvider)
-                                .setPreset(p),
-                            onFontFamily: !_caps.reflowable
-                                ? null
-                                : (f) => ref
-                                      .read(readerSettingsControllerProvider)
-                                      .setFontFamily(f),
-                            onFontScale: !_caps.reflowable
-                                ? null
-                                : (v) => ref
-                                      .read(readerSettingsControllerProvider)
-                                      .setFontScale(v),
-                            onLineHeight: !_caps.reflowable
-                                ? null
-                                : (v) => ref
-                                      .read(readerSettingsControllerProvider)
-                                      .setLineHeight(v),
-                            onColumns: (m) => ref
-                                .read(readerSettingsControllerProvider)
-                                .setColumns(m),
-                            rtl: _rtl,
-                            onDirection: _caps.directional ? _setRtl : null,
-                            onPageNumbers: !_caps.reflowable
-                                ? null
-                                : (v) => ref
-                                      .read(readerSettingsControllerProvider)
-                                      .setPageNumbers(v),
-                          )
+                        ? _appearancePanel(settings)
                         : const SizedBox.shrink(),
                   ),
                   ReaderSidePanel(
                     open: _showToc,
-                    child: _showToc
-                        ? TocDrawer(
-                            toc: _toc,
-                            currentHref: _location?.href,
-                            chapterCount: _chapterTotal,
-                            pageCount: _pageCount,
-                            bookmarks: _bookmarks,
-                            currentCfi: _location?.cfi,
-                            chrome: _chrome,
-                            onSelect: (entry) {
-                              if (entry.href.isNotEmpty) {
-                                _controller?.goToCfi(entry.href);
-                              }
-                              setState(() => _showToc = false);
-                            },
-                            onBookmarkSelect: (bookmark) {
-                              _controller?.goToCfi(bookmark.cfi);
-                              setState(() => _showToc = false);
-                            },
-                            onBookmarkDelete: (bookmark) => ref
-                                .read(bookRepositoryProvider)
-                                .deleteBookmark(bookmark.id),
-                            highlights: _highlights,
-                            highlightColors: _highlightColors,
-                            onHighlightSelect: (h) {
-                              _controller?.goToCfi(h.cfi);
-                              setState(() => _showToc = false);
-                            },
-                            onHighlightDelete: (h) {
-                              ref
-                                  .read(bookRepositoryProvider)
-                                  .deleteHighlight(h.id);
-                              _controller?.removeHighlight(h.cfi);
-                            },
-                            onClose: () => setState(() => _showToc = false),
-                          )
-                        : const SizedBox.shrink(),
+                    child: _showToc ? _tocPanel() : const SizedBox.shrink(),
                   ),
                   ReaderSidePanel(
                     open: _showSearch,
                     child: _showSearch
-                        ? SearchPanel(
-                            chrome: _chrome,
-                            hits: _searchHits,
-                            busy: _searchBusy,
-                            query: _searchQuery,
-                            onSubmit: _runSearch,
-                            onSelect: (hit) {
-                              _controller?.goToCfi(hit.cfi);
-                              setState(() => _showSearch = false);
-                            },
-                            onClose: () => setState(() => _showSearch = false),
-                          )
+                        ? _searchPanel()
                         : const SizedBox.shrink(),
                   ),
                 ],
               ),
             ),
+    );
+  }
+
+  void _jumpTo(String cfi) {
+    _controller?.goToCfi(cfi);
+    setState(() {
+      _showToc = false;
+      _showSearch = false;
+    });
+  }
+
+  ReaderEngineCallbacks _engineCallbacks(ReaderSettings settings) {
+    return ReaderEngineCallbacks(
+      onReady: (c) {
+        _controller = c;
+        _applySettings(settings);
+        c.applyHighlights([
+          for (final h in _highlights)
+            HighlightSpec(cfi: h.cfi, color: h.color),
+        ]);
+        _pushInsets(force: true);
+        _focusNode.requestFocus();
+      },
+      onLocationChanged: _onLocation,
+      onTocLoaded: (toc) {
+        if (mounted) setState(() => _toc = toc);
+      },
+      onPageCount: (total) {
+        if (!mounted || total == _pageCount) return;
+        setState(() => _pageCount = total);
+      },
+      onSearchResults: (query, hits) {
+        if (!mounted || query != _searchQuery) return;
+        setState(() {
+          _searchHits = hits;
+          _searchBusy = false;
+        });
+      },
+      onTextSelected: (sel) {
+        if (!mounted) return;
+        setState(() => _selection = sel);
+        _refreshSnapshot();
+      },
+      onSelectionCleared: () {
+        if (mounted && _selection != null) setState(() => _selection = null);
+      },
+      onHighlightTapped: _openHighlight,
+      onError: (m) {
+        if (mounted) setState(() => _error = m);
+      },
+    );
+  }
+
+  Widget _engineLayer(ReaderSettings settings) {
+    return Positioned.fill(
+      child: AnimatedBuilder(
+        animation: _curl.animation,
+        builder: (context, child) => FractionalTranslation(
+          key: readerIncomingKey,
+          translation: Offset(_curl.incomingShift, 0),
+          child: child,
+        ),
+        child: _engine!(
+          _engineCallbacks(settings),
+          _initialLocator,
+          _initialPercent,
+        ),
+      ),
+    );
+  }
+
+  Widget _gestureLayer() {
+    return Positioned.fill(
+      child: RawGestureDetector(
+        behavior: HitTestBehavior.translucent,
+        gestures: {
+          HorizontalDragGestureRecognizer:
+              GestureRecognizerFactoryWithHandlers<
+                HorizontalDragGestureRecognizer
+              >(
+                () => HorizontalDragGestureRecognizer(
+                  supportedDevices: {
+                    PointerDeviceKind.touch,
+                    PointerDeviceKind.stylus,
+                  },
+                ),
+                (instance) {
+                  instance
+                    ..onStart = _onDragStart
+                    ..onUpdate = _onDragUpdate
+                    ..onEnd = _onDragEnd
+                    ..onCancel = _onDragCancel;
+                },
+              ),
+        },
+        child: Listener(
+          behavior: HitTestBehavior.translucent,
+          onPointerDown: (e) {
+            _tapDownPos = e.position;
+            _tapDownAt = DateTime.now();
+          },
+          onPointerUp: (e) => _onReaderPointerUp(e.position),
+          onPointerCancel: (_) {
+            _tapDownPos = null;
+            _tapDownAt = null;
+          },
+        ),
+      ),
+    );
+  }
+
+  Widget _appearancePanel(ReaderSettings settings) {
+    final controller = ref.read(readerSettingsControllerProvider);
+    final reflowable = _caps.reflowable;
+    return AppearancePanel(
+      settings: settings,
+      bookFontAvailable: _caps.bookFontAvailable,
+      bookFontUnsupported: _caps.bookFontUnsupported,
+      onPreset: controller.setPreset,
+      onFontFamily: reflowable ? controller.setFontFamily : null,
+      onFontScale: reflowable ? controller.setFontScale : null,
+      onLineHeight: reflowable ? controller.setLineHeight : null,
+      onColumns: controller.setColumns,
+      rtl: _rtl,
+      onDirection: _caps.directional ? _setRtl : null,
+      onPageNumbers: reflowable ? controller.setPageNumbers : null,
+    );
+  }
+
+  Widget _tocPanel() {
+    final repo = ref.read(bookRepositoryProvider);
+    return TocDrawer(
+      toc: _toc,
+      currentHref: _location?.href,
+      chapterCount: _chapterTotal,
+      pageCount: _pageCount,
+      bookmarks: _bookmarks,
+      currentCfi: _location?.cfi,
+      chrome: _chrome,
+      onSelect: (entry) {
+        if (entry.href.isNotEmpty) {
+          _jumpTo(entry.href);
+        } else {
+          setState(() => _showToc = false);
+        }
+      },
+      onBookmarkSelect: (bookmark) => _jumpTo(bookmark.cfi),
+      onBookmarkDelete: (bookmark) => repo.deleteBookmark(bookmark.id),
+      highlights: _highlights,
+      highlightColors: _highlightColors,
+      onHighlightSelect: (h) => _jumpTo(h.cfi),
+      onHighlightDelete: (h) {
+        repo.deleteHighlight(h.id);
+        _controller?.removeHighlight(h.cfi);
+      },
+      onClose: () => setState(() => _showToc = false),
+    );
+  }
+
+  Widget _searchPanel() {
+    return SearchPanel(
+      chrome: _chrome,
+      hits: _searchHits,
+      busy: _searchBusy,
+      query: _searchQuery,
+      onSubmit: _runSearch,
+      onSelect: (hit) => _jumpTo(hit.cfi),
+      onClose: () => setState(() => _showSearch = false),
     );
   }
 

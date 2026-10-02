@@ -14,7 +14,6 @@ const double curlRadius = 36;
 final SpringDescription curlSpring = SpringDescription.withDampingRatio(
   mass: 1,
   stiffness: 180,
-  ratio: 1,
 );
 
 double edgeForAxis(double axis, double width, double radius) {
@@ -68,14 +67,10 @@ enum PageTransition {
 
   bool get tracksDrag => this != PageTransition.fade;
 
-  /// Recorrido del dedo que agota la animación. En el curl el borde de la
-  /// hoja va bajo el dedo, así que el dedo recorre lo que recorre el borde.
   double travelSpan(double width) => this == PageTransition.curl
       ? width - edgeTurned(width, curlRadius)
       : width * 0.7;
 
-  /// Progreso a partir del cual soltar completa el giro. En el curl es cuando
-  /// el borde de la hoja pasa la mitad de la pantalla.
   double completion(double width) =>
       this == PageTransition.curl ? (width * 0.5) / travelSpan(width) : 0.35;
 
@@ -103,8 +98,6 @@ class PageCurlController {
 
   final VoidCallback onChange;
 
-  /// Color del dorso de la hoja al plegarse. Lo fija el lector desde su tema:
-  /// un dorso claro sobre fondo oscuro delata la animacion.
   Color paper = const Color(0xFFF2EDE4);
 
   late final AnimationController _anim;
@@ -116,9 +109,6 @@ class PageCurlController {
   PageTurn? _revert;
   Future<void>? _pending;
 
-  /// Fuente de verdad de la transicion. Quien dependa del progreso escucha
-  /// esto en vez de reconstruirse: durante el arrastre la pagina de debajo no
-  /// cambia de contenido y no tiene por que volver a construirse.
   Listenable get animation => _anim;
 
   bool get busy => _active != null;
@@ -145,8 +135,6 @@ class PageCurlController {
   ui.FragmentShader? _curl;
   bool _springing = false;
 
-  /// El shader se compila una vez por lector: compilarlo al empezar el giro
-  /// costaria el primer frame.
   bool get curlReady => _curl != null;
 
   Future<void> loadShader() async {
@@ -160,8 +148,6 @@ class PageCurlController {
     } catch (_) {}
   }
 
-  /// Captura la pagina de salida mientras el lector esta quieto. El readback
-  /// de GPU cuesta un frame y no puede pagarse al empezar el giro.
   Future<void> prime(PageImageSource outgoing) async {
     if (busy || _capturing || _primed != null) return;
     _capturing = true;
@@ -253,7 +239,7 @@ class PageCurlController {
               _anim.value,
               complete ? 1 : 0,
               velocity,
-              tolerance: const Tolerance(distance: 0.001, velocity: 0.01),
+              tolerance: const Tolerance(velocity: 0.01),
             ),
           )
           .orCancel

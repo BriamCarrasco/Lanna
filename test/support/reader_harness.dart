@@ -159,8 +159,6 @@ ReaderHarness setUpReader() {
   final previousWakelock = WakelockPlusPlatformInterface.instance;
   final previousFacade = wakelock.wakelockPlusPlatformInstance;
   PathProviderPlatform.instance = FakePathProvider(root.path);
-  // WakelockPlus cachea la instancia al cargar la libreria, asi que sustituir
-  // solo la del interface llega tarde.
   WakelockPlusPlatformInterface.instance = fake;
   wakelock.wakelockPlusPlatformInstance = fake;
 
@@ -239,8 +237,6 @@ extension ReaderHarnessX on ReaderHarness {
     File(p.join(root.path, '$id.epub')).writeAsBytesSync([1, 2, 3, 4]);
   }
 
-  /// Los `watch` de drift no resuelven dentro de la zona fake de los tests:
-  /// para leer estado hay que ir por consulta directa.
   Future<List<Bookmark>> bookmarks() => db.select(db.bookmarks).get();
 
   NativeBookSource sourceOf(WidgetTester tester) =>
@@ -280,9 +276,6 @@ extension ReaderHarnessX on ReaderHarness {
   }
 }
 
-/// Monta el entorno, corre el cuerpo y desmonta el arbol dentro del propio
-/// test: las consultas `watch` de drift difieren su limpieza con un Timer y
-/// el binding lo da por pendiente si el arbol muere en el teardown.
 void readerTest(
   String description,
   Future<void> Function(WidgetTester tester, ReaderHarness h) body,

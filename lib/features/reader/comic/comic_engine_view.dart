@@ -46,7 +46,6 @@ class _ComicEngineViewState extends FixedLayoutEngineState<ComicEngineView> {
           ),
           fit: BoxFit.contain,
           alignment: alignment,
-          filterQuality: FilterQuality.medium,
           gaplessPlayback: true,
           errorBuilder: (context, _, _) => const Center(
             child: Icon(Icons.broken_image_outlined, color: Colors.white38),

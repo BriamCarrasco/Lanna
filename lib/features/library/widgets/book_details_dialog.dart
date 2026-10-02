@@ -185,7 +185,7 @@ class _Chip extends StatelessWidget {
         horizontal: LannaSpacing.s2 + 1,
         vertical: LannaSpacing.s1,
       ),
-      decoration: BoxDecoration(
+      decoration: const BoxDecoration(
         color: LannaColors.surfaceActive,
         borderRadius: LannaRadii.brSm,
       ),

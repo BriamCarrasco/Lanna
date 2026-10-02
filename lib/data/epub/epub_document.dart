@@ -381,102 +381,98 @@ class _Builder {
     if (id != null) anchors[id] = _cursor();
 
     if (_isPageBreak(node)) {
-      flush();
-      blocks.add(
-        DocBlock(kind: BlockKind.pageBreak, start: offset, end: offset, id: id),
-      );
+      _emitMarker(BlockKind.pageBreak, id);
+    } else if (_visitSpecial(tag, node, id)) {
       return;
-    }
-
-    if (tag == 'br') {
-      if (_pending.isEmpty && _runs.isEmpty) return;
-      if (_endsWithBreak()) {
-        flush();
-        return;
-      }
-      _appendRaw('\n');
-      return;
-    }
-
-    if (tag == 'hr') {
-      flush();
-      blocks.add(
-        DocBlock(kind: BlockKind.separator, start: offset, end: offset, id: id),
-      );
-      return;
-    }
-
-    if (tag == 'img' || tag == 'image') {
-      _emitImage(node, id);
-      return;
-    }
-
-    if (tag == 'svg') {
-      final image = node.querySelector('image');
-      if (image != null) {
-        _emitImage(image, id);
-        return;
-      }
-    }
-
-    if (_markTags.containsKey(tag)) {
-      final mark = _markTags[tag]!;
-      final added = _marks.add(mark);
-      _visitChildren(node);
-      if (added) _marks.remove(mark);
-      return;
-    }
-
-    if (tag == 'a') {
-      final target = node.attributes['href'];
-      if (target == null || target.isEmpty) {
-        _visitChildren(node);
-        return;
-      }
-      final previous = _href;
-      _href = target;
-      _visitChildren(node);
-      _href = previous;
-      return;
-    }
-
-    if (tag == 'ul' || tag == 'ol') {
-      _listStack.add(tag == 'ol');
-      _listCounters.add(0);
-      _visitChildren(node);
-      _listStack.removeLast();
-      _listCounters.removeLast();
-      return;
-    }
-
-    if (_leafBlocks.contains(tag)) {
+    } else if (_leafBlocks.contains(tag)) {
       _openBlock(tag, node, id);
-      return;
-    }
-
-    if (_promotable.contains(tag) && _hasOnlyInline(node)) {
+    } else if (_promotable.contains(tag) && _hasOnlyInline(node)) {
       _openBlock('p', node, id);
-      return;
-    }
-
-    if (_containers.contains(tag) || _promotable.contains(tag)) {
-      final align = _alignOf(node);
-      final dir = EpubDocumentParser._dirOf(node);
-      if (align == null && dir == null) {
-        _visitChildren(node);
-        return;
-      }
-      final previousAlign = _align;
-      final previousRtl = _rtl;
-      _align = align ?? _align;
-      _rtl = dir ?? _rtl;
+    } else if (_containers.contains(tag) || _promotable.contains(tag)) {
+      _visitContainer(node);
+    } else {
       _visitChildren(node);
-      _align = previousAlign;
-      _rtl = previousRtl;
+    }
+  }
+
+  bool _visitSpecial(String tag, dom.Element node, String? id) {
+    switch (tag) {
+      case 'br':
+        _visitBreak();
+      case 'hr':
+        _emitMarker(BlockKind.separator, id);
+      case 'img' || 'image':
+        _emitImage(node, id);
+      case 'svg':
+        final image = node.querySelector('image');
+        if (image == null) return false;
+        _emitImage(image, id);
+      case 'a':
+        _visitLink(node);
+      case 'ul' || 'ol':
+        _visitList(node, ordered: tag == 'ol');
+      default:
+        final mark = _markTags[tag];
+        if (mark == null) return false;
+        _visitMarked(node, mark);
+    }
+    return true;
+  }
+
+  void _emitMarker(BlockKind kind, String? id) {
+    flush();
+    blocks.add(DocBlock(kind: kind, start: offset, end: offset, id: id));
+  }
+
+  void _visitBreak() {
+    if (_pending.isEmpty && _runs.isEmpty) return;
+    if (_endsWithBreak()) {
+      flush();
+    } else {
+      _appendRaw('\n');
+    }
+  }
+
+  void _visitMarked(dom.Element node, InlineMark mark) {
+    final added = _marks.add(mark);
+    _visitChildren(node);
+    if (added) _marks.remove(mark);
+  }
+
+  void _visitLink(dom.Element node) {
+    final target = node.attributes['href'];
+    if (target == null || target.isEmpty) {
+      _visitChildren(node);
       return;
     }
-
+    final previous = _href;
+    _href = target;
     _visitChildren(node);
+    _href = previous;
+  }
+
+  void _visitList(dom.Element node, {required bool ordered}) {
+    _listStack.add(ordered);
+    _listCounters.add(0);
+    _visitChildren(node);
+    _listStack.removeLast();
+    _listCounters.removeLast();
+  }
+
+  void _visitContainer(dom.Element node) {
+    final align = _alignOf(node);
+    final dir = EpubDocumentParser._dirOf(node);
+    if (align == null && dir == null) {
+      _visitChildren(node);
+      return;
+    }
+    final previousAlign = _align;
+    final previousRtl = _rtl;
+    _align = align ?? _align;
+    _rtl = dir ?? _rtl;
+    _visitChildren(node);
+    _align = previousAlign;
+    _rtl = previousRtl;
   }
 
   bool _endsWithBreak() {

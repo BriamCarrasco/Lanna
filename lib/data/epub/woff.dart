@@ -49,7 +49,7 @@ abstract final class Woff {
         entry.offset + entry.compLength,
       );
       final body = entry.compLength < entry.origLength
-          ? Uint8List.fromList(ZLibDecoder().decodeBytes(raw))
+          ? Uint8List.fromList(const ZLibDecoder().decodeBytes(raw))
           : raw;
       if (body.length != entry.origLength) {
         throw const FormatException('tabla WOFF con longitud inesperada');

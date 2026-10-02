@@ -107,43 +107,46 @@ abstract final class EpubFonts {
   static List<FontFace> _facesIn(String css, String cssHref) {
     final result = <FontFace>[];
     for (final block in _faceBlock.allMatches(css)) {
-      final body = block.group(1) ?? '';
-      String? family;
-      String? source;
-      var weight = 400;
-      var italic = false;
-
-      for (final decl in _declaration.allMatches(body)) {
-        final name = decl.group(1)!.toLowerCase();
-        final value = decl.group(2)!.trim();
-        switch (name) {
-          case 'font-family':
-            family = _unquote(value);
-          case 'src':
-            source = _pickSource(value);
-          case 'font-weight':
-            weight = _weight(value);
-          case 'font-style':
-            italic =
-                value.toLowerCase().contains('italic') ||
-                value.toLowerCase().contains('oblique');
-        }
-      }
-
-      if (source == null && family != null && _hasUnsupported(body)) {
-        _skipped = true;
-      }
-      if (family == null || family.isEmpty || source == null) continue;
-      result.add(
-        FontFace(
-          family: family,
-          href: _resolve(source, cssHref),
-          weight: weight,
-          italic: italic,
-        ),
-      );
+      final face = _faceFrom(block.group(1) ?? '', cssHref);
+      if (face != null) result.add(face);
     }
     return result;
+  }
+
+  static FontFace? _faceFrom(String body, String cssHref) {
+    String? family;
+    String? source;
+    var weight = 400;
+    var italic = false;
+    for (final decl in _declaration.allMatches(body)) {
+      final value = decl.group(2)!.trim();
+      switch (decl.group(1)!.toLowerCase()) {
+        case 'font-family':
+          family = _unquote(value);
+        case 'src':
+          source = _pickSource(value);
+        case 'font-weight':
+          weight = _weight(value);
+        case 'font-style':
+          italic = _isItalic(value);
+      }
+    }
+
+    if (source == null && family != null && _hasUnsupported(body)) {
+      _skipped = true;
+    }
+    if (family == null || family.isEmpty || source == null) return null;
+    return FontFace(
+      family: family,
+      href: _resolve(source, cssHref),
+      weight: weight,
+      italic: italic,
+    );
+  }
+
+  static bool _isItalic(String value) {
+    final lower = value.toLowerCase();
+    return lower.contains('italic') || lower.contains('oblique');
   }
 
   static String? _pickSource(String value) {

@@ -41,7 +41,7 @@ class FavoritesScreen extends ConsumerWidget {
                   '«Añadir a favoritos».',
             )
           : shown.isEmpty
-          ? SectionEmpty(
+          ? const SectionEmpty(
               icon: Icons.search_off,
               message: 'Sin resultados en tus favoritos',
             )

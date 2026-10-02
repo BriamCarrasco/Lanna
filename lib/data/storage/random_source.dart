@@ -66,7 +66,9 @@ class FileSource implements RandomSource {
 
 class FdSource implements RandomSource {
   FdSource(this.fd) : length = _Libc.instance.lseek(fd, 0, 2) {
-    if (length < 0) throw FileSystemException('No se pudo leer el archivo');
+    if (length < 0) {
+      throw const FileSystemException('No se pudo leer el archivo');
+    }
   }
 
   final int fd;
@@ -84,7 +86,9 @@ class FdSource implements RandomSource {
     while (filled < dest.length) {
       final want = math.min(dest.length - filled, _scratchSize);
       final n = _Libc.instance.pread(fd, _scratch, want, offset + filled);
-      if (n < 0) throw FileSystemException('Error de lectura en el archivo');
+      if (n < 0) {
+        throw const FileSystemException('Error de lectura en el archivo');
+      }
       if (n == 0) break;
       dest.setRange(filled, filled + n, _scratch.asTypedList(n));
       filled += n;

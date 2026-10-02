@@ -124,13 +124,17 @@ class ComicArchive {
     final exited = Completer<void>();
     port.listen((message) {
       switch (message) {
-        case (SendPort requests, List<String> pages, String? info):
+        case (
+          final SendPort requests,
+          final List<String> pages,
+          final String? info,
+        ):
           init.complete((requests, pages, info));
-        case (int id, TransferableTypedData data):
+        case (final int id, final TransferableTypedData data):
           pending.remove(id)?.complete(data.materialize().asUint8List());
-        case (int id, String error):
+        case (final int id, final String error):
           pending.remove(id)?.completeError(ComicFormatException(error));
-        case (null, String error):
+        case (null, final String error):
           if (!init.isCompleted) {
             init.completeError(ComicFormatException(error));
           }
@@ -366,7 +370,7 @@ void _worker((SendPort, SourceSpec, _Source, String?) args) {
   final inbox = ReceivePort();
   reply.send((inbox.sendPort, [for (final i in pages) reader.names[i]], info));
   inbox.listen((message) {
-    if (message case (int id, int page)) {
+    if (message case (final int id, final int page)) {
       try {
         final bytes = reader.read(pages[page]);
         reply.send((id, TransferableTypedData.fromList([bytes])));

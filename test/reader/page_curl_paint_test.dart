@@ -154,8 +154,6 @@ void main() {
   ) async {
     final data = await render(tester, 0.60);
 
-    // Con el faldon plegado sobre la hoja el dorso cubre ~18% de la pagina;
-    // si se queda colapsado en el pliegue baja a ~10%.
     expect(
       fraccion(data, esDorso),
       greaterThan(0.15),

@@ -160,19 +160,10 @@ class SettingsScreen extends ConsumerWidget {
 class _Folders extends ConsumerWidget {
   const _Folders();
 
-  Future<void> _add(BuildContext context, WidgetRef ref) async {
-    final messenger = ScaffoldMessenger.of(context);
-    try {
-      final report = await ref.read(libraryScanProvider.notifier).addFolder();
-      if (report != null) {
-        messenger.showSnackBar(SnackBar(content: Text(describeScan(report))));
-      }
-    } catch (e) {
-      messenger.showSnackBar(
-        SnackBar(content: Text('No se pudo revisar la carpeta: $e')),
-      );
-    }
-  }
+  Future<void> _add(BuildContext context, WidgetRef ref) => reportScan(
+    ScaffoldMessenger.of(context),
+    ref.read(libraryScanProvider.notifier).addFolder(),
+  );
 
   Future<void> _remove(
     BuildContext context,

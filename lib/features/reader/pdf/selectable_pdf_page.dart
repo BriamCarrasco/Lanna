@@ -238,7 +238,6 @@ class _SelectablePdfPageState extends State<SelectablePdfPage> {
               PdfPageView(
                 document: widget.document,
                 pageNumber: widget.pageNumber,
-                alignment: Alignment.center,
                 backgroundColor: Colors.white,
               ),
               Positioned.fill(

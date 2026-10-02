@@ -6,6 +6,7 @@ import 'package:pdfrx/pdfrx.dart';
 
 import '../../../core/text_search.dart';
 import '../../../data/epub/epub_book.dart';
+import '../engine_support.dart';
 import '../fixed/fixed_layout_engine.dart';
 import '../reader_engine.dart';
 import 'selectable_pdf_page.dart';
@@ -25,9 +26,9 @@ class PdfEngineView extends FixedLayoutEngine {
   State<PdfEngineView> createState() => _PdfEngineViewState();
 }
 
-class _PdfEngineViewState extends FixedLayoutEngineState<PdfEngineView> {
+class _PdfEngineViewState extends FixedLayoutEngineState<PdfEngineView>
+    with EngineHighlights<PdfEngineView> {
   List<EpubTocEntry> _toc = const [];
-  List<HighlightSpec> _highlights = const [];
   PdfSelection? _selection;
   int _searchToken = 0;
 
@@ -81,7 +82,7 @@ class _PdfEngineViewState extends FixedLayoutEngineState<PdfEngineView> {
       document: _document,
       pageNumber: page,
       highlights: [
-        for (final h in _highlights)
+        for (final h in highlights)
           if (h.cfi.startsWith('page:$page#')) h,
       ],
       selection: _selection,
@@ -106,30 +107,6 @@ class _PdfEngineViewState extends FixedLayoutEngineState<PdfEngineView> {
   Future<void> clearSelection() async {
     if (mounted && _selection != null) setState(() => _selection = null);
     widget.callbacks.onSelectionCleared?.call();
-  }
-
-  @override
-  Future<void> applyHighlights(List<HighlightSpec> highlights) async {
-    if (mounted) setState(() => _highlights = highlights);
-  }
-
-  @override
-  Future<void> addHighlight(String cfi, String color) async {
-    if (!mounted) return;
-    setState(
-      () => _highlights = [
-        ..._highlights.where((h) => h.cfi != cfi),
-        HighlightSpec(cfi: cfi, color: color),
-      ],
-    );
-  }
-
-  @override
-  Future<void> removeHighlight(String cfi) async {
-    if (!mounted) return;
-    setState(
-      () => _highlights = _highlights.where((h) => h.cfi != cfi).toList(),
-    );
   }
 
   @override

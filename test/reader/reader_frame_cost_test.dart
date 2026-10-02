@@ -18,9 +18,6 @@ void main() {
     return tester.widget<FractionalTranslation>(f).translation.dx;
   }
 
-  /// Cuenta cuantas veces se reconstruye el subarbol del lector mientras se
-  /// arrastra. Deberia ser cero: la pagina de salida es una instantanea y la
-  /// de entrada no cambia de contenido.
   readerTest('el arrastre no reconstruye la página bajo la transición', (
     tester,
     h,
@@ -51,8 +48,6 @@ void main() {
     await tester.runAsync(() => gesto.up());
     await settleReader(tester);
 
-    // Una sola reconstruccion al arrancar (el overlay entra en el arbol) es
-    // estructural; a partir de ahi manda la animacion, no setState.
     expect(
       reconstrucciones,
       lessThanOrEqualTo(1),

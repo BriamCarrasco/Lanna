@@ -42,3 +42,14 @@ PageEstimate? estimatePage({
   final current = before + pageInChapter + 1;
   return PageEstimate(current, total < current ? current : total);
 }
+
+int? projectedPages({
+  required int pagesSoFar,
+  required int reachedOffset,
+  required int length,
+}) {
+  if (pagesSoFar <= 0 || reachedOffset <= 0 || length <= 0) return null;
+  final fraction = (reachedOffset / length).clamp(0.0, 1.0);
+  final projected = (pagesSoFar / fraction).round();
+  return projected < pagesSoFar ? pagesSoFar : projected;
+}

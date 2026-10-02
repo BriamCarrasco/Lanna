@@ -3,11 +3,11 @@ import 'dart:async';
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
-import 'package:flutter/rendering.dart';
 import 'package:flutter/scheduler.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../../data/epub/epub_document.dart';
+import '../engine_support.dart';
 import '../reader_engine.dart';
 import 'book_source.dart';
 import 'page_canvas.dart';
@@ -33,6 +33,7 @@ class NativeEpubView extends StatefulWidget {
 }
 
 class _NativeEpubViewState extends State<NativeEpubView>
+    with EngineHighlights<NativeEpubView>
     implements ReaderEngineController {
   final GlobalKey _boundary = GlobalKey();
   final GlobalKey<SelectionAreaState> _selectionKey =
@@ -200,8 +201,6 @@ class _NativeEpubViewState extends State<NativeEpubView>
     if (!mounted || token != _navToken) return false;
 
     final job = _jobFor(clamped, document);
-    // Paginar hasta que la página que contiene `offset` esté cerrada:
-    // sin eso pageForOffset devuelve la última página conocida, una antes.
     final reached = await _paginate(
       job,
       token,
@@ -261,7 +260,7 @@ class _NativeEpubViewState extends State<NativeEpubView>
       if (!mounted) break;
       if (_animating) break;
       final before = _current;
-      job.step(budget: const Duration(milliseconds: 6));
+      job.step();
       if (!mounted) break;
       if (!identical(_current, before)) setState(() {});
     }
@@ -316,8 +315,6 @@ class _NativeEpubViewState extends State<NativeEpubView>
   Timer? _prefetchTimer;
   int _prefetchRound = 0;
 
-  /// Trae los capitulos vecinos cuando el lector lleva un rato quieto. Abrir
-  /// uno cuesta ~17 ms de parseo: dentro de un giro eso es un frame perdido.
   void _schedulePrefetch() {
     _prefetchTimer?.cancel();
     _prefetchTimer = Timer(
@@ -448,9 +445,9 @@ class _NativeEpubViewState extends State<NativeEpubView>
     final chapter = target?.chapter ?? _chapter;
     final offset = target?.offset ?? _offset;
 
-    _background = _parseColor(presentation.background, _background);
-    _foreground = _parseColor(presentation.foreground, _foreground);
-    _link = _parseColor(presentation.link, _link);
+    _background = parseCssColor(presentation.background, _background);
+    _foreground = parseCssColor(presentation.foreground, _foreground);
+    _link = parseCssColor(presentation.link, _link);
     _pageNumbers = presentation.pageNumbers;
 
     final before = _layoutKey;
@@ -491,18 +488,7 @@ class _NativeEpubViewState extends State<NativeEpubView>
   }
 
   @override
-  Future<ui.Image?> snapshot() async {
-    final object = _boundary.currentContext?.findRenderObject();
-    if (object is! RenderRepaintBoundary) return null;
-    if (!object.hasSize || object.debugNeedsPaint) return null;
-    try {
-      return await object.toImage(
-        pixelRatio: MediaQuery.devicePixelRatioOf(context),
-      );
-    } catch (_) {
-      return null;
-    }
-  }
+  Future<ui.Image?> snapshot() => captureBoundary(_boundary, context);
 
   @override
   Future<void> search(String query) async {
@@ -559,36 +545,9 @@ class _NativeEpubViewState extends State<NativeEpubView>
     return '$prefix${text.substring(from, to).replaceAll('\n', ' ')}$suffix';
   }
 
-  List<HighlightSpec> _highlights = const [];
-
-  @override
-  Future<void> applyHighlights(List<HighlightSpec> highlights) async {
-    if (!mounted) return;
-    setState(() => _highlights = highlights);
-  }
-
-  @override
-  Future<void> addHighlight(String cfi, String color) async {
-    if (!mounted) return;
-    setState(
-      () => _highlights = [
-        ..._highlights.where((h) => h.cfi != cfi),
-        HighlightSpec(cfi: cfi, color: color),
-      ],
-    );
-  }
-
-  @override
-  Future<void> removeHighlight(String cfi) async {
-    if (!mounted) return;
-    setState(
-      () => _highlights = _highlights.where((h) => h.cfi != cfi).toList(),
-    );
-  }
-
   List<PageHighlight> get _pageHighlights {
     final result = <PageHighlight>[];
-    for (final spec in _highlights) {
+    for (final spec in highlights) {
       final locator = ReaderLocator.parse(spec.cfi);
       if (locator == null || locator.chapter != _chapter) continue;
       if (!locator.isRange) continue;
@@ -617,14 +576,6 @@ class _NativeEpubViewState extends State<NativeEpubView>
     'serif' => AppFonts.serif,
     _ => fontFamilyFromCss(logical) ?? AppFonts.serif,
   };
-
-  static Color _parseColor(String? value, Color fallback) {
-    if (value == null) return fallback;
-    var hex = value.replaceAll('#', '').trim();
-    if (hex.length == 6) hex = 'FF$hex';
-    final parsed = int.tryParse(hex, radix: 16);
-    return parsed == null ? fallback : Color(parsed);
-  }
 
   void _onSelection(PageSelection? selection) {
     if (selection == null) {
@@ -688,6 +639,25 @@ class _NativeEpubViewState extends State<NativeEpubView>
     );
   }
 
+  Map<int, int> _knownPages() {
+    final known = <int, int>{};
+    for (final MapEntry(key: chapter, value: job) in _jobs.entries) {
+      if (job.isDone) {
+        known[chapter] = job.pageCount;
+        continue;
+      }
+      final document = widget.source.cached(chapter);
+      if (document == null || job.pageCount == 0) continue;
+      final projected = projectedPages(
+        pagesSoFar: job.pageCount,
+        reachedOffset: job.pages.last.end,
+        length: document.length,
+      );
+      if (projected != null) known[chapter] = projected;
+    }
+    return known;
+  }
+
   List<Widget> _pageFooter(PageLayout page) {
     if (!_pageNumbers) return const [];
     final estimate = estimatePage(
@@ -697,10 +667,7 @@ class _NativeEpubViewState extends State<NativeEpubView>
         for (var c = 0; c < widget.source.chapterCount; c++)
           widget.source.weightOf(c),
       ],
-      knownPages: {
-        for (final entry in _jobs.entries)
-          if (entry.value.isDone) entry.key: entry.value.pageCount,
-      },
+      knownPages: _knownPages(),
     );
     if (estimate == null) return const [];
 

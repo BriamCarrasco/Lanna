@@ -43,16 +43,7 @@ class NativeBookSource {
     if (_fontsLoaded) return;
     _fontsLoaded = true;
 
-    final sheets = <String, String>{};
-    for (final item in book.manifest) {
-      if (!item.mediaType.contains('css') &&
-          !item.href.toLowerCase().endsWith('.css')) {
-        continue;
-      }
-      try {
-        sheets[item.href] = await fileFor(item.href).readAsString();
-      } catch (_) {}
-    }
+    final sheets = await _styleSheets();
     if (sheets.isEmpty) return;
 
     final sheet = EpubFonts.parse(sheets);
@@ -66,31 +57,46 @@ class NativeBookSource {
 
     var registered = false;
     for (final entry in byFamily.entries) {
-      final loader = FontLoader(entry.key);
-      var added = 0;
-      for (final face in entry.value) {
-        final file = fileFor(face.href);
-        if (!file.existsSync()) continue;
-        loader.addFont(
-          file.readAsBytes().then((b) {
-            final sfnt = Woff.toSfnt(b) ?? b;
-            return ByteData.view(
-              sfnt.buffer,
-              sfnt.offsetInBytes,
-              sfnt.lengthInBytes,
-            );
-          }),
-        );
-        added++;
+      if (await _registerFamily(entry.key, entry.value)) registered = true;
+    }
+    if (registered) _bookFont = sheet.preferred;
+  }
+
+  Future<Map<String, String>> _styleSheets() async {
+    final sheets = <String, String>{};
+    for (final item in book.manifest) {
+      if (!item.mediaType.contains('css') &&
+          !item.href.toLowerCase().endsWith('.css')) {
+        continue;
       }
-      if (added == 0) continue;
       try {
-        await loader.load();
-        registered = true;
+        sheets[item.href] = await fileFor(item.href).readAsString();
       } catch (_) {}
     }
+    return sheets;
+  }
 
-    if (registered) _bookFont = sheet.preferred;
+  Future<bool> _registerFamily(String family, List<FontFace> faces) async {
+    final loader = FontLoader(family);
+    var added = 0;
+    for (final face in faces) {
+      final file = fileFor(face.href);
+      if (!file.existsSync()) continue;
+      loader.addFont(file.readAsBytes().then(_fontData));
+      added++;
+    }
+    if (added == 0) return false;
+    try {
+      await loader.load();
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  static ByteData _fontData(Uint8List bytes) {
+    final sfnt = Woff.toSfnt(bytes) ?? bytes;
+    return ByteData.view(sfnt.buffer, sfnt.offsetInBytes, sfnt.lengthInBytes);
   }
 
   File fileFor(String href) => File(p.join(root.path, href));
@@ -194,9 +200,6 @@ class NativeBookSource {
     for (var i = 0; i < spine.length; i++) {
       if (spine[i].href == needle) return i;
     }
-    // El índice (NCX/nav) y el spine se resuelven contra directorios base
-    // distintos: comparar por sufijo de ruta cubre ese desajuste, pero solo
-    // cuando la ruta tiene carpeta (un nombre suelto se trata más abajo).
     if (needle.contains('/')) {
       for (var i = 0; i < spine.length; i++) {
         final h = spine[i].href;
@@ -208,7 +211,6 @@ class NativeBookSource {
       for (var i = 0; i < spine.length; i++)
         if (spine[i].href.split('/').last == name) i,
     ];
-    // Solo aceptar el nombre de archivo si es inequívoco.
     return matches.length == 1 ? matches.first : null;
   }
 

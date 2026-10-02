@@ -171,6 +171,25 @@ class _NativePageState extends State<NativePage> {
     return result;
   }
 
+  ({int low, int high})? _selectedRange(int index) {
+    final notifier = _notifiers[index];
+    if (!notifier.registered) return null;
+    final details = notifier.selection;
+    if (details.status != SelectionStatus.uncollapsed) return null;
+    final range = details.range;
+    if (range == null) return null;
+    final base = widget.page.fragments[index].start;
+    final from = base + range.startOffset;
+    final to = base + range.endOffset;
+    return (low: math.min(from, to), high: math.max(from, to));
+  }
+
+  Rect? _fragmentRect(int index) {
+    final box = _keys[index].currentContext?.findRenderObject();
+    if (box is! RenderBox || !box.hasSize) return null;
+    return box.localToGlobal(Offset.zero) & box.size;
+  }
+
   void _onSelectionChanged() {
     final report = widget.onSelection;
     if (report == null) return;
@@ -178,36 +197,19 @@ class _NativePageState extends State<NativePage> {
     int? start;
     int? end;
     Rect? bounds;
-
     for (var i = 0; i < _notifiers.length; i++) {
-      final notifier = _notifiers[i];
-      if (!notifier.registered) continue;
-      final details = notifier.selection;
-      if (details.status != SelectionStatus.uncollapsed) continue;
-      final range = details.range;
+      final range = _selectedRange(i);
       if (range == null) continue;
-
-      final fragment = widget.page.fragments[i];
-      final from = fragment.start + range.startOffset;
-      final to = fragment.start + range.endOffset;
-      final low = from < to ? from : to;
-      final high = from < to ? to : from;
-      start = start == null || low < start ? low : start;
-      end = end == null || high > end ? high : end;
-
-      final box = _keys[i].currentContext?.findRenderObject();
-      if (box is RenderBox && box.hasSize) {
-        final origin = box.localToGlobal(Offset.zero);
-        final rect = origin & box.size;
-        bounds = bounds == null ? rect : bounds.expandToInclude(rect);
-      }
+      start = math.min(start ?? range.low, range.low);
+      end = math.max(end ?? range.high, range.high);
+      final rect = _fragmentRect(i);
+      if (rect != null) bounds = bounds?.expandToInclude(rect) ?? rect;
     }
 
     if (start == null || end == null || start == end) {
       report(null);
       return;
     }
-
     report(
       PageSelection(
         start: start,
@@ -378,7 +380,6 @@ class _NativePageState extends State<NativePage> {
         height: size.height,
         cacheWidth: math.max(1, (size.width * ratio).round()),
         fit: BoxFit.contain,
-        filterQuality: FilterQuality.medium,
       ),
     );
   }

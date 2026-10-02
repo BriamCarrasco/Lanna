@@ -43,29 +43,51 @@ class LibraryScanner {
   Future<ScanReport> scanAll({
     void Function(int done, int total)? onProgress,
   }) async {
-    final folders = await _db.allFolders();
+    final listed = await _listFolders();
+    final tally = _Tally();
+    final plan = await _plan(listed, tally);
+    final total = plan.work.length;
+    var done = 0;
+    onProgress?.call(done, total);
+
+    final seen = <String>{};
+    for (final (folder, entry, book) in plan.work) {
+      try {
+        tally.record(await _scanEntry(folder, entry, book, seen));
+      } catch (_) {
+        tally.failed++;
+      }
+      onProgress?.call(++done, total);
+    }
+    for (final folder in plan.reachable) {
+      tally.missing += await _markMissing(folder.id, seen);
+    }
+    return tally.report();
+  }
+
+  Future<List<(LibraryFolder, List<FolderEntry>?)>> _listFolders() async {
     final listed = <(LibraryFolder, List<FolderEntry>?)>[];
-    for (final folder in folders) {
+    for (final folder in await _db.allFolders()) {
       try {
         listed.add((folder, _books(await _access.list(folder.location))));
       } catch (_) {
         listed.add((folder, null));
       }
     }
-    final total = listed.fold<int>(0, (n, e) => n + (e.$2?.length ?? 0));
-    var done = 0;
-    onProgress?.call(done, total);
+    return listed;
+  }
 
-    var added = 0, relocated = 0, missing = 0, failed = 0;
-    final unreachable = <String>[];
-    final seen = <String>{};
-    final claimed = <(LibraryFolder, FolderEntry, Book?)>[];
-    final others = <(LibraryFolder, FolderEntry, Book?)>[];
+  Future<_Plan> _plan(
+    List<(LibraryFolder, List<FolderEntry>?)> listed,
+    _Tally tally,
+  ) async {
+    final claimed = <_Work>[];
+    final others = <_Work>[];
     final reachable = <LibraryFolder>[];
     for (final (folder, entries) in listed) {
       if (entries == null) {
-        unreachable.add(folder.name);
-        missing += await _markMissing(folder.id, const {});
+        tally.unreachable.add(folder.name);
+        tally.missing += await _markMissing(folder.id, const {});
         continue;
       }
       reachable.add(folder);
@@ -78,32 +100,7 @@ class LibraryScanner {
         (book != null ? claimed : others).add((folder, entry, book));
       }
     }
-
-    for (final (folder, entry, book) in [...claimed, ...others]) {
-      try {
-        switch (await _scanEntry(folder, entry, book, seen)) {
-          case _Outcome.added:
-            added++;
-          case _Outcome.relocated:
-            relocated++;
-          case _Outcome.unchanged:
-            break;
-        }
-      } catch (_) {
-        failed++;
-      }
-      onProgress?.call(++done, total);
-    }
-    for (final folder in reachable) {
-      missing += await _markMissing(folder.id, seen);
-    }
-    return ScanReport(
-      added: added,
-      relocated: relocated,
-      missing: missing,
-      failed: failed,
-      unreachable: unreachable,
-    );
+    return (work: [...claimed, ...others], reachable: reachable);
   }
 
   List<FolderEntry> _books(List<FolderEntry> entries) => [
@@ -124,84 +121,111 @@ class LibraryScanner {
         known.fileModified == entry.modified &&
         !seen.contains(known.id)) {
       seen.add(known.id);
-      final series = _missingSeries(known, entry);
-      if (!known.available ||
-          known.filePath != entry.location ||
-          series != null) {
-        await _db.updateBook(
-          known.id,
-          BooksCompanion(
-            filePath: Value(entry.location),
-            available: const Value(true),
-            series: series == null ? const Value.absent() : Value(series),
-          ),
-        );
-      }
+      await _refreshUnchanged(known, entry);
       return _Outcome.unchanged;
     }
 
     final opened = await _access.open(entry.location);
     try {
-      final spec = opened.spec;
-      final hash = await Isolate.run(() {
-        final source = openSource(spec);
-        try {
-          return fingerprintSource(source);
-        } finally {
-          source.close();
-        }
-      });
+      final hash = await _fingerprint(opened.spec);
       final match = known?.contentHash == hash
           ? known
           : await _db.findBookByHash(hash);
-      if (match != null) {
-        if (seen.contains(match.id)) return _Outcome.unchanged;
-        seen.add(match.id);
-        final series = _missingSeries(match, entry);
-        await _db.updateBook(
-          match.id,
-          _location(folder, entry, hash).copyWith(
-            series: series == null ? const Value.absent() : Value(series),
-          ),
-        );
-        if (match.folderId == null) await _discardLegacyCopy(match.filePath);
-        return _Outcome.relocated;
+      if (match == null) {
+        final id = await _addNew(folder, entry, opened.spec, hash);
+        seen.add(id);
+        return _Outcome.added;
       }
-
-      final id = _uuid.v4();
-      final format = formatForName(entry.relativePath)!;
-      final dirs = await _dirs();
-      await Directory(dirs.covers).create(recursive: true);
-      final meta = await readBookMeta(
-        spec: spec,
-        format: format,
-        id: id,
-        coversDir: dirs.covers,
-        cacheDir: dirs.cache,
-      );
-      final fallback = p.posix.basenameWithoutExtension(entry.relativePath);
-      await _db.upsertBook(
-        _location(folder, entry, hash).copyWith(
-          id: Value(id),
-          title: Value(
-            meta.title?.trim().isNotEmpty == true ? meta.title! : fallback,
-          ),
-          author: Value(meta.author),
-          coverPath: Value(meta.coverPath),
-          format: Value(format),
-          series: Value(
-            format == BookFormat.comic
-                ? (meta.series ?? seriesFromFileName(entry.relativePath))
-                : null,
-          ),
-        ),
-      );
-      seen.add(id);
-      return _Outcome.added;
+      if (!seen.add(match.id)) return _Outcome.unchanged;
+      await _relocate(match, folder, entry, hash);
+      return _Outcome.relocated;
     } finally {
       opened.close();
     }
   }
+
+  Future<void> _refreshUnchanged(Book known, FolderEntry entry) async {
+    final series = _missingSeries(known, entry);
+    if (known.available && known.filePath == entry.location && series == null) {
+      return;
+    }
+    await _db.updateBook(
+      known.id,
+      BooksCompanion(
+        filePath: Value(entry.location),
+        available: const Value(true),
+        series: _seriesValue(series),
+      ),
+    );
+  }
+
+  Future<String> _fingerprint(SourceSpec spec) => Isolate.run(() {
+    final source = openSource(spec);
+    try {
+      return fingerprintSource(source);
+    } finally {
+      source.close();
+    }
+  });
+
+  Future<void> _relocate(
+    Book match,
+    LibraryFolder folder,
+    FolderEntry entry,
+    String hash,
+  ) async {
+    await _db.updateBook(
+      match.id,
+      _location(
+        folder,
+        entry,
+        hash,
+      ).copyWith(series: _seriesValue(_missingSeries(match, entry))),
+    );
+    if (match.folderId == null) await _discardLegacyCopy(match.filePath);
+  }
+
+  Future<String> _addNew(
+    LibraryFolder folder,
+    FolderEntry entry,
+    SourceSpec spec,
+    String hash,
+  ) async {
+    final id = _uuid.v4();
+    final format = formatForName(entry.relativePath)!;
+    final dirs = await _dirs();
+    await Directory(dirs.covers).create(recursive: true);
+    final meta = await readBookMeta(
+      spec: spec,
+      format: format,
+      id: id,
+      coversDir: dirs.covers,
+      cacheDir: dirs.cache,
+    );
+    final title = meta.title?.trim() ?? '';
+    await _db.upsertBook(
+      _location(folder, entry, hash).copyWith(
+        id: Value(id),
+        title: Value(
+          title.isNotEmpty
+              ? title
+              : p.posix.basenameWithoutExtension(entry.relativePath),
+        ),
+        author: Value(meta.author),
+        coverPath: Value(meta.coverPath),
+        format: Value(format),
+        series: Value(
+          format == BookFormat.comic
+              ? (meta.series ?? seriesFromFileName(entry.relativePath))
+              : null,
+        ),
+      ),
+    );
+    return id;
+  }
+
+  Value<String?> _seriesValue(String? series) =>
+      series == null ? const Value.absent() : Value(series);
 
   String? _missingSeries(Book book, FolderEntry entry) {
     if (book.format != BookFormat.comic || book.series != null) return null;
@@ -245,3 +269,33 @@ class LibraryScanner {
 }
 
 enum _Outcome { added, relocated, unchanged }
+
+typedef _Work = (LibraryFolder, FolderEntry, Book?);
+typedef _Plan = ({List<_Work> work, List<LibraryFolder> reachable});
+
+class _Tally {
+  int added = 0;
+  int relocated = 0;
+  int missing = 0;
+  int failed = 0;
+  final List<String> unreachable = [];
+
+  void record(_Outcome outcome) {
+    switch (outcome) {
+      case _Outcome.added:
+        added++;
+      case _Outcome.relocated:
+        relocated++;
+      case _Outcome.unchanged:
+        break;
+    }
+  }
+
+  ScanReport report() => ScanReport(
+    added: added,
+    relocated: relocated,
+    missing: missing,
+    failed: failed,
+    unreachable: unreachable,
+  );
+}

@@ -5,6 +5,7 @@ import '../../../core/theme/tokens.dart';
 import '../../../data/epub/epub_book.dart';
 import '../../../data/local/app_database.dart';
 import '../reader_theme.dart';
+import 'reader_panel_frame.dart';
 
 enum _Tab { chapters, bookmarks, notes }
 
@@ -54,77 +55,65 @@ class _TocDrawerState extends State<TocDrawer> {
   @override
   Widget build(BuildContext context) {
     final chrome = widget.chrome;
-    return Container(
-      width: 320,
-      height: double.infinity,
-      decoration: BoxDecoration(
-        color: chrome.panelBackground,
-        border: Border(right: BorderSide(color: chrome.panelBorder)),
-      ),
-      child: SafeArea(
-        right: false,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Container(
-              padding: const EdgeInsets.fromLTRB(
-                LannaSpacing.s4,
-                LannaSpacing.s2,
-                LannaSpacing.s2,
-                LannaSpacing.s2,
-              ),
-              decoration: BoxDecoration(
-                border: Border(bottom: BorderSide(color: chrome.barBorder)),
-              ),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: _TabToggle(
-                      tab: _tab,
-                      chrome: chrome,
-                      onChanged: (t) => setState(() => _tab = t),
-                    ),
-                  ),
-                  IconButton(
-                    visualDensity: VisualDensity.compact,
-                    icon: const Icon(Icons.close, size: 17),
-                    color: chrome.onBarMuted,
-                    onPressed: widget.onClose,
-                  ),
-                ],
-              ),
-            ),
-            Expanded(
-              child: switch (_tab) {
-                _Tab.chapters => _chapters(),
-                _Tab.bookmarks => _bookmarksList(),
-                _Tab.notes => _notesList(),
-              },
-            ),
-            if (_tab == _Tab.chapters &&
-                (widget.chapterCount > 0 || widget.pageCount > 0))
-              Container(
-                padding: const EdgeInsets.fromLTRB(
-                  LannaSpacing.s5,
-                  LannaSpacing.s3,
-                  LannaSpacing.s5,
-                  LannaSpacing.s3,
-                ),
-                decoration: BoxDecoration(
-                  border: Border(top: BorderSide(color: chrome.barBorder)),
-                ),
-                child: Text(
-                  [
-                    if (widget.chapterCount > 0)
-                      '${widget.chapterCount} capítulos',
-                    if (widget.pageCount > 0) '${widget.pageCount} páginas',
-                  ].join(' · '),
-                  style: LannaType.micro.copyWith(color: chrome.onBarMuted),
+    return ReaderPanelFrame(
+      chrome: chrome,
+      children: [
+        Container(
+          padding: const EdgeInsets.fromLTRB(
+            LannaSpacing.s4,
+            LannaSpacing.s2,
+            LannaSpacing.s2,
+            LannaSpacing.s2,
+          ),
+          decoration: BoxDecoration(
+            border: Border(bottom: BorderSide(color: chrome.barBorder)),
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                child: _TabToggle(
+                  tab: _tab,
+                  chrome: chrome,
+                  onChanged: (t) => setState(() => _tab = t),
                 ),
               ),
-          ],
+              IconButton(
+                visualDensity: VisualDensity.compact,
+                icon: const Icon(Icons.close, size: 17),
+                color: chrome.onBarMuted,
+                onPressed: widget.onClose,
+              ),
+            ],
+          ),
         ),
-      ),
+        Expanded(
+          child: switch (_tab) {
+            _Tab.chapters => _chapters(),
+            _Tab.bookmarks => _bookmarksList(),
+            _Tab.notes => _notesList(),
+          },
+        ),
+        if (_tab == _Tab.chapters &&
+            (widget.chapterCount > 0 || widget.pageCount > 0))
+          Container(
+            padding: const EdgeInsets.fromLTRB(
+              LannaSpacing.s5,
+              LannaSpacing.s3,
+              LannaSpacing.s5,
+              LannaSpacing.s3,
+            ),
+            decoration: BoxDecoration(
+              border: Border(top: BorderSide(color: chrome.barBorder)),
+            ),
+            child: Text(
+              [
+                if (widget.chapterCount > 0) '${widget.chapterCount} capítulos',
+                if (widget.pageCount > 0) '${widget.pageCount} páginas',
+              ].join(' · '),
+              style: LannaType.micro.copyWith(color: chrome.onBarMuted),
+            ),
+          ),
+      ],
     );
   }
 
@@ -223,7 +212,7 @@ class _TocDrawerState extends State<TocDrawer> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        bookmark.label?.trim().isNotEmpty == true
+                        bookmark.label?.trim().isNotEmpty ?? false
                             ? bookmark.label!.trim()
                             : 'Marcador',
                         maxLines: 1,
@@ -297,7 +286,7 @@ class _TocDrawerState extends State<TocDrawer> {
                         overflow: TextOverflow.ellipsis,
                         style: LannaType.sm.copyWith(color: chrome.onBar),
                       ),
-                      if (h.note?.trim().isNotEmpty == true) ...[
+                      if (h.note?.trim().isNotEmpty ?? false) ...[
                         const SizedBox(height: 4),
                         Text(
                           h.note!.trim(),

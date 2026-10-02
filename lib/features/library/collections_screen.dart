@@ -7,6 +7,7 @@ import 'package:go_router/go_router.dart';
 import '../../core/text_search.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/theme/tokens.dart';
+import '../../core/widgets/lanna_dialog.dart';
 import '../../core/widgets/lanna_menu.dart';
 import '../../data/book_repository.dart';
 import '../../data/local/app_database.dart';
@@ -198,83 +199,57 @@ class _AddBooksDialog extends ConsumerWidget {
             .toSet();
     final repo = ref.read(bookRepositoryProvider);
 
-    return Dialog(
-      backgroundColor: LannaColors.surfaceHigh,
-      shape: const RoundedRectangleBorder(borderRadius: LannaRadii.brLg),
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 420, maxHeight: 520),
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(
-            LannaSpacing.s5,
-            LannaSpacing.s5,
-            LannaSpacing.s5,
-            LannaSpacing.s3,
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Text(
-                'Libros en la colección',
-                style: LannaType.title.copyWith(color: LannaColors.textStrong),
-              ),
-              const SizedBox(height: LannaSpacing.s3),
-              Flexible(
-                child: library.isEmpty
-                    ? Text(
-                        'La biblioteca está vacía',
-                        style: LannaType.md.copyWith(
-                          color: LannaColors.textMuted,
+    return LannaDialog(
+      title: 'Libros en la colección',
+      children: [
+        Flexible(
+          child: library.isEmpty
+              ? Text(
+                  'La biblioteca está vacía',
+                  style: LannaType.md.copyWith(color: LannaColors.textMuted),
+                )
+              : ListView(
+                  shrinkWrap: true,
+                  children: [
+                    for (final book in library)
+                      CheckboxListTile(
+                        dense: true,
+                        contentPadding: EdgeInsets.zero,
+                        title: Text(
+                          book.title,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
-                      )
-                    : ListView(
-                        shrinkWrap: true,
-                        children: [
-                          for (final book in library)
-                            CheckboxListTile(
-                              dense: true,
-                              contentPadding: EdgeInsets.zero,
-                              title: Text(
-                                book.title,
+                        subtitle: book.author == null
+                            ? null
+                            : Text(
+                                book.author!,
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                               ),
-                              subtitle: book.author == null
-                                  ? null
-                                  : Text(
-                                      book.author!,
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                              value: inCollection.contains(book.id),
-                              onChanged: (v) {
-                                if (v == true) {
-                                  repo.addBookToCollection(
-                                    collectionId,
-                                    book.id,
-                                  );
-                                } else {
-                                  repo.removeBookFromCollection(
-                                    collectionId,
-                                    book.id,
-                                  );
-                                }
-                              },
-                            ),
-                        ],
+                        value: inCollection.contains(book.id),
+                        onChanged: (v) {
+                          if (v ?? false) {
+                            repo.addBookToCollection(collectionId, book.id);
+                          } else {
+                            repo.removeBookFromCollection(
+                              collectionId,
+                              book.id,
+                            );
+                          }
+                        },
                       ),
-              ),
-              Align(
-                alignment: Alignment.centerRight,
-                child: TextButton(
-                  onPressed: () => Navigator.of(context).pop(),
-                  child: const Text('Listo'),
+                  ],
                 ),
-              ),
-            ],
+        ),
+        Align(
+          alignment: Alignment.centerRight,
+          child: TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Listo'),
           ),
         ),
-      ),
+      ],
     );
   }
 }

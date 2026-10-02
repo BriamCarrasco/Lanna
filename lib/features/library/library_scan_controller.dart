@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/book_repository.dart';
@@ -79,4 +80,19 @@ String describeScan(ScanReport report) {
     for (final name in report.unreachable) 'sin acceso a «$name»',
   ];
   return parts.isEmpty ? 'La biblioteca está al día' : parts.join(' · ');
+}
+
+Future<void> reportScan(
+  ScaffoldMessengerState messenger,
+  Future<ScanReport?> work,
+) async {
+  try {
+    final report = await work;
+    if (report == null) return;
+    messenger.showSnackBar(SnackBar(content: Text(describeScan(report))));
+  } catch (e) {
+    messenger.showSnackBar(
+      SnackBar(content: Text('No se pudo revisar la carpeta: $e')),
+    );
+  }
 }

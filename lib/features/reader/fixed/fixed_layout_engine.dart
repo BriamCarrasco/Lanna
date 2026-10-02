@@ -3,9 +3,9 @@ import 'dart:math' as math;
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
-import 'package:flutter/rendering.dart';
 
 import '../../../data/epub/epub_book.dart';
+import '../engine_support.dart';
 import '../reader_engine.dart';
 
 const fixedSpreadMinWidth = 820.0;
@@ -218,7 +218,7 @@ abstract class FixedLayoutEngineState<W extends FixedLayoutEngine>
 
   @override
   Future<void> applyPresentation(ReaderPresentation presentation) async {
-    _background = _parseColor(presentation.background, _background);
+    _background = parseCssColor(presentation.background, _background);
     _columnMode = presentation.columnMode;
     _syncSpread();
     if (mounted) setState(() {});
@@ -255,26 +255,7 @@ abstract class FixedLayoutEngineState<W extends FixedLayoutEngine>
   }
 
   @override
-  Future<ui.Image?> snapshot() async {
-    final object = _boundary.currentContext?.findRenderObject();
-    if (object is! RenderRepaintBoundary) return null;
-    if (!object.hasSize || object.debugNeedsPaint) return null;
-    try {
-      return await object.toImage(
-        pixelRatio: MediaQuery.devicePixelRatioOf(context),
-      );
-    } catch (_) {
-      return null;
-    }
-  }
-
-  static Color _parseColor(String? value, Color fallback) {
-    if (value == null) return fallback;
-    var hex = value.replaceAll('#', '').trim();
-    if (hex.length == 6) hex = 'FF$hex';
-    final parsed = int.tryParse(hex, radix: 16);
-    return parsed == null ? fallback : Color(parsed);
-  }
+  Future<ui.Image?> snapshot() => captureBoundary(_boundary, context);
 
   EdgeInsets get _padding => fitsInsets
       ? EdgeInsets.fromLTRB(20, _insetTop + 8, 20, _insetBottom + 8)
