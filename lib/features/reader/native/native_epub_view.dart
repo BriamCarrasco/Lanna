@@ -49,6 +49,7 @@ class _NativeEpubViewState extends State<NativeEpubView>
 
   int _chapter = 0;
   int _page = 0;
+  ({int chapter, int offset})? _target;
   bool _ready = false;
   bool _pumping = false;
   double _insetTop = 0;
@@ -138,8 +139,9 @@ class _NativeEpubViewState extends State<NativeEpubView>
 
   Future<void> _relayout() async {
     if (!mounted) return;
-    final offset = _offset;
-    final chapter = _chapter;
+    final target = _target;
+    final chapter = target?.chapter ?? _chapter;
+    final offset = target?.offset ?? _offset;
     final before = _layoutKey;
     _applyMetrics();
     if (_layoutKey == before) return;
@@ -187,6 +189,7 @@ class _NativeEpubViewState extends State<NativeEpubView>
       return false;
     }
     final clamped = chapter.clamp(0, widget.source.chapterCount - 1);
+    _target = last ? null : (chapter: clamped, offset: offset);
     final EpubDocument document;
     try {
       document = await widget.source.document(clamped);
@@ -365,6 +368,7 @@ class _NativeEpubViewState extends State<NativeEpubView>
       return;
     }
     if (_page + 1 < job.pageCount) {
+      _target = null;
       setState(() => _page++);
       _settle();
       return;
@@ -378,6 +382,7 @@ class _NativeEpubViewState extends State<NativeEpubView>
   @override
   Future<void> previous() async {
     if (_page > 0) {
+      _target = null;
       setState(() => _page--);
       _settle();
       return;
@@ -439,8 +444,9 @@ class _NativeEpubViewState extends State<NativeEpubView>
 
   @override
   Future<void> applyPresentation(ReaderPresentation presentation) async {
-    final offset = _offset;
-    final chapter = _chapter;
+    final target = _target;
+    final chapter = target?.chapter ?? _chapter;
+    final offset = target?.offset ?? _offset;
 
     _background = _parseColor(presentation.background, _background);
     _foreground = _parseColor(presentation.foreground, _foreground);

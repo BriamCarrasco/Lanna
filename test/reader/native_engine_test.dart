@@ -1363,4 +1363,59 @@ void main() {
       expect(unoRtl, greaterThan(dosRtl));
     });
   });
+
+  group('reabrir donde se dejó', () {
+    String parrafos(int n) => [
+      for (var i = 0; i < n; i++)
+        '<p>Párrafo $i. ${'texto de relleno para llenar páginas ' * 6}</p>',
+    ].join();
+
+    const estilo = ReaderPresentation(
+      background: '#101014',
+      foreground: '#E8E4E9',
+      fontSizePercent: 135,
+      lineHeight: 1.7,
+    );
+
+    Future<String> abrirYGuardar(WidgetTester tester, String locator) async {
+      await tester.pumpWidget(const SizedBox.shrink());
+      final locations = <ReaderLocation>[];
+      final controller = await mount(
+        tester,
+        sourceWith([parrafos(120)]),
+        locator: locator,
+        callbacks: ReaderEngineCallbacks(onLocationChanged: locations.add),
+      );
+      await act(tester, () => controller.applyPresentation(estilo));
+      return locations.last.cfi;
+    }
+
+    testWidgets('aplicar el estilo no retrocede de la posición guardada', (
+      tester,
+    ) async {
+      const guardada = 'spine:0#9000';
+      await abrirYGuardar(tester, guardada);
+
+      final page = tester.widget<NativePage>(find.byType(NativePage)).page;
+      expect(
+        page.contains(9000),
+        isTrue,
+        reason:
+            'la página visible (${page.start}..${page.end}) '
+            'tiene que contener la posición guardada',
+      );
+    });
+
+    testWidgets('abrir y cerrar varias veces no hace retroceder', (
+      tester,
+    ) async {
+      var locator = 'spine:0#9000';
+      final vistas = <String>[];
+      for (var i = 0; i < 4; i++) {
+        locator = await abrirYGuardar(tester, locator);
+        vistas.add(locator);
+      }
+      expect(vistas.toSet(), hasLength(1), reason: '$vistas');
+    });
+  });
 }
