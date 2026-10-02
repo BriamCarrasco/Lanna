@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 import 'package:flutter/material.dart';
 
+import '../widgets/lanna_menu.dart';
+
 abstract final class LannaColors {
   static const Color bg = Color(0xFF0D0D10);
   static const Color surface = Color(0xFF17161B);
@@ -77,6 +79,7 @@ abstract final class AppTheme {
         surfaceTintColor: Colors.transparent,
         elevation: 0,
       ),
+      popupMenuTheme: lannaPopupMenuTheme,
       dividerTheme: const DividerThemeData(
         color: LannaColors.border,
         thickness: 1,

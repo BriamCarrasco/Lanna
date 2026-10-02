@@ -7,6 +7,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/tokens.dart';
+import '../../../core/widgets/lanna_menu.dart';
 import '../../../data/book_repository.dart';
 import '../../../data/local/app_database.dart';
 import '../../../data/models/book_format.dart';
@@ -43,26 +44,47 @@ Future<void> showBookMenu(
       Offset.zero & overlay.size,
     ),
     items: [
-      const PopupMenuItem(value: 'open', child: Text('Abrir')),
-      const PopupMenuItem(value: 'details', child: Text('Detalles')),
-      PopupMenuItem(
-        value: 'favorite',
-        child: Text(
-          book.favoritedAt != null
-              ? 'Quitar de favoritos'
-              : 'Añadir a favoritos',
-        ),
+      lannaMenuItem(
+        value: 'open',
+        icon: Icons.menu_book_outlined,
+        label: 'Abrir',
       ),
-      const PopupMenuItem(
+      lannaMenuItem(
+        value: 'details',
+        icon: Icons.info_outline,
+        label: 'Detalles',
+      ),
+      lannaMenuItem(
+        value: 'favorite',
+        icon: book.favoritedAt != null ? Icons.favorite : Icons.favorite_border,
+        label: book.favoritedAt != null
+            ? 'Quitar de favoritos'
+            : 'Añadir a favoritos',
+      ),
+      lannaMenuItem(
         value: 'collection',
-        child: Text('Añadir a colección'),
+        icon: Icons.collections_bookmark_outlined,
+        label: 'Añadir a colección',
       ),
       if (book.format == BookFormat.comic)
-        const PopupMenuItem(value: 'series', child: Text('Serie…')),
-      PopupMenuItem(
-        value: 'delete',
-        child: Text(book.folderId != null ? 'Archivar' : 'Eliminar'),
-      ),
+        lannaMenuItem(
+          value: 'series',
+          icon: Icons.layers_outlined,
+          label: 'Serie…',
+        ),
+      const PopupMenuDivider(height: LannaSpacing.s2),
+      book.folderId != null
+          ? lannaMenuItem(
+              value: 'delete',
+              icon: Icons.inventory_2_outlined,
+              label: 'Archivar',
+            )
+          : lannaMenuItem(
+              value: 'delete',
+              icon: Icons.delete_outline,
+              label: 'Eliminar',
+              danger: true,
+            ),
     ],
   );
   if (!context.mounted) return;

@@ -9,6 +9,7 @@ import '../../core/text_search.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/theme/tokens.dart';
 import '../../core/widgets/fade_in.dart';
+import '../../core/widgets/lanna_menu.dart';
 import '../../data/book_repository.dart';
 import '../../data/library/library_scanner.dart';
 import '../../data/local/app_database.dart';
@@ -153,7 +154,11 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                 onSelected: (s) => setState(() => _sort = s),
                 itemBuilder: (_) => [
                   for (final m in _SortMode.values)
-                    PopupMenuItem(value: m, child: Text(m.label)),
+                    lannaChoiceItem(
+                      value: m,
+                      label: m.label,
+                      selected: m == _sort,
+                    ),
                 ],
               ),
               _RescanButton(onPressed: _rescan),
@@ -476,7 +481,11 @@ class _SortButton extends StatelessWidget {
       position: PopupMenuPosition.under,
       itemBuilder: (context) => [
         for (final mode in _SortMode.values)
-          PopupMenuItem(value: mode, child: Text(mode.label)),
+          lannaChoiceItem(
+            value: mode,
+            label: mode.label,
+            selected: mode == sort,
+          ),
       ],
       child: Container(
         padding: const EdgeInsets.symmetric(

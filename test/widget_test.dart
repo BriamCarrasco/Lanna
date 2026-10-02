@@ -92,6 +92,53 @@ void main() {
     await tester.pump(const Duration(milliseconds: 50));
   });
 
+  testWidgets('el menú de orden marca el orden activo', (tester) async {
+    final db = AppDatabase.forTesting(NativeDatabase.memory());
+    addTearDown(db.close);
+    await db.upsertBook(
+      BooksCompanion.insert(
+        id: 'a',
+        title: 'Rayuela',
+        filePath: '/a.epub',
+        format: BookFormat.epub,
+      ),
+    );
+
+    await _pumpApp(tester, db);
+    Future<Offset> checkNextTo(String label) async {
+      await tester.tap(find.text('Recientes').first);
+      await tester.pumpAndSettle();
+      return tester.getCenter(find.byIcon(Icons.check));
+    }
+
+    final first = await checkNextTo('Recientes');
+    expect(
+      first.dy,
+      moreOrLessEquals(
+        tester.getCenter(find.text('Recientes').last).dy,
+        epsilon: 4,
+      ),
+    );
+    await tester.tap(find.text('Título'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Título').first);
+    await tester.pumpAndSettle();
+    expect(find.byIcon(Icons.check), findsOneWidget);
+    expect(
+      tester.getCenter(find.byIcon(Icons.check)).dy,
+      moreOrLessEquals(
+        tester.getCenter(find.text('Título').last).dy,
+        epsilon: 4,
+      ),
+    );
+
+    await tester.tapAt(const Offset(2, 2));
+    await tester.pumpAndSettle();
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(const Duration(milliseconds: 50));
+  });
+
   testWidgets('el menú del libro se abre junto al cursor', (tester) async {
     final db = AppDatabase.forTesting(NativeDatabase.memory());
     addTearDown(db.close);

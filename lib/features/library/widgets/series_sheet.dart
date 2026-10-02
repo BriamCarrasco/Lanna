@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/text_search.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/tokens.dart';
+import '../../../core/widgets/lanna_menu.dart';
 import '../../../data/book_repository.dart';
 import '../../../data/local/app_database.dart';
 import '../series_group.dart';
@@ -130,14 +131,16 @@ class _SeriesSheetState extends ConsumerState<SeriesSheet> {
                       'rename' => unawaited(_rename(volumes)),
                       _ => unawaited(_split(volumes)),
                     },
-                    itemBuilder: (_) => const [
-                      PopupMenuItem(
+                    itemBuilder: (_) => [
+                      lannaMenuItem(
                         value: 'rename',
-                        child: Text('Renombrar serie'),
+                        icon: Icons.edit_outlined,
+                        label: 'Renombrar serie',
                       ),
-                      PopupMenuItem(
+                      lannaMenuItem(
                         value: 'split',
-                        child: Text('Separar tomos'),
+                        icon: Icons.call_split,
+                        label: 'Separar tomos',
                       ),
                     ],
                   ),

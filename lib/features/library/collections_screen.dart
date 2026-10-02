@@ -7,6 +7,7 @@ import 'package:go_router/go_router.dart';
 import '../../core/text_search.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/theme/tokens.dart';
+import '../../core/widgets/lanna_menu.dart';
 import '../../data/book_repository.dart';
 import '../../data/local/app_database.dart';
 import 'library_shell.dart';
@@ -143,9 +144,18 @@ class CollectionScreen extends ConsumerWidget {
               if (context.mounted) context.go('/collections');
             }
           },
-          itemBuilder: (_) => const [
-            PopupMenuItem(value: 'rename', child: Text('Renombrar')),
-            PopupMenuItem(value: 'delete', child: Text('Eliminar colección')),
+          itemBuilder: (_) => [
+            lannaMenuItem(
+              value: 'rename',
+              icon: Icons.edit_outlined,
+              label: 'Renombrar',
+            ),
+            lannaMenuItem(
+              value: 'delete',
+              icon: Icons.delete_outline,
+              label: 'Eliminar colección',
+              danger: true,
+            ),
           ],
         ),
       ],
