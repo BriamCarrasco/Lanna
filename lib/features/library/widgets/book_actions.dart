@@ -35,10 +35,11 @@ Future<void> showBookMenu(
   Offset globalPosition,
 ) async {
   final overlay = Overlay.of(context).context.findRenderObject() as RenderBox;
+  final anchor = overlay.globalToLocal(globalPosition);
   final selected = await showMenu<String>(
     context: context,
     position: RelativeRect.fromRect(
-      globalPosition & const Size(40, 40),
+      anchor & Size.zero,
       Offset.zero & overlay.size,
     ),
     items: [
@@ -90,6 +91,8 @@ Future<void> showBookMenu(
             content: Text(
               '«${book.title}» ${archived ? 'archivado' : 'eliminado'}',
             ),
+            persist: false,
+            duration: const Duration(seconds: 5),
             action: archived
                 ? SnackBarAction(
                     label: 'Deshacer',

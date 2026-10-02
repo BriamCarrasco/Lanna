@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 import 'package:drift/drift.dart' show Value;
 import 'package:drift/native.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -9,7 +10,6 @@ import 'package:lanna/app.dart';
 import 'package:lanna/data/local/app_database.dart';
 import 'package:lanna/data/local/database_provider.dart';
 import 'package:lanna/data/models/book_format.dart';
-import 'package:lanna/features/library/library_screen.dart';
 import 'package:lanna/features/library/widgets/book_grid.dart';
 import 'package:lanna/features/library/widgets/filters_panel.dart';
 
@@ -88,6 +88,34 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.textContaining('Sin resultados'), findsOneWidget);
 
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(const Duration(milliseconds: 50));
+  });
+
+  testWidgets('el menú del libro se abre junto al cursor', (tester) async {
+    final db = AppDatabase.forTesting(NativeDatabase.memory());
+    addTearDown(db.close);
+    await db.upsertBook(
+      BooksCompanion.insert(
+        id: 'a',
+        title: 'Rayuela',
+        filePath: '/a.epub',
+        format: BookFormat.epub,
+      ),
+    );
+
+    await _pumpApp(tester, db);
+    final cover = tester.getRect(find.byType(BookGridTile).first);
+    final click = cover.center;
+    await tester.tapAt(click, buttons: kSecondaryMouseButton);
+    await tester.pumpAndSettle();
+
+    final menu = tester.getRect(find.text('Abrir'));
+    expect((menu.left - click.dx).abs(), lessThan(48));
+    expect((menu.top - click.dy).abs(), lessThan(48));
+
+    await tester.tapAt(const Offset(2, 2));
+    await tester.pumpAndSettle();
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pump(const Duration(milliseconds: 50));
   });
@@ -444,9 +472,10 @@ void main() {
 
     await archive();
     expect(find.text('Rayuela'), findsNothing);
-    ScaffoldMessenger.of(tester.element(find.byType(LibraryScreen)))
-        .hideCurrentSnackBar();
+    expect(find.text('Deshacer'), findsOneWidget);
+    await tester.pump(const Duration(seconds: 6));
     await tester.pumpAndSettle();
+    expect(find.text('Deshacer'), findsNothing);
 
     await tester.tap(find.text('Ajustes'));
     await tester.pumpAndSettle();
