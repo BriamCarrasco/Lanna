@@ -10,6 +10,7 @@ const _bookColumnsSince = {
   14: ['folder_id', 'relative_path', 'file_modified', 'available', 'hidden'],
   15: ['favorited_at'],
   16: ['series'],
+  18: ['finished_at'],
 };
 
 void main() {
@@ -52,6 +53,12 @@ void main() {
       await db.customStatement(
         'ALTER TABLE reader_prefs DROP COLUMN page_numbers',
       );
+    }
+    if (version < 18) {
+      await db.customStatement(
+        'ALTER TABLE reader_prefs DROP COLUMN daily_goal_minutes',
+      );
+      await db.customStatement('DROP TABLE reading_sessions');
     }
     if (withDeadTable) {
       await db.customStatement(
@@ -161,6 +168,17 @@ void main() {
     await db.migration.onUpgrade(Migrator(db), 16, 17);
 
     expect(await columns(db, 'reader_prefs'), contains('page_numbers'));
+  });
+
+  test('de v17 a v18 llegan las sesiones, la meta y los terminados', () async {
+    final db = await atSchema(17);
+    addTearDown(db.close);
+
+    await db.migration.onUpgrade(Migrator(db), 17, 18);
+
+    expect(await hasTable(db, 'reading_sessions'), isTrue);
+    expect(await columns(db, 'reader_prefs'), contains('daily_goal_minutes'));
+    expect(await columns(db, 'books'), contains('finished_at'));
   });
 
   test('una base ya en la versión actual no se toca', () async {

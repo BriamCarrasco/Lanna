@@ -7,6 +7,8 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/tokens.dart';
 import '../../../data/book_repository.dart';
 import '../../../data/local/app_database.dart';
+import '../../stats/reading_stats.dart';
+import '../../stats/stats_providers.dart';
 import 'book_cover.dart';
 
 Future<void> showBookDetails(BuildContext context, Book book) {
@@ -72,6 +74,7 @@ class BookDetailsDialog extends ConsumerWidget {
     final progress = ref.watch(bookProgressProvider(book.id)).valueOrNull;
     final percent = ((progress?.percent ?? 0) * 100).round();
     final started = (progress?.percent ?? 0) > 0;
+    final reading = ref.watch(bookReadingProvider(book.id)).valueOrNull;
 
     return Dialog(
       backgroundColor: LannaColors.surfaceHigh,
@@ -117,6 +120,10 @@ class BookDetailsDialog extends ConsumerWidget {
                             if (book.fileSizeBytes != null)
                               _Chip(_formatSize(book.fileSizeBytes!)),
                             _Chip('Añadido ${_formatDate(book.addedAt)}'),
+                            if (book.finishedAt != null)
+                              _Chip(
+                                'Terminado ${_formatDate(book.finishedAt!)}',
+                              ),
                           ],
                         ),
                         const SizedBox(height: LannaSpacing.s3),
@@ -128,6 +135,19 @@ class BookDetailsDialog extends ConsumerWidget {
                             color: LannaColors.textMuted,
                           ),
                         ),
+                        if (reading != null && reading.seconds >= 60) ...[
+                          const SizedBox(height: 2),
+                          Text(
+                            _readingLine(
+                              reading,
+                              progress?.percent ?? 0,
+                              finished: book.finishedAt != null,
+                            ),
+                            style: LannaType.sm.copyWith(
+                              color: LannaColors.textMuted,
+                            ),
+                          ),
+                        ],
                       ],
                     ),
                   ),
@@ -201,6 +221,22 @@ String _formatSize(int bytes) {
   if (bytes < 1024) return '$bytes B';
   if (bytes < 1024 * 1024) return '${(bytes / 1024).round()} KB';
   return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
+}
+
+String _readingLine(
+  BookReading reading,
+  double percent, {
+  required bool finished,
+}) {
+  final read = 'Tiempo leído: ${formatReadingTime(reading.seconds)}';
+  if (finished) return read;
+  final left = remainingEstimate(
+    seconds: reading.seconds,
+    progressed: reading.progressed,
+    percent: percent,
+  );
+  if (left == null) return read;
+  return '$read · faltan ~${formatReadingTime(left.inSeconds)}';
 }
 
 String _formatDate(DateTime date) {

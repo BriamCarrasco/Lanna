@@ -11,6 +11,7 @@ import '../../features/library/library_screen.dart';
 import '../../features/library/library_shell.dart';
 import '../../features/reader/reader_entry.dart';
 import '../../features/settings/settings_screen.dart';
+import '../../features/stats/stats_screen.dart';
 import '../theme/tokens.dart';
 
 final appRouterProvider = Provider<GoRouter>((ref) {
@@ -70,6 +71,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                     CollectionScreen(collectionId: state.pathParameters['id']!),
               ),
             ],
+          ),
+          GoRoute(
+            path: '/stats',
+            name: 'stats',
+            builder: (context, state) => const StatsScreen(),
           ),
           GoRoute(
             path: '/settings',

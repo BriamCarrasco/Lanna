@@ -93,6 +93,21 @@ class SettingsScreen extends ConsumerWidget {
                           onChanged: controller.setKeepAwake,
                         ),
                       ),
+                      const _RowDivider(),
+                      _SettingRow(
+                        title: 'Meta diaria de lectura',
+                        subtitle: 'La racha cuenta los días en que la cumples',
+                        stack: compact,
+                        trailing: _Segmented(
+                          options: {
+                            for (final m in ReaderSettings.dailyGoals)
+                              '$m': '$m min',
+                          },
+                          value: '${settings.dailyGoalMinutes}',
+                          onChanged: (v) =>
+                              controller.setDailyGoal(int.parse(v)),
+                        ),
+                      ),
                     ],
                   ),
                 ),

@@ -49,6 +49,9 @@ class ReaderSettingsController {
 
   Future<void> setPageNumbers(bool value) =>
       _save(_current.copyWith(pageNumbers: value));
+
+  Future<void> setDailyGoal(int minutes) =>
+      _save(_current.copyWith(dailyGoalMinutes: minutes));
 }
 
 final readerSettingsControllerProvider = Provider(ReaderSettingsController.new);

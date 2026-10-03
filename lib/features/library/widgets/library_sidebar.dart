@@ -13,6 +13,7 @@ enum LibrarySection {
   folders,
   collections,
   authors,
+  stats,
   settings,
 }
 
@@ -26,6 +27,7 @@ const librarySections = <(IconData, String, LibrarySection)>[
     LibrarySection.collections,
   ),
   (Icons.person_outline, 'Autores', LibrarySection.authors),
+  (Icons.insights_outlined, 'Estadísticas', LibrarySection.stats),
   (Icons.settings_outlined, 'Ajustes', LibrarySection.settings),
 ];
 
@@ -41,6 +43,8 @@ void goToLibrarySection(BuildContext context, LibrarySection section) {
       context.go('/collections');
     case LibrarySection.authors:
       context.go('/authors');
+    case LibrarySection.stats:
+      context.go('/stats');
     case LibrarySection.settings:
       context.go('/settings');
   }
@@ -111,9 +115,11 @@ class LibrarySidebar extends StatelessWidget {
             const SizedBox(height: LannaSpacing.s5),
           ],
 
-          _NavSection(active: active, onSelect: onSelect),
-
-          const Spacer(),
+          Expanded(
+            child: SingleChildScrollView(
+              child: _NavSection(active: active, onSelect: onSelect),
+            ),
+          ),
           const _AccountChip(),
         ],
       ),

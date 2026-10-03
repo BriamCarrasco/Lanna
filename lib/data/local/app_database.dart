@@ -30,6 +30,7 @@ class CollectionWithCount {
     Collections,
     CollectionEntries,
     Highlights,
+    ReadingSessions,
   ],
 )
 class AppDatabase extends _$AppDatabase {
@@ -38,7 +39,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 17;
+  int get schemaVersion => 18;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -97,6 +98,11 @@ class AppDatabase extends _$AppDatabase {
       if (from < 17) {
         await m.addColumn(readerPrefs, readerPrefs.pageNumbers);
       }
+      if (from < 18) {
+        await m.addColumn(books, books.finishedAt);
+        await m.addColumn(readerPrefs, readerPrefs.dailyGoalMinutes);
+        await m.createTable(readingSessions);
+      }
     },
     beforeOpen: (details) async {
       await customStatement('PRAGMA foreign_keys = ON');
@@ -129,6 +135,43 @@ class AppDatabase extends _$AppDatabase {
     return (select(books)
           ..where((b) => b.hidden.equals(false) & b.favoritedAt.isNotNull())
           ..orderBy([(b) => OrderingTerm.desc(b.favoritedAt)]))
+        .watch();
+  }
+
+  Future<void> addReadingSession(ReadingSessionsCompanion session) =>
+      into(readingSessions).insert(session);
+
+  Stream<List<ReadingSession>> watchSessionsSince(DateTime since) {
+    return (select(readingSessions)
+          ..where((s) => s.startedAt.isBiggerOrEqualValue(since))
+          ..orderBy([(s) => OrderingTerm.asc(s.startedAt)]))
+        .watch();
+  }
+
+  Stream<List<ReadingSession>> watchBookSessions(String bookId) {
+    return (select(
+      readingSessions,
+    )..where((s) => s.bookId.equals(bookId))).watch();
+  }
+
+  Future<void> markFinished(String id) {
+    return (update(books)
+          ..where((b) => b.id.equals(id) & b.finishedAt.isNull()))
+        .write(BooksCompanion(finishedAt: Value(DateTime.now())));
+  }
+
+  Future<void> setFinished(String id, {required bool finished}) {
+    return updateBook(
+      id,
+      BooksCompanion(finishedAt: Value(finished ? DateTime.now() : null)),
+    );
+  }
+
+  Stream<List<Book>> watchFinishedSince(DateTime since) {
+    return (select(books)..where(
+          (b) =>
+              b.hidden.equals(false) & b.finishedAt.isBiggerOrEqualValue(since),
+        ))
         .watch();
   }
 

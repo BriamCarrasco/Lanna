@@ -23,6 +23,7 @@ import '../../data/library/folder_access.dart';
 import '../../data/local/app_database.dart';
 import '../../data/models/book_format.dart';
 import '../../data/storage/random_source.dart';
+import '../stats/reading_tracker.dart';
 import 'comic/comic_engine_view.dart';
 import 'epub_view_factory.dart';
 import 'native/book_source.dart';
@@ -145,6 +146,23 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
   String _searchQuery = '';
 
   Timer? _saveTimer;
+
+  late final ReadingTracker _tracker = ReadingTracker(onSpan: _saveSpan);
+  bool _finishMarked = false;
+
+  void _saveSpan(ReadingSpan span) {
+    unawaited(
+      _repo.addReadingSession(
+        bookId: widget.bookId,
+        startedAt: span.start,
+        seconds: span.seconds,
+        startPercent: span.startPercent,
+        endPercent: span.endPercent,
+        pages: span.pages,
+      ),
+    );
+  }
+
   ProviderSubscription<AsyncValue<ReaderSettings>>? _settingsSub;
   ProviderSubscription<AsyncValue<List<Bookmark>>>? _bookmarksSub;
   ProviderSubscription<AsyncValue<List<Highlight>>>? _highlightsSub;
@@ -200,6 +218,9 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
     if (state == AppLifecycleState.paused ||
         state == AppLifecycleState.inactive) {
       _saveProgressNow();
+      _tracker.pause();
+    } else if (state == AppLifecycleState.resumed && _location != null) {
+      _tracker.activity();
     }
   }
 
@@ -773,6 +794,15 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
     if (!mounted) return;
     _refreshSnapshot();
     if (loc.percentage != null) _lastPercent = loc.percentage!;
+    final previous = _location;
+    _tracker.activity(
+      percent: loc.percentage,
+      turned: previous != null && previous.cfi != loc.cfi,
+    );
+    if (loc.atEnd && !_finishMarked) {
+      _finishMarked = true;
+      unawaited(_repo.markFinished(widget.bookId));
+    }
     setState(() => _location = loc);
 
     _saveTimer?.cancel();
@@ -859,6 +889,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
     unawaited(_releaseSources());
     _saveTimer?.cancel();
     _saveProgressNow();
+    _tracker.pause();
     _focusNode.dispose();
     super.dispose();
   }
@@ -1041,6 +1072,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
           onPointerDown: (e) {
             _tapDownPos = e.position;
             _tapDownAt = DateTime.now();
+            if (_location != null) _tracker.activity();
           },
           onPointerUp: (e) => _onReaderPointerUp(e.position),
           onPointerCancel: (_) {

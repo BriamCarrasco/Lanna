@@ -80,6 +80,7 @@ class _LibraryShellState extends ConsumerState<LibraryShell> {
     if (path.startsWith('/folders')) return LibrarySection.folders;
     if (path.startsWith('/collections')) return LibrarySection.collections;
     if (path.startsWith('/authors')) return LibrarySection.authors;
+    if (path.startsWith('/stats')) return LibrarySection.stats;
     if (path.startsWith('/settings')) return LibrarySection.settings;
     return LibrarySection.library;
   }
@@ -136,7 +137,8 @@ class _LibraryShellState extends ConsumerState<LibraryShell> {
   }
 
   Widget _narrow(LibrarySection section) {
-    final showSearch = section != LibrarySection.settings;
+    final showSearch =
+        section != LibrarySection.settings && section != LibrarySection.stats;
     return Scaffold(
       backgroundColor: LannaColors.bg,
       body: SafeArea(
@@ -166,6 +168,7 @@ class _LibraryShellState extends ConsumerState<LibraryShell> {
       bottomNavigationBar: NavigationBar(
         selectedIndex: librarySections.indexWhere((e) => e.$3 == section),
         onDestinationSelected: (i) => _select(librarySections[i].$3, section),
+        labelBehavior: NavigationDestinationLabelBehavior.onlyShowSelected,
         destinations: [
           for (final item in librarySections)
             NavigationDestination(icon: Icon(item.$1), label: item.$2),

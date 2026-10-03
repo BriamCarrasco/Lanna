@@ -141,6 +141,29 @@ class BookRepository {
 
   Future<void> markOpened(String bookId) => _db.touchLastOpened(bookId);
 
+  Future<void> markFinished(String bookId) => _db.markFinished(bookId);
+
+  Future<void> setFinished(String bookId, {required bool finished}) =>
+      _db.setFinished(bookId, finished: finished);
+
+  Future<void> addReadingSession({
+    required String bookId,
+    required DateTime startedAt,
+    required int seconds,
+    required double startPercent,
+    required double endPercent,
+    required int pages,
+  }) => _db.addReadingSession(
+    ReadingSessionsCompanion.insert(
+      bookId: bookId,
+      startedAt: startedAt,
+      seconds: seconds,
+      startPercent: Value(startPercent),
+      endPercent: Value(endPercent),
+      pages: Value(pages),
+    ),
+  );
+
   Future<void> setReadingDirection(String bookId, String? direction) =>
       _db.setReadingDirection(bookId, direction);
 

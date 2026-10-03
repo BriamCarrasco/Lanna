@@ -120,7 +120,10 @@ class ReaderSettings {
     this.edgeTaps = true,
     this.keepAwake = false,
     this.pageNumbers = true,
+    this.dailyGoalMinutes = 20,
   });
+
+  static const dailyGoals = [10, 20, 30, 45, 60];
 
   static const lineHeights = [1.45, 1.7, 2.0];
   static const pageAnimations = ['curl', 'slide', 'fade', 'none'];
@@ -140,6 +143,7 @@ class ReaderSettings {
   final bool edgeTaps;
   final bool keepAwake;
   final bool pageNumbers;
+  final int dailyGoalMinutes;
 
   static const minScale = 70;
   static const maxScale = 220;
@@ -156,6 +160,7 @@ class ReaderSettings {
       edgeTaps: row.edgeTaps,
       keepAwake: row.keepAwake,
       pageNumbers: row.pageNumbers,
+      dailyGoalMinutes: row.dailyGoalMinutes,
     );
   }
 
@@ -169,6 +174,7 @@ class ReaderSettings {
     edgeTaps: Value(edgeTaps),
     keepAwake: Value(keepAwake),
     pageNumbers: Value(pageNumbers),
+    dailyGoalMinutes: Value(dailyGoalMinutes),
   );
 
   ReaderSettings copyWith({
@@ -181,6 +187,7 @@ class ReaderSettings {
     bool? edgeTaps,
     bool? keepAwake,
     bool? pageNumbers,
+    int? dailyGoalMinutes,
   }) => ReaderSettings(
     preset: preset ?? this.preset,
     fontScale: (fontScale ?? this.fontScale).clamp(minScale, maxScale),
@@ -191,6 +198,7 @@ class ReaderSettings {
     edgeTaps: edgeTaps ?? this.edgeTaps,
     keepAwake: keepAwake ?? this.keepAwake,
     pageNumbers: pageNumbers ?? this.pageNumbers,
+    dailyGoalMinutes: dailyGoalMinutes ?? this.dailyGoalMinutes,
   );
 
   static const fontFamilies = ['serif', 'sans', 'book'];

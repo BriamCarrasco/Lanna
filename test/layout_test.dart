@@ -12,6 +12,7 @@ import 'package:lanna/data/models/book_format.dart';
 const _sections = <(String, IconData)>[
   ('Colecciones', Icons.folder_outlined),
   ('Autores', Icons.person_outline),
+  ('Estadísticas', Icons.insights_outlined),
   ('Ajustes', Icons.settings_outlined),
 ];
 

@@ -63,6 +63,13 @@ Future<void> showBookMenu(
             : 'Añadir a favoritos',
       ),
       lannaMenuItem(
+        value: 'finished',
+        icon: book.finishedAt != null ? Icons.remove_done : Icons.done_all,
+        label: book.finishedAt != null
+            ? 'Marcar como no terminado'
+            : 'Marcar como terminado',
+      ),
+      lannaMenuItem(
         value: 'collection',
         icon: Icons.collections_bookmark_outlined,
         label: 'Añadir a colección',
@@ -99,6 +106,12 @@ Future<void> showBookMenu(
         ref
             .read(bookRepositoryProvider)
             .setFavorite(book.id, book.favoritedAt == null),
+      );
+    case 'finished':
+      unawaited(
+        ref
+            .read(bookRepositoryProvider)
+            .setFinished(book.id, finished: book.finishedAt == null),
       );
     case 'collection':
       unawaited(showCollectionPicker(context, ref, book));

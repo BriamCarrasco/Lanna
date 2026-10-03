@@ -44,6 +44,8 @@ class Books extends Table {
 
   DateTimeColumn get lastOpenedAt => dateTime().nullable()();
 
+  DateTimeColumn get finishedAt => dateTime().nullable()();
+
   @override
   Set<Column<Object>> get primaryKey => {id};
 }
@@ -168,6 +170,25 @@ class ReaderPrefs extends Table {
 
   TextColumn get engine => text().withDefault(const Constant('webview'))();
 
+  IntColumn get dailyGoalMinutes => integer().withDefault(const Constant(20))();
+
   @override
   Set<Column<Object>> get primaryKey => {id};
+}
+
+class ReadingSessions extends Table {
+  IntColumn get id => integer().autoIncrement()();
+
+  TextColumn get bookId =>
+      text().references(Books, #id, onDelete: KeyAction.cascade)();
+
+  DateTimeColumn get startedAt => dateTime()();
+
+  IntColumn get seconds => integer()();
+
+  RealColumn get startPercent => real().withDefault(const Constant(0))();
+
+  RealColumn get endPercent => real().withDefault(const Constant(0))();
+
+  IntColumn get pages => integer().withDefault(const Constant(0))();
 }
