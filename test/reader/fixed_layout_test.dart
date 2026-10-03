@@ -76,6 +76,77 @@ void main() {
     expect(find.text('Página 3 de 3'), findsOneWidget);
   });
 
+  readerTest('una doble página apaisada ocupa la pantalla sola', (
+    tester,
+    h,
+  ) async {
+    await h.db.saveReaderPrefs(
+      const ReaderSettings().copyWith(columns: 'double').toCompanion(),
+    );
+    const pages = ['01.png', '02.png', '03.png', '04.png', '05.png'];
+    await h.seedComic(
+      pages: pages,
+      images: {
+        for (final name in pages) name: solidPng(6, 9),
+        '02.png': solidPng(12, 9),
+      },
+    );
+    await h.pumpReader(tester, id: 'comic', size: const Size(1200, 800));
+    await h.setAnimation('none');
+    await settleReader(tester, rounds: 4);
+
+    expect(find.text('Página 1 de 5'), findsOneWidget);
+
+    await h.turnForward(tester);
+    await settleReader(tester, rounds: 4);
+    expect(find.text('Página 2 de 5'), findsOneWidget);
+
+    await h.turnForward(tester);
+    await settleReader(tester, rounds: 4);
+    expect(find.text('Páginas 3–4 de 5'), findsOneWidget);
+
+    await h.turnForward(tester);
+    await settleReader(tester, rounds: 4);
+    expect(find.text('Página 5 de 5'), findsOneWidget);
+  });
+
+  readerTest('en una sola columna las páginas apaisadas no cambian nada', (
+    tester,
+    h,
+  ) async {
+    const pages = ['01.png', '02.png', '03.png'];
+    await h.seedComic(pages: pages, images: {'02.png': solidPng(12, 9)});
+    await h.pumpReader(tester, id: 'comic');
+    await h.setAnimation('none');
+    await settleReader(tester, rounds: 4);
+
+    await h.turnForward(tester);
+    await settleReader(tester, rounds: 4);
+    expect(find.text('Página 2 de 3'), findsOneWidget);
+
+    await h.turnForward(tester);
+    await settleReader(tester, rounds: 4);
+    expect(find.text('Página 3 de 3'), findsOneWidget);
+  });
+
+  readerTest('al reabrir en una doble página, se muestra entera', (
+    tester,
+    h,
+  ) async {
+    await h.db.saveReaderPrefs(
+      const ReaderSettings().copyWith(columns: 'double').toCompanion(),
+    );
+    const pages = ['01.png', '02.png', '03.png', '04.png'];
+    await h.seedComic(
+      pages: pages,
+      images: {'03.png': solidPng(12, 9)},
+      locator: 'page:3',
+    );
+    await h.pumpReader(tester, id: 'comic', size: const Size(1200, 800));
+
+    expect(find.text('Página 3 de 4'), findsOneWidget);
+  });
+
   readerTest('un manga se lee de derecha a izquierda', (tester, h) async {
     await h.seedComic(
       pages: _pages,

@@ -126,10 +126,42 @@ final tinyPng = base64Decode(
   'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=',
 );
 
-Uint8List buildComicZip({required List<String> pages, String? comicInfo}) {
+Uint8List solidPng(int width, int height) {
+  List<int> chunk(String type, List<int> data) {
+    final body = [...ascii.encode(type), ...data];
+    final length = ByteData(4)..setUint32(0, data.length);
+    final crc = ByteData(4)..setUint32(0, getCrc32(body));
+    return [
+      ...length.buffer.asUint8List(),
+      ...body,
+      ...crc.buffer.asUint8List(),
+    ];
+  }
+
+  final header = ByteData(13)
+    ..setUint32(0, width)
+    ..setUint32(4, height)
+    ..setUint8(8, 8)
+    ..setUint8(9, 0);
+  final rows = <int>[
+    for (var y = 0; y < height; y++) ...[0, ...List.filled(width, 128)],
+  ];
+  return Uint8List.fromList([
+    0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, //
+    ...chunk('IHDR', header.buffer.asUint8List()),
+    ...chunk('IDAT', ZLibCodec().encode(rows)),
+    ...chunk('IEND', const []),
+  ]);
+}
+
+Uint8List buildComicZip({
+  required List<String> pages,
+  String? comicInfo,
+  Map<String, List<int>> images = const {},
+}) {
   final archive = Archive();
   for (final name in pages) {
-    archive.addFile(ArchiveFile.bytes(name, tinyPng));
+    archive.addFile(ArchiveFile.bytes(name, images[name] ?? tinyPng));
   }
   if (comicInfo != null) {
     archive.addFile(ArchiveFile.string('ComicInfo.xml', comicInfo));
@@ -214,10 +246,12 @@ extension ReaderHarnessX on ReaderHarness {
     String? comicInfo,
     List<int>? bytes,
     String? locator,
+    Map<String, List<int>> images = const {},
   }) async {
     final file = File(p.join(root.path, '$id.cbz'))
       ..writeAsBytesSync(
-        bytes ?? buildComicZip(pages: pages, comicInfo: comicInfo),
+        bytes ??
+            buildComicZip(pages: pages, comicInfo: comicInfo, images: images),
       );
     await db.upsertBook(
       BooksCompanion.insert(

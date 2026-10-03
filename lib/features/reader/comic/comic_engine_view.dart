@@ -1,4 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
+import 'dart:async';
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 
 import '../../../data/comic/comic_archive.dart';
@@ -32,6 +35,44 @@ class _ComicEngineViewState extends FixedLayoutEngineState<ComicEngineView> {
 
   @override
   bool get fitsInsets => false;
+
+  final Map<int, Size> _sizes = {};
+  final Set<int> _probing = {};
+
+  @override
+  Size? pageSize(int page) => _sizes[page];
+
+  @override
+  Future<void> prepare() async {
+    final start = pageFromLocator(widget.initialLocator) ?? 1;
+    await _probe(start, start + 2, notify: false);
+    unawaited(_probeAround(start));
+  }
+
+  @override
+  void onPageChanged() => unawaited(_probeAround(currentPage));
+
+  Future<void> _probeAround(int page) async {
+    await _probe(page, page + 6);
+    await _probe(page - 3, page - 1);
+  }
+
+  Future<void> _probe(int from, int to, {bool notify = true}) async {
+    var changed = false;
+    for (var p = math.max(1, from); p <= math.min(pageCount, to); p++) {
+      if (_sizes.containsKey(p) || !_probing.add(p)) continue;
+      final dimensions = await widget.archive.pageDimensions(p - 1);
+      _probing.remove(p);
+      if (!mounted) return;
+      if (dimensions == null) continue;
+      _sizes[p] = Size(
+        dimensions.width.toDouble(),
+        dimensions.height.toDouble(),
+      );
+      changed = true;
+    }
+    if (changed && notify) pageSizesChanged();
+  }
 
   @override
   Widget buildPage(BuildContext context, int page, Alignment alignment) {

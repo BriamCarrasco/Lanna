@@ -104,6 +104,7 @@ abstract class FixedLayoutEngineState<W extends FixedLayoutEngine>
       widget.callbacks.onError?.call('El libro no tiene páginas');
       return;
     }
+    _starts = null;
     setState(() {
       _first = _align(pageFromLocator(widget.initialLocator) ?? 1);
       _ready = true;
@@ -114,21 +115,68 @@ abstract class FixedLayoutEngineState<W extends FixedLayoutEngine>
     _emit();
   }
 
-  int get _spreadIndex => (_first - 1) ~/ _spreadSize;
+  List<int>? _starts;
 
-  int get _spreadCount =>
-      pageCount == 0 ? 0 : (pageCount + _spreadSize - 1) ~/ _spreadSize;
+  List<int> get _spreadStarts => _starts ??= _computeStarts();
 
-  int _firstOf(int spread) => spread * _spreadSize + 1;
+  bool isWidePage(int page) {
+    final size = pageSize(page);
+    return size != null && size.width > size.height;
+  }
 
-  int _align(int page) =>
-      _firstOf((page.clamp(1, math.max(1, pageCount)) - 1) ~/ _spreadSize);
+  List<int> _computeStarts() {
+    final starts = <int>[];
+    var page = 1;
+    while (page <= pageCount) {
+      starts.add(page);
+      final pair =
+          _spreadSize == 2 &&
+          page < pageCount &&
+          !isWidePage(page) &&
+          !isWidePage(page + 1);
+      page += pair ? 2 : 1;
+    }
+    return starts;
+  }
+
+  int _spreadAt(int page) {
+    final starts = _spreadStarts;
+    var low = 0;
+    var high = starts.length - 1;
+    while (low < high) {
+      final mid = (low + high + 1) ~/ 2;
+      if (starts[mid] <= page) {
+        low = mid;
+      } else {
+        high = mid - 1;
+      }
+    }
+    return math.max(0, low);
+  }
+
+  int get _spreadIndex => _spreadAt(_first);
+
+  int get _spreadCount => _spreadStarts.length;
+
+  int _firstOf(int spread) => _spreadStarts[spread];
+
+  int _align(int page) {
+    if (pageCount == 0) return 1;
+    return _firstOf(_spreadAt(page.clamp(1, pageCount)));
+  }
 
   List<int> _pagesOf(int spread) {
-    final first = _firstOf(spread);
-    return [
-      for (var p = first; p < first + _spreadSize && p <= pageCount; p++) p,
-    ];
+    final starts = _spreadStarts;
+    if (spread < 0 || spread >= starts.length) return const [];
+    final end = spread + 1 < starts.length ? starts[spread + 1] : pageCount + 1;
+    return [for (var p = starts[spread]; p < end; p++) p];
+  }
+
+  void pageSizesChanged() {
+    _starts = null;
+    if (!_ready || !mounted) return;
+    setState(() => _first = _align(_first));
+    _emit();
   }
 
   int _resolveSpreadSize(double width) => switch (_columnMode) {
@@ -142,6 +190,7 @@ abstract class FixedLayoutEngineState<W extends FixedLayoutEngine>
     final next = _resolveSpreadSize(_viewport.width);
     if (next == _spreadSize) return;
     _spreadSize = next;
+    _starts = null;
     _first = _align(_first);
     if (!_ready || !notify) return;
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -328,7 +377,7 @@ abstract class FixedLayoutEngineState<W extends FixedLayoutEngine>
                     children: [
                       for (final s in window)
                         Offstage(
-                          key: ValueKey('spread-$_spreadSize-$s'),
+                          key: ValueKey('spread-${_pagesOf(s).join('-')}'),
                           offstage: s != current,
                           child: TickerMode(
                             enabled: s == current,

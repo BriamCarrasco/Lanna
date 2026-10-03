@@ -11,6 +11,7 @@ import 'package:rar/rar.dart';
 
 import '../storage/random_source.dart';
 import 'comic_book.dart';
+import 'image_dimensions.dart';
 import 'libarchive.dart';
 
 enum ComicContainer { zip, rar, unknown }
@@ -182,20 +183,43 @@ class ComicArchive {
     return archive;
   }
 
+  static const _recentLimit = 12;
+  final Map<int, Future<Uint8List>> _recent = {};
+
   Future<Uint8List> page(int index) {
     if (_closed) {
       return Future.error(const ComicFormatException('El cómic está cerrado'));
     }
+    final cached = _recent.remove(index);
+    if (cached != null) return _recent[index] = cached;
     final id = _nextId++;
     final completer = Completer<Uint8List>();
     _pending[id] = completer;
     _requests.send((id, index));
-    return completer.future;
+    final future = completer.future;
+    _recent[index] = future;
+    future.then(
+      (_) {},
+      onError: (_) {
+        _recent.remove(index);
+      },
+    );
+    if (_recent.length > _recentLimit) _recent.remove(_recent.keys.first);
+    return future;
+  }
+
+  Future<ImageDimensions?> pageDimensions(int index) async {
+    try {
+      return imageDimensions(await page(index));
+    } catch (_) {
+      return null;
+    }
   }
 
   Future<void> close() {
     if (!_closed) {
       _closed = true;
+      _recent.clear();
       _requests.send(null);
     }
     return _exited.future;
