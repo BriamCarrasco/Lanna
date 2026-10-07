@@ -48,6 +48,53 @@ void main() {
     expect(entries.whereType<BookEntry>(), hasLength(2));
   });
 
+  group('searchEntries', () {
+    final library = [
+      _book('guia', format: BookFormat.epub, path: 'Naruto, guía oficial.epub'),
+      _book('n2', series: 'Naruto', path: 'Naruto Vol. 2.cbz'),
+      _book('n1', series: 'Naruto', path: 'Naruto Vol. 1.cbz'),
+      _book('b1', series: 'Boruto', path: 'Boruto Vol. 1.cbz'),
+      _book('b2', series: 'Boruto', path: 'Boruto Vol. 2.cbz'),
+      _book('solo', series: 'Akira', path: 'Akira Vol. 1.cbz'),
+    ];
+
+    test('las series que coinciden van primero, luego los libros', () {
+      final entries = searchEntries(library, 'naruto');
+
+      expect(entries, hasLength(2));
+      final series = entries.first as SeriesEntry;
+      expect(series.name, 'Naruto');
+      expect(series.volumes.map((b) => b.id), ['n1', 'n2']);
+      expect((entries.last as BookEntry).book.id, 'guia');
+    });
+
+    test('un tomo suelto aparece como libro si su serie no coincide', () {
+      final entries = searchEntries(library, 'vol. 2');
+
+      expect(entries.every((e) => e is BookEntry), isTrue);
+      expect(entries.map((e) => (e as BookEntry).book.id), ['n2', 'b2']);
+    });
+
+    test('ignora acentos y respeta varias palabras', () {
+      expect(searchEntries(library, 'boruto').single, isA<SeriesEntry>());
+      expect(searchEntries(library, 'guia naruto').single, isA<BookEntry>());
+    });
+
+    test('una serie de un solo tomo se muestra como libro', () {
+      final entries = searchEntries(library, 'akira');
+
+      expect((entries.single as BookEntry).book.id, 'solo');
+    });
+
+    test('booksOf despliega los tomos de cada serie', () {
+      expect(booksOf(searchEntries(library, 'naruto')).map((b) => b.id), [
+        'n1',
+        'n2',
+        'guia',
+      ]);
+    });
+  });
+
   test('la serie ignora acentos y mayúsculas al agrupar', () {
     final entries = groupSeries([
       _book('a', series: 'Pokémon Adventures'),

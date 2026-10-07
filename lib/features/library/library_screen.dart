@@ -13,7 +13,6 @@ import '../../core/widgets/lanna_menu.dart';
 import '../../data/book_repository.dart';
 import '../../data/local/app_database.dart';
 import '../../data/models/book_format.dart';
-import 'book_search.dart';
 import 'library_filters.dart';
 import 'library_scan_controller.dart';
 import 'library_shell.dart';
@@ -144,19 +143,19 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
     );
   }
 
-  List<Book> _filteredSorted(
+  List<LibraryEntry> _entries(
     List<Book> books,
     String rawQuery,
     Map<String, double> progress,
   ) {
     final query = foldForSearch(rawQuery);
-    final matched = [
+    final filtered = _sorted([
       for (final b in books)
-        if ((query.isEmpty || bookMatches(b, query)) &&
-            _filters.matches(b, progress[b.id]))
-          b,
-    ];
-    return _sorted(matched);
+        if (_filters.matches(b, progress[b.id])) b,
+    ]);
+    return query.isEmpty
+        ? groupSeries(filtered)
+        : searchEntries(filtered, query);
   }
 
   List<Book> _sorted(List<Book> books) {
@@ -192,7 +191,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
     final count = library.valueOrNull?.length ?? 0;
     final compact = MediaQuery.sizeOf(context).width < 900;
     final visible = library.whenData(
-      (books) => _filteredSorted(books, query, progress),
+      (books) => _entries(books, query, progress),
     );
     final hasComics =
         library.valueOrNull?.any((b) => b.format == BookFormat.comic) ?? false;
@@ -214,7 +213,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
               selection: selection,
               compact: compact,
               comics: [
-                for (final b in visible.valueOrNull ?? const <Book>[])
+                for (final b in booksOf(visible.valueOrNull ?? const []))
                   if (b.format == BookFormat.comic) b,
               ],
               body: _body(visible, count, const [], query, hasFolders),
@@ -223,7 +222,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
   }
 
   Widget _body(
-    AsyncValue<List<Book>> visible,
+    AsyncValue<List<LibraryEntry>> visible,
     int count,
     List<BookWithProgress> continueReading,
     String query,
@@ -234,7 +233,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
         const _ScanBanner(),
         Expanded(
           child: _LibraryBody(
-            library: visible,
+            entries: visible,
             libraryEmpty: count == 0,
             filters: _filters,
             onFilters: (f) => setState(() => _filters = f),
@@ -416,7 +415,7 @@ class _ScanBanner extends ConsumerWidget {
 
 class _LibraryBody extends StatelessWidget {
   const _LibraryBody({
-    required this.library,
+    required this.entries,
     required this.libraryEmpty,
     required this.filters,
     required this.onFilters,
@@ -431,7 +430,7 @@ class _LibraryBody extends StatelessWidget {
     required this.onToggle,
   });
 
-  final AsyncValue<List<Book>> library;
+  final AsyncValue<List<LibraryEntry>> entries;
   final bool libraryEmpty;
   final LibraryFilters filters;
   final ValueChanged<LibraryFilters> onFilters;
@@ -448,11 +447,11 @@ class _LibraryBody extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final searching = query.trim().isNotEmpty;
-    return library.when(
+    return entries.when(
       loading: () => const Center(child: CircularProgressIndicator()),
       error: (e, _) => Center(child: Text('Error: $e')),
-      data: (books) {
-        if (libraryEmpty || (books.isEmpty && !filters.active)) {
+      data: (entries) {
+        if (libraryEmpty || (entries.isEmpty && !filters.active)) {
           return searching
               ? SectionEmpty(
                   icon: Icons.search_off,
@@ -466,9 +465,6 @@ class _LibraryBody extends StatelessWidget {
                   ),
                 );
         }
-        final entries = searching
-            ? [for (final b in books) BookEntry(b)]
-            : groupSeries(books);
         return RefreshIndicator(
           onRefresh: onRescan,
           child: CustomScrollView(
@@ -483,10 +479,10 @@ class _LibraryBody extends StatelessWidget {
               ],
               _SectionLabel(
                 searching ? 'Resultados' : 'Todos los libros',
-                trailing: '${books.length}',
+                trailing: '${booksOf(entries).length}',
                 action: FiltersButton(filters: filters, onChanged: onFilters),
               ),
-              if (books.isEmpty)
+              if (entries.isEmpty)
                 SliverToBoxAdapter(
                   child: Padding(
                     padding: const EdgeInsets.symmetric(

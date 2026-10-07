@@ -3,6 +3,7 @@ import '../../core/text_search.dart';
 import '../../data/comic/comic_book.dart';
 import '../../data/local/app_database.dart';
 import '../../data/models/book_format.dart';
+import 'book_search.dart';
 
 sealed class LibraryEntry {
   const LibraryEntry();
@@ -66,6 +67,31 @@ List<LibraryEntry> groupSeries(List<Book> books) {
     );
   }
   return entries;
+}
+
+List<Book> booksOf(List<LibraryEntry> entries) => [
+  for (final entry in entries)
+    ...switch (entry) {
+      BookEntry(:final book) => [book],
+      SeriesEntry(:final volumes) => volumes,
+    },
+];
+
+List<LibraryEntry> searchEntries(List<Book> books, String foldedQuery) {
+  final series = [
+    for (final entry in groupSeries(books))
+      if (entry is SeriesEntry && matchesQuery(entry.name, foldedQuery)) entry,
+  ];
+  final grouped = {
+    for (final s in series)
+      for (final b in s.volumes) b.id,
+  };
+  return [
+    ...series,
+    for (final book in books)
+      if (!grouped.contains(book.id) && bookMatches(book, foldedQuery))
+        BookEntry(book),
+  ];
 }
 
 String _commonName(List<Book> volumes) {
