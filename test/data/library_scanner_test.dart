@@ -19,10 +19,17 @@ class _PickingAccess extends DirectoryFolderAccess {
   _PickingAccess(this.next);
 
   String next;
+  bool denyDelete = false;
 
   @override
   Future<({String location, String name})?> pick() async =>
       (location: next, name: p.basename(next));
+
+  @override
+  Future<void> delete(String location) async {
+    if (denyDelete) throw FolderWriteDenied(location);
+    return super.delete(location);
+  }
 }
 
 void main() {
@@ -209,6 +216,51 @@ void main() {
     expect((await db.findBook(id))?.hidden, isTrue);
     expect(await db.watchLibrary().first, isEmpty);
     expect(file.existsSync(), isTrue);
+  });
+
+  test(
+    'eliminar un archivado borra el archivo y vuelve si se copia otra vez',
+    () async {
+      final file = epub('1984.epub', '1984');
+      final bytes = file.readAsBytesSync();
+      await repo.pickFolder();
+      await repo.scan();
+      final id = (await allBooks()).single.id;
+      await db.saveProgress(bookId: id, percent: 0.4);
+      await repo.deleteBook(id);
+
+      await repo.deleteFromDevice(id);
+
+      expect(file.existsSync(), isFalse);
+      expect(await allBooks(), isEmpty);
+      expect((await repo.scan()).added, 0);
+
+      file.writeAsBytesSync(bytes);
+      final report = await repo.scan();
+
+      expect(report.added, 1);
+      final book = (await allBooks()).single;
+      expect(book.id, isNot(id));
+      expect(book.hidden, isFalse);
+      expect(await db.watchLibrary().first, hasLength(1));
+      expect(await db.readProgress(book.id), isNull);
+    },
+  );
+
+  test('si no se puede borrar el archivo, el libro sigue archivado', () async {
+    epub('1984.epub', '1984');
+    await repo.pickFolder();
+    await repo.scan();
+    final id = (await allBooks()).single.id;
+    await repo.deleteBook(id);
+    access.denyDelete = true;
+
+    await expectLater(
+      repo.deleteFromDevice(id),
+      throwsA(isA<FolderWriteDenied>()),
+    );
+
+    expect((await db.findBook(id))?.hidden, isTrue);
   });
 
   test('los cómics nuevos traen su serie, de ComicInfo o del nombre', () async {

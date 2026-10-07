@@ -22,6 +22,15 @@ class FolderEntry {
   final int? modified;
 }
 
+class FolderWriteDenied implements Exception {
+  const FolderWriteDenied(this.location);
+
+  final String location;
+
+  @override
+  String toString() => 'Sin permiso para borrar $location';
+}
+
 class OpenedFile {
   OpenedFile(this.spec, [this._release]);
 
@@ -44,6 +53,8 @@ abstract class FolderAccess {
   Future<void> release(String location);
 
   Future<OpenedFile> open(String location);
+
+  Future<void> delete(String location);
 }
 
 class DirectoryFolderAccess implements FolderAccess {
@@ -92,6 +103,20 @@ class DirectoryFolderAccess implements FolderAccess {
     }
     return OpenedFile(pathSpec(location));
   }
+
+  @override
+  Future<void> delete(String location) async {
+    final file = File(location);
+    if (!file.existsSync()) return;
+    try {
+      await file.delete();
+    } on FileSystemException catch (e) {
+      if (e.osError?.errorCode case 5 || 13) {
+        throw FolderWriteDenied(location);
+      }
+      rethrow;
+    }
+  }
 }
 
 class SafFolderAccess implements FolderAccess {
@@ -134,6 +159,19 @@ class SafFolderAccess implements FolderAccess {
       throw FileSystemException('No se pudo abrir el archivo', location);
     }
     return OpenedFile((path: null, fd: fd), () => FdSource.release(fd));
+  }
+
+  @override
+  Future<void> delete(String location) async {
+    if (!location.startsWith('content://')) {
+      return const DirectoryFolderAccess().delete(location);
+    }
+    try {
+      await _channel.invokeMethod<void>('deleteDocument', location);
+    } on PlatformException catch (e) {
+      if (e.code == 'denied') throw FolderWriteDenied(location);
+      rethrow;
+    }
   }
 }
 

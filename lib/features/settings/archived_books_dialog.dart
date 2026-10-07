@@ -8,6 +8,7 @@ import '../../core/theme/app_theme.dart';
 import '../../core/theme/tokens.dart';
 import '../../core/widgets/lanna_dialog.dart';
 import '../../data/book_repository.dart';
+import '../../data/library/folder_access.dart';
 import '../../data/local/app_database.dart';
 import '../library/widgets/compact_book_tile.dart';
 
@@ -35,7 +36,8 @@ class ArchivedBooksDialog extends ConsumerWidget {
       title: 'Libros archivados',
       subtitle:
           'No aparecen en la biblioteca. Al restaurarlos vuelven con su '
-          'progreso, marcadores y subrayados.',
+          'progreso, marcadores y subrayados. También puedes eliminarlos del '
+          'dispositivo.',
       serifTitle: true,
       maxWidth: 480,
       maxHeight: 560,
@@ -90,11 +92,85 @@ class _ArchivedRow extends ConsumerWidget {
       subtitle: where,
       subtitleStyle: LannaType.micro,
       verticalPadding: LannaSpacing.s2,
-      trailing: TextButton(
-        onPressed: () =>
-            unawaited(ref.read(bookRepositoryProvider).restoreBook(book.id)),
-        child: const Text('Restaurar'),
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          TextButton(
+            onPressed: () => unawaited(
+              ref.read(bookRepositoryProvider).restoreBook(book.id),
+            ),
+            child: const Text('Restaurar'),
+          ),
+          IconButton(
+            onPressed: () => unawaited(_delete(context, ref)),
+            icon: const Icon(Icons.delete_outline),
+            color: LannaColors.danger,
+            tooltip: 'Eliminar del dispositivo',
+          ),
+        ],
       ),
     );
   }
+
+  Future<void> _delete(BuildContext context, WidgetRef ref) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final repo = ref.read(bookRepositoryProvider);
+    final confirmed = await confirmDeleteFromDevice(context, book, folder);
+    if (!confirmed) return;
+    String message;
+    try {
+      await repo.deleteFromDevice(book.id);
+      message = '«${book.title}» eliminado del dispositivo';
+    } on FolderWriteDenied {
+      message =
+          'Lanna no tiene permiso para borrar en '
+          '${folder == null ? 'esa carpeta' : '«$folder»'}. Vuelve a añadir '
+          'la carpeta desde la Biblioteca para concederlo.';
+    } catch (_) {
+      message = 'No se pudo eliminar «${book.title}». Inténtalo de nuevo.';
+    }
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text(message),
+        persist: false,
+        duration: const Duration(seconds: 6),
+      ),
+    );
+  }
+}
+
+Future<bool> confirmDeleteFromDevice(
+  BuildContext context,
+  Book book,
+  String? folder,
+) async {
+  final file = book.relativePath ?? book.title;
+  final confirmed = await showDialog<bool>(
+    context: context,
+    builder: (context) => AlertDialog(
+      backgroundColor: LannaColors.surfaceHigh,
+      title: Text('¿Eliminar «${book.title}» del dispositivo?'),
+      content: Text(
+        'Se borrará el archivo «$file»'
+        '${folder == null ? '' : ' de la carpeta «$folder»'} y se quitará '
+        'de Lanna junto con su progreso, marcadores, subrayados y tiempo de '
+        'lectura. No se puede deshacer.',
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(false),
+          child: const Text('Cancelar'),
+        ),
+        FilledButton(
+          style: FilledButton.styleFrom(
+            backgroundColor: LannaColors.danger,
+            foregroundColor: LannaColors.surface,
+          ),
+          onPressed: () => Navigator.of(context).pop(true),
+          child: const Text('Eliminar'),
+        ),
+      ],
+    ),
+  );
+  return confirmed ?? false;
 }

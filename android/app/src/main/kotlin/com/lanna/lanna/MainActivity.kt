@@ -12,6 +12,7 @@ import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
+import java.io.FileNotFoundException
 import java.util.concurrent.Executors
 
 class MainActivity : FlutterActivity() {
@@ -39,12 +40,10 @@ class MainActivity : FlutterActivity() {
                 null
             }
             "releaseTree" -> background(result) {
-                contentResolver.releasePersistableUriPermission(
-                    Uri.parse(call.arguments as String),
-                    Intent.FLAG_GRANT_READ_URI_PERMISSION,
-                )
+                releaseTree(Uri.parse(call.arguments as String))
                 null
             }
+            "deleteDocument" -> deleteDocument(Uri.parse(call.arguments as String), result)
             "persistedTrees" -> result.success(
                 contentResolver.persistedUriPermissions.map { it.uri.toString() },
             )
@@ -71,6 +70,7 @@ class MainActivity : FlutterActivity() {
         pendingPick = result
         val intent = Intent(Intent.ACTION_OPEN_DOCUMENT_TREE).addFlags(
             Intent.FLAG_GRANT_READ_URI_PERMISSION or
+                Intent.FLAG_GRANT_WRITE_URI_PERMISSION or
                 Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION,
         )
         startActivityForResult(intent, pickTreeRequest)
@@ -87,8 +87,36 @@ class MainActivity : FlutterActivity() {
             result.success(null)
             return
         }
-        contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        val granted = data.flags and
+            (Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION)
+        contentResolver.takePersistableUriPermission(
+            uri,
+            granted or Intent.FLAG_GRANT_READ_URI_PERMISSION,
+        )
         result.success(mapOf("uri" to uri.toString(), "name" to treeName(uri)))
+    }
+
+    private fun releaseTree(tree: Uri) {
+        val held = contentResolver.persistedUriPermissions.firstOrNull { it.uri == tree } ?: return
+        var flags = 0
+        if (held.isReadPermission) flags = flags or Intent.FLAG_GRANT_READ_URI_PERMISSION
+        if (held.isWritePermission) flags = flags or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+        contentResolver.releasePersistableUriPermission(tree, flags)
+    }
+
+    private fun deleteDocument(document: Uri, result: MethodChannel.Result) {
+        io.execute {
+            try {
+                DocumentsContract.deleteDocument(contentResolver, document)
+                main.post { result.success(null) }
+            } catch (e: FileNotFoundException) {
+                main.post { result.success(null) }
+            } catch (e: SecurityException) {
+                main.post { result.error("denied", e.message, null) }
+            } catch (e: Exception) {
+                main.post { result.error("saf", e.message, null) }
+            }
+        }
     }
 
     private fun treeName(tree: Uri): String {

@@ -264,6 +264,15 @@ class BookRepository {
     await _discardDerived(book);
   }
 
+  Future<void> deleteFromDevice(String id) async {
+    final book = await _db.findBook(id);
+    if (book == null) return;
+    if (book.folderId == null) return deleteBook(id);
+    await _access.delete(book.filePath);
+    await _db.deleteBook(id);
+    await _discardDerived(book);
+  }
+
   Future<void> _discardDerived(Book book) async {
     if (book.coverPath case final cover?) {
       try {

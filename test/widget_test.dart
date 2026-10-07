@@ -546,6 +546,60 @@ void main() {
     await tester.pump(const Duration(milliseconds: 50));
   });
 
+  testWidgets('un libro archivado se elimina del dispositivo tras confirmar', (
+    tester,
+  ) async {
+    final db = AppDatabase.forTesting(NativeDatabase.memory());
+    addTearDown(db.close);
+    await db.addFolder(
+      LibraryFoldersCompanion.insert(
+        id: 'libros',
+        location: '/Libros',
+        name: 'Libros',
+      ),
+    );
+    await db.upsertBook(
+      BooksCompanion.insert(
+        id: 'a',
+        title: 'Rayuela',
+        filePath: '/Libros/Rayuela.epub',
+        format: BookFormat.epub,
+        folderId: const Value('libros'),
+        relativePath: const Value('Rayuela.epub'),
+        hidden: const Value(true),
+      ),
+    );
+
+    await _pumpApp(tester, db);
+    await tester.tap(find.text('Ajustes'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Libros archivados · 1'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byTooltip('Eliminar del dispositivo'));
+    await tester.pumpAndSettle();
+    expect(find.text('¿Eliminar «Rayuela» del dispositivo?'), findsOneWidget);
+    expect(find.textContaining('No se puede deshacer'), findsOneWidget);
+    await tester.tap(find.text('Cancelar'));
+    await tester.pumpAndSettle();
+    expect(find.text('Libros · Rayuela.epub'), findsOneWidget);
+
+    await tester.tap(find.byTooltip('Eliminar del dispositivo'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(FilledButton, 'Eliminar'));
+    await tester.runAsync(
+      () => Future<void>.delayed(const Duration(milliseconds: 200)),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('No hay libros archivados'), findsOneWidget);
+    expect(find.text('«Rayuela» eliminado del dispositivo'), findsOneWidget);
+    expect(await tester.runAsync(() => db.findBook('a')), isNull);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(const Duration(milliseconds: 50));
+  });
+
   testWidgets('las series se renombran, se fusionan y se separan a mano', (
     tester,
   ) async {
