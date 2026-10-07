@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:drift/drift.dart' show Value;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -12,6 +13,7 @@ import 'library/folder_access.dart';
 import 'library/library_scanner.dart';
 import 'local/app_database.dart';
 import 'local/database_provider.dart';
+import 'transfer/progress_transfer.dart';
 
 Future<LibraryDirs> defaultLibraryDirs() async {
   final support = await getApplicationSupportDirectory();
@@ -71,6 +73,11 @@ class BookRepository {
       _scanner.scanAll(onProgress: onProgress);
 
   Future<OpenedFile> openBookFile(Book book) => _access.open(book.filePath);
+
+  Future<Uint8List> exportProgress() => ProgressTransfer(_db).export();
+
+  Future<ProgressImportReport> importProgress(Uint8List bytes) =>
+      ProgressTransfer(_db).import(bytes);
 
   Future<int> shrinkCovers() async {
     final dirs = await _dirs();

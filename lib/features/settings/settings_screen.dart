@@ -12,6 +12,7 @@ import '../library/widgets/section_scaffold.dart';
 import '../reader/reader_settings_provider.dart';
 import '../reader/reader_theme.dart';
 import 'archived_books_dialog.dart';
+import 'progress_backup.dart';
 
 const _appVersion = '0.1.0';
 const _license = 'GPL-3.0-or-later';
@@ -128,6 +129,39 @@ class SettingsScreen extends ConsumerWidget {
                           ),
                       child: const Text('Conectar'),
                     ),
+                  ),
+                ),
+                const SizedBox(height: LannaSpacing.s5),
+                _Section(
+                  title: 'Progreso de lectura',
+                  child: Column(
+                    children: [
+                      _SettingRow(
+                        title: 'Exportar progreso',
+                        subtitle:
+                            'Guarda un respaldo para llevarlo a otro '
+                            'dispositivo',
+                        stack: compact,
+                        trailing: OutlinedButton.icon(
+                          onPressed: () => exportProgressFile(context, ref),
+                          icon: const Icon(Icons.upload_outlined, size: 18),
+                          label: const Text('Exportar'),
+                        ),
+                      ),
+                      const _RowDivider(),
+                      _SettingRow(
+                        title: 'Importar progreso',
+                        subtitle:
+                            'Los libros se reconocen por su contenido; '
+                            'se conserva siempre la lectura más reciente',
+                        stack: compact,
+                        trailing: OutlinedButton.icon(
+                          onPressed: () => importProgressFile(context, ref),
+                          icon: const Icon(Icons.download_outlined, size: 18),
+                          label: const Text('Importar'),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
                 const SizedBox(height: LannaSpacing.s5),

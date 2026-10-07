@@ -526,6 +526,8 @@ void main() {
 
     await tester.tap(find.text('Ajustes'));
     await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('Libros archivados · 1'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Libros archivados · 1'));
     await tester.pumpAndSettle();
     expect(find.text('Libros · Rayuela.epub'), findsOneWidget);
@@ -572,6 +574,8 @@ void main() {
 
     await _pumpApp(tester, db);
     await tester.tap(find.text('Ajustes'));
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('Libros archivados · 1'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Libros archivados · 1'));
     await tester.pumpAndSettle();
