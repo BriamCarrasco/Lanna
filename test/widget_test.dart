@@ -629,14 +629,107 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('Separar tomos'));
     await tester.pumpAndSettle();
-    expect(find.byType(Dialog), findsNothing);
-    expect(find.textContaining('tomos'), findsNothing);
-
-    final rows = await tester.runAsync(() => db.select(db.books).get());
+    await tester.tap(find.text('Cancelar'));
+    await tester.pumpAndSettle();
     expect(
-      {for (final b in rows!) b.id: b.series},
-      {'a1': '', 'a2': '', 'b28': '', 'b29': ''},
+      find.descendant(of: find.byType(Dialog), matching: find.text('3 tomos')),
+      findsOneWidget,
     );
+
+    await tester.tap(find.byTooltip('Opciones de la serie'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Separar tomos'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(FilledButton, 'Separar'));
+    await tester.pumpAndSettle();
+    expect(find.byType(Dialog), findsNothing);
+    expect(find.text('3 tomos'), findsNothing);
+
+    Future<Map<String, String?>> series() async {
+      final rows = await tester.runAsync(() => db.select(db.books).get());
+      return {for (final b in rows!) b.id: b.series};
+    }
+
+    expect(await series(), {'a1': '', 'a2': '', 'b28': '', 'b29': ''});
+
+    await tester.tap(find.text('Deshacer'));
+    await tester.pumpAndSettle();
+    expect(await series(), {
+      'a1': 'Naruto',
+      'a2': 'Naruto',
+      'b28': 'naruto',
+      'b29': '',
+    });
+    expect(find.text('3 tomos'), findsOneWidget);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(const Duration(milliseconds: 50));
+  });
+
+  testWidgets('varios cómics se mueven a una serie de una vez', (tester) async {
+    final db = AppDatabase.forTesting(NativeDatabase.memory());
+    addTearDown(db.close);
+    for (final (id, format, series) in [
+      ('c1', BookFormat.comic, null),
+      ('c2', BookFormat.comic, null),
+      ('c3', BookFormat.comic, 'Akira'),
+      ('e1', BookFormat.epub, null),
+    ]) {
+      await db.upsertBook(
+        BooksCompanion.insert(
+          id: id,
+          title: 'Libro $id',
+          filePath: '/Libros/$id',
+          format: format,
+          series: Value(series),
+        ),
+      );
+    }
+
+    await _pumpApp(tester, db);
+    await tester.longPress(find.text('Libro c1').last);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Seleccionar'));
+    await tester.pumpAndSettle();
+    expect(find.text('1 seleccionado'), findsOneWidget);
+
+    await tester.tap(find.text('Libro c2').last);
+    await tester.tap(find.text('Libro c3').last);
+    await tester.tap(find.text('Libro e1').last, warnIfMissed: false);
+    await tester.pumpAndSettle();
+    expect(find.text('3 seleccionados'), findsOneWidget);
+
+    await tester.tap(find.text('Mover a serie'));
+    await tester.pumpAndSettle();
+    expect(find.text('Mover 3 tomos a una serie'), findsOneWidget);
+    await tester.enterText(
+      find.descendant(
+        of: find.byType(AlertDialog),
+        matching: find.byType(EditableText),
+      ),
+      'Akira',
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Mover'));
+    await tester.pumpAndSettle();
+
+    Future<Map<String, String?>> series() async {
+      final rows = await tester.runAsync(() => db.select(db.books).get());
+      return {for (final b in rows!) b.id: b.series};
+    }
+
+    expect(await series(), {
+      'c1': 'Akira',
+      'c2': 'Akira',
+      'c3': 'Akira',
+      'e1': null,
+    });
+    expect(find.text('Biblioteca'), findsWidgets);
+    expect(find.text('3 tomos'), findsOneWidget);
+
+    await tester.tap(find.text('Deshacer'));
+    await tester.pumpAndSettle();
+    expect(await series(), {'c1': null, 'c2': null, 'c3': 'Akira', 'e1': null});
 
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pump(const Duration(milliseconds: 50));

@@ -5,6 +5,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/tokens.dart';
 import '../../../core/widgets/pressable.dart';
 import '../../../data/local/app_database.dart';
+import '../../../data/models/book_format.dart';
 import '../series_group.dart';
 import 'book_actions.dart';
 import 'book_cover.dart';
@@ -53,24 +54,47 @@ class LibraryGridSliver extends StatelessWidget {
     required this.entries,
     required this.onMenu,
     required this.onOpenSeries,
+    this.selection,
+    this.onToggle,
   });
 
   final List<LibraryEntry> entries;
   final BookMenuCallback onMenu;
   final ValueChanged<SeriesEntry> onOpenSeries;
+  final Set<String>? selection;
+  final ValueChanged<List<Book>>? onToggle;
 
   @override
   Widget build(BuildContext context) {
+    final selection = this.selection;
     return SliverPadding(
       padding: const EdgeInsets.symmetric(horizontal: LannaSpacing.s6),
       sliver: SliverGrid.builder(
         gridDelegate: _gridDelegate,
         itemCount: entries.length,
         itemBuilder: (context, i) => switch (entries[i]) {
-          BookEntry(:final book) => BookGridTile(book: book, onMenu: onMenu),
+          BookEntry(:final book) when selection == null => BookGridTile(
+            book: book,
+            onMenu: onMenu,
+          ),
+          BookEntry(:final book) when book.format != BookFormat.comic =>
+            Unselectable(
+              child: BookGridTile(book: book, onMenu: onMenu),
+            ),
+          BookEntry(:final book) => BookGridTile(
+            book: book,
+            onMenu: onMenu,
+            selected: selection!.contains(book.id),
+            onTap: () => onToggle!([book]),
+          ),
           final SeriesEntry series => SeriesGridTile(
             series: series,
-            onOpen: () => onOpenSeries(series),
+            selected: selection == null
+                ? null
+                : series.volumes.every((b) => selection.contains(b.id)),
+            onOpen: selection == null
+                ? () => onOpenSeries(series)
+                : () => onToggle!(series.volumes),
           ),
         },
       ),
@@ -78,11 +102,85 @@ class LibraryGridSliver extends StatelessWidget {
   }
 }
 
+class Unselectable extends StatelessWidget {
+  const Unselectable({super.key, required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return IgnorePointer(child: Opacity(opacity: 0.35, child: child));
+  }
+}
+
+class SelectionMark extends StatelessWidget {
+  const SelectionMark({super.key, required this.selected});
+
+  final bool selected;
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedContainer(
+      duration: LannaMotion.fast,
+      curve: LannaMotion.ease,
+      alignment: Alignment.topLeft,
+      padding: const EdgeInsets.all(LannaSpacing.s1 + 2),
+      decoration: BoxDecoration(
+        color: selected
+            ? LannaColors.accent.withValues(alpha: 0.16)
+            : Colors.black.withValues(alpha: 0.12),
+        borderRadius: LannaRadii.brSm,
+        border: Border.all(
+          color: selected ? LannaColors.accent : Colors.transparent,
+          width: 2,
+        ),
+      ),
+      child: SelectionIcon(selected: selected, onCover: true),
+    );
+  }
+}
+
+class SelectionIcon extends StatelessWidget {
+  const SelectionIcon({
+    super.key,
+    required this.selected,
+    this.onCover = false,
+  });
+
+  final bool selected;
+  final bool onCover;
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: onCover ? Colors.black.withValues(alpha: 0.45) : null,
+      ),
+      child: Icon(
+        selected ? Icons.check_circle : Icons.radio_button_unchecked,
+        size: 22,
+        color: selected
+            ? LannaColors.accent
+            : onCover
+            ? const Color(0xFFF0E6DF)
+            : LannaColors.textMuted,
+      ),
+    );
+  }
+}
+
 class SeriesGridTile extends StatelessWidget {
-  const SeriesGridTile({super.key, required this.series, required this.onOpen});
+  const SeriesGridTile({
+    super.key,
+    required this.series,
+    required this.onOpen,
+    this.selected,
+  });
 
   final SeriesEntry series;
   final VoidCallback onOpen;
+  final bool? selected;
 
   @override
   Widget build(BuildContext context) {
@@ -122,6 +220,8 @@ class SeriesGridTile extends StatelessWidget {
                       right: LannaSpacing.s1 + 2,
                       child: _CountBadge(count),
                     ),
+                    if (selected case final value?)
+                      Positioned.fill(child: SelectionMark(selected: value)),
                   ],
                 ),
               ),
@@ -187,21 +287,30 @@ class BookGridTile extends StatelessWidget {
     required this.book,
     required this.onMenu,
     this.progress,
+    this.selected,
+    this.onTap,
   });
 
   final Book book;
   final BookMenuCallback onMenu;
   final double? progress;
+  final bool? selected;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
+    final selecting = selected != null;
     return Pressable(
-      onTap: () => openBook(context, book),
-      onLongPress: () {
-        final box = context.findRenderObject() as RenderBox;
-        onMenu(book, box.localToGlobal(box.size.center(Offset.zero)));
-      },
-      onSecondaryTapUp: (d) => onMenu(book, d.globalPosition),
+      onTap: onTap ?? () => openBook(context, book),
+      onLongPress: selecting
+          ? onTap
+          : () {
+              final box = context.findRenderObject() as RenderBox;
+              onMenu(book, box.localToGlobal(box.size.center(Offset.zero)));
+            },
+      onSecondaryTapUp: selecting
+          ? null
+          : (d) => onMenu(book, d.globalPosition),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -220,6 +329,8 @@ class BookGridTile extends StatelessWidget {
                       right: LannaSpacing.s1 + 2,
                       child: _FavoriteBadge(),
                     ),
+                  if (selected case final value?)
+                    Positioned.fill(child: SelectionMark(selected: value)),
                 ],
               ),
             ),

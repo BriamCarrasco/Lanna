@@ -34,8 +34,9 @@ Future<void> showBookMenu(
   BuildContext context,
   WidgetRef ref,
   Book book,
-  Offset globalPosition,
-) async {
+  Offset globalPosition, {
+  VoidCallback? onSelect,
+}) async {
   final overlay = Overlay.of(context).context.findRenderObject() as RenderBox;
   final anchor = overlay.globalToLocal(globalPosition);
   final selected = await showMenu<String>(
@@ -80,6 +81,12 @@ Future<void> showBookMenu(
           icon: Icons.layers_outlined,
           label: 'Serie…',
         ),
+      if (onSelect != null && book.format == BookFormat.comic)
+        lannaMenuItem(
+          value: 'select',
+          icon: Icons.check_circle_outline,
+          label: 'Seleccionar',
+        ),
       const PopupMenuDivider(height: LannaSpacing.s2),
       book.folderId != null
           ? lannaMenuItem(
@@ -117,6 +124,8 @@ Future<void> showBookMenu(
       unawaited(showCollectionPicker(context, ref, book));
     case 'series':
       unawaited(editBookSeries(context, ref, book));
+    case 'select':
+      onSelect?.call();
     case 'delete':
       final deleted = await confirmDeleteBook(context, ref, book);
       if (deleted && context.mounted) {

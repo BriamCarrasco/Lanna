@@ -82,6 +82,35 @@ Future<String?> renameSeries(
   return name;
 }
 
+typedef SeriesMove = ({String name, Map<String, String?> previous});
+
+Future<SeriesMove?> moveBooksToSeries(
+  BuildContext context,
+  WidgetRef ref,
+  List<Book> books,
+) async {
+  if (books.isEmpty) return null;
+  final library = ref.read(libraryProvider).valueOrNull ?? const <Book>[];
+  final keys = {for (final b in books) seriesKeyOf(b)};
+  final shared = keys.length == 1 && keys.single != null;
+  final name = await askSeriesName(
+    context,
+    title: books.length == 1
+        ? 'Mover a una serie'
+        : 'Mover ${books.length} tomos a una serie',
+    confirm: 'Mover',
+    suggestions: seriesNames(library),
+    initial: shared ? books.first.series!.trim() : '',
+    allowRemove: keys.any((k) => k != null),
+  );
+  if (name == null) return null;
+  final previous = {for (final b in books) b.id: b.series};
+  await ref
+      .read(bookRepositoryProvider)
+      .setSeries(previous.keys.toList(), name);
+  return (name: name, previous: previous);
+}
+
 Future<bool> confirmSplitSeries(
   BuildContext context,
   String name,

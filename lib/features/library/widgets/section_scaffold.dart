@@ -11,6 +11,7 @@ class SectionScaffold extends StatelessWidget {
     required this.title,
     this.subtitle,
     this.onBack,
+    this.backIcon = Icons.chevron_left,
     this.actions = const [],
     required this.child,
   });
@@ -18,6 +19,7 @@ class SectionScaffold extends StatelessWidget {
   final String title;
   final String? subtitle;
   final VoidCallback? onBack;
+  final IconData backIcon;
   final List<Widget> actions;
   final Widget child;
 
@@ -30,6 +32,7 @@ class SectionScaffold extends StatelessWidget {
           title: title,
           subtitle: subtitle,
           onBack: onBack,
+          backIcon: backIcon,
           actions: actions,
         ),
         const Divider(height: 1),
@@ -44,12 +47,14 @@ class _SectionHeader extends StatelessWidget {
     required this.title,
     required this.subtitle,
     required this.onBack,
+    required this.backIcon,
     required this.actions,
   });
 
   final String title;
   final String? subtitle;
   final VoidCallback? onBack;
+  final IconData backIcon;
   final List<Widget> actions;
 
   @override
@@ -65,7 +70,7 @@ class _SectionHeader extends StatelessWidget {
         children: [
           if (onBack != null)
             IconButton(
-              icon: const Icon(Icons.chevron_left),
+              icon: Icon(backIcon),
               color: LannaColors.textMuted,
               onPressed: onBack,
             ),

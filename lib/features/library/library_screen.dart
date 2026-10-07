@@ -12,6 +12,7 @@ import '../../core/widgets/fade_in.dart';
 import '../../core/widgets/lanna_menu.dart';
 import '../../data/book_repository.dart';
 import '../../data/local/app_database.dart';
+import '../../data/models/book_format.dart';
 import 'book_search.dart';
 import 'library_filters.dart';
 import 'library_scan_controller.dart';
@@ -25,6 +26,7 @@ import 'widgets/continue_reading_row.dart';
 import 'widgets/empty_library_view.dart';
 import 'widgets/filters_panel.dart';
 import 'widgets/section_scaffold.dart';
+import 'widgets/series_dialogs.dart';
 import 'widgets/series_sheet.dart';
 
 enum _SortMode {
@@ -49,6 +51,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
   _SortMode _sort = _SortMode.recent;
   _ViewMode _view = _ViewMode.grid;
   LibraryFilters _filters = const LibraryFilters();
+  Set<String>? _selection;
 
   @override
   void initState() {
@@ -75,7 +78,70 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
   );
 
   void _showBookMenu(Book book, Offset globalPosition) {
-    unawaited(showBookMenu(context, ref, book, globalPosition));
+    unawaited(
+      showBookMenu(
+        context,
+        ref,
+        book,
+        globalPosition,
+        onSelect: () => _startSelection(book),
+      ),
+    );
+  }
+
+  void _startSelection([Book? book]) {
+    setState(() => _selection = {if (book != null) book.id});
+  }
+
+  void _endSelection() => setState(() => _selection = null);
+
+  void _toggle(List<Book> books) {
+    final selection = _selection;
+    if (selection == null) return;
+    final ids = {for (final b in books) b.id};
+    setState(() {
+      _selection = ids.every(selection.contains)
+          ? selection.difference(ids)
+          : selection.union(ids);
+    });
+  }
+
+  void _toggleAll(List<Book> comics) {
+    final selection = _selection;
+    if (selection == null) return;
+    final all = comics.every((b) => selection.contains(b.id));
+    setState(() => _selection = all ? {} : {for (final b in comics) b.id});
+  }
+
+  Future<void> _moveSelection() async {
+    final ids = _selection;
+    if (ids == null || ids.isEmpty) return;
+    final library = ref.read(libraryProvider).valueOrNull ?? const <Book>[];
+    final books = [
+      for (final b in library)
+        if (ids.contains(b.id)) b,
+    ];
+    final messenger = ScaffoldMessenger.of(context);
+    final repo = ref.read(bookRepositoryProvider);
+    final moved = await moveBooksToSeries(context, ref, books);
+    if (moved == null || !mounted) return;
+    _endSelection();
+    final count = '${books.length} ${books.length == 1 ? 'tomo' : 'tomos'}';
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text(
+          moved.name.isEmpty
+              ? '$count fuera de su serie'
+              : '$count en «${moved.name}»',
+        ),
+        persist: false,
+        duration: const Duration(seconds: 6),
+        action: SnackBarAction(
+          label: 'Deshacer',
+          onPressed: () => unawaited(repo.restoreSeries(moved.previous)),
+        ),
+      ),
+    );
   }
 
   List<Book> _filteredSorted(
@@ -125,12 +191,126 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
         const <String, double>{};
     final count = library.valueOrNull?.length ?? 0;
     final compact = MediaQuery.sizeOf(context).width < 900;
+    final visible = library.whenData(
+      (books) => _filteredSorted(books, query, progress),
+    );
+    final hasComics =
+        library.valueOrNull?.any((b) => b.format == BookFormat.comic) ?? false;
+    final selection = _selection;
 
+    return PopScope(
+      canPop: selection == null,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) _endSelection();
+      },
+      child: selection == null
+          ? _scaffold(
+              count: count,
+              compact: compact,
+              hasComics: hasComics,
+              body: _body(visible, count, continueReading, query, hasFolders),
+            )
+          : _selectionScaffold(
+              selection: selection,
+              compact: compact,
+              comics: [
+                for (final b in visible.valueOrNull ?? const <Book>[])
+                  if (b.format == BookFormat.comic) b,
+              ],
+              body: _body(visible, count, const [], query, hasFolders),
+            ),
+    );
+  }
+
+  Widget _body(
+    AsyncValue<List<Book>> visible,
+    int count,
+    List<BookWithProgress> continueReading,
+    String query,
+    bool hasFolders,
+  ) {
+    return Column(
+      children: [
+        const _ScanBanner(),
+        Expanded(
+          child: _LibraryBody(
+            library: visible,
+            libraryEmpty: count == 0,
+            filters: _filters,
+            onFilters: (f) => setState(() => _filters = f),
+            continueReading: query.isEmpty && !_filters.active
+                ? continueReading
+                : const [],
+            query: query,
+            view: _view,
+            hasFolders: hasFolders,
+            onAddFolder: _addFolder,
+            onRescan: _rescan,
+            onBookMenu: _showBookMenu,
+            selection: _selection,
+            onToggle: _toggle,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _selectionScaffold({
+    required Set<String> selection,
+    required bool compact,
+    required List<Book> comics,
+    required Widget body,
+  }) {
+    final n = selection.length;
+    final allSelected =
+        comics.isNotEmpty && comics.every((b) => selection.contains(b.id));
+    return SectionScaffold(
+      title: n == 0
+          ? 'Selecciona cómics'
+          : '$n ${n == 1 ? 'seleccionado' : 'seleccionados'}',
+      onBack: _endSelection,
+      backIcon: Icons.close,
+      actions: [
+        IconButton(
+          onPressed: comics.isEmpty ? null : () => _toggleAll(comics),
+          icon: Icon(allSelected ? Icons.deselect : Icons.select_all),
+          tooltip: allSelected ? 'Quitar selección' : 'Seleccionar todo',
+        ),
+        if (compact)
+          IconButton.filled(
+            onPressed: n == 0 ? null : () => unawaited(_moveSelection()),
+            icon: const Icon(Icons.layers_outlined),
+            tooltip: 'Mover a serie',
+          )
+        else
+          FilledButton.icon(
+            onPressed: n == 0 ? null : () => unawaited(_moveSelection()),
+            icon: const Icon(Icons.layers_outlined, size: 18),
+            label: const Text('Mover a serie'),
+          ),
+      ],
+      child: body,
+    );
+  }
+
+  Widget _scaffold({
+    required int count,
+    required bool compact,
+    required bool hasComics,
+    required Widget body,
+  }) {
+    final select = IconButton(
+      onPressed: _startSelection,
+      icon: Icon(Icons.checklist, size: compact ? null : 20),
+      color: compact ? null : LannaColors.textMuted,
+      tooltip: 'Seleccionar cómics',
+    );
     return SectionScaffold(
       title: 'Biblioteca',
       subtitle: '$count ${count == 1 ? 'libro' : 'libros'}',
       actions: compact
           ? [
+              if (hasComics) select,
               PopupMenuButton<_SortMode>(
                 icon: const Icon(
                   Icons.sort,
@@ -165,6 +345,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                 sort: _sort,
                 onChanged: (s) => setState(() => _sort = s),
               ),
+              if (hasComics) select,
               _RescanButton(onPressed: _rescan, muted: true),
               FilledButton.icon(
                 onPressed: _addFolder,
@@ -172,30 +353,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                 label: const Text('Añadir carpeta'),
               ),
             ],
-      child: Column(
-        children: [
-          const _ScanBanner(),
-          Expanded(
-            child: _LibraryBody(
-              library: library.whenData(
-                (books) => _filteredSorted(books, query, progress),
-              ),
-              libraryEmpty: count == 0,
-              filters: _filters,
-              onFilters: (f) => setState(() => _filters = f),
-              continueReading: query.isEmpty && !_filters.active
-                  ? continueReading
-                  : const [],
-              query: query,
-              view: _view,
-              hasFolders: hasFolders,
-              onAddFolder: _addFolder,
-              onRescan: _rescan,
-              onBookMenu: _showBookMenu,
-            ),
-          ),
-        ],
-      ),
+      child: body,
     );
   }
 }
@@ -269,6 +427,8 @@ class _LibraryBody extends StatelessWidget {
     required this.onAddFolder,
     required this.onRescan,
     required this.onBookMenu,
+    required this.selection,
+    required this.onToggle,
   });
 
   final AsyncValue<List<Book>> library;
@@ -282,6 +442,8 @@ class _LibraryBody extends StatelessWidget {
   final VoidCallback onAddFolder;
   final Future<void> Function() onRescan;
   final void Function(Book book, Offset globalPosition) onBookMenu;
+  final Set<String>? selection;
+  final ValueChanged<List<Book>> onToggle;
 
   @override
   Widget build(BuildContext context) {
@@ -346,9 +508,16 @@ class _LibraryBody extends StatelessWidget {
                   onMenu: onBookMenu,
                   onOpenSeries: (series) =>
                       unawaited(showSeries(context, series)),
+                  selection: selection,
+                  onToggle: onToggle,
                 )
               else
-                _BookListSliver(entries: entries, onMenu: onBookMenu),
+                _BookListSliver(
+                  entries: entries,
+                  onMenu: onBookMenu,
+                  selection: selection,
+                  onToggle: onToggle,
+                ),
               const SliverToBoxAdapter(
                 child: SizedBox(height: LannaSpacing.s6),
               ),
@@ -506,12 +675,20 @@ class _SortButton extends StatelessWidget {
 }
 
 class _BookListSliver extends StatelessWidget {
-  const _BookListSliver({required this.entries, required this.onMenu});
+  const _BookListSliver({
+    required this.entries,
+    required this.onMenu,
+    required this.selection,
+    required this.onToggle,
+  });
   final List<LibraryEntry> entries;
   final void Function(Book book, Offset globalPosition) onMenu;
+  final Set<String>? selection;
+  final ValueChanged<List<Book>> onToggle;
 
   @override
   Widget build(BuildContext context) {
+    final selection = this.selection;
     return SliverPadding(
       padding: const EdgeInsets.symmetric(horizontal: LannaSpacing.s6),
       sliver: SliverList.separated(
@@ -519,8 +696,27 @@ class _BookListSliver extends StatelessWidget {
         separatorBuilder: (_, _) =>
             const Divider(height: 1, color: LannaColors.borderSubtle),
         itemBuilder: (context, i) => switch (entries[i]) {
-          BookEntry(:final book) => _BookRow(book: book, onMenu: onMenu),
-          final SeriesEntry series => _SeriesRow(series: series),
+          BookEntry(:final book) when selection == null => _BookRow(
+            book: book,
+            onMenu: onMenu,
+          ),
+          BookEntry(:final book) when book.format != BookFormat.comic =>
+            Unselectable(
+              child: _BookRow(book: book, onMenu: onMenu),
+            ),
+          BookEntry(:final book) => _BookRow(
+            book: book,
+            onMenu: onMenu,
+            selected: selection!.contains(book.id),
+            onTap: () => onToggle([book]),
+          ),
+          final SeriesEntry series => _SeriesRow(
+            series: series,
+            selected: selection == null
+                ? null
+                : series.volumes.every((b) => selection.contains(b.id)),
+            onTap: selection == null ? null : () => onToggle(series.volumes),
+          ),
         },
       ),
     );
@@ -528,14 +724,16 @@ class _BookListSliver extends StatelessWidget {
 }
 
 class _SeriesRow extends StatelessWidget {
-  const _SeriesRow({required this.series});
+  const _SeriesRow({required this.series, this.selected, this.onTap});
   final SeriesEntry series;
+  final bool? selected;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
     final count = series.volumes.length;
     return InkWell(
-      onTap: () => unawaited(showSeries(context, series)),
+      onTap: onTap ?? () => unawaited(showSeries(context, series)),
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: LannaSpacing.s3),
         child: Row(
@@ -559,11 +757,14 @@ class _SeriesRow extends StatelessWidget {
                 ],
               ),
             ),
-            const Icon(
-              Icons.layers_outlined,
-              size: 18,
-              color: LannaColors.textMuted,
-            ),
+            if (selected case final value?)
+              SelectionIcon(selected: value)
+            else
+              const Icon(
+                Icons.layers_outlined,
+                size: 18,
+                color: LannaColors.textMuted,
+              ),
           ],
         ),
       ),
@@ -572,9 +773,16 @@ class _SeriesRow extends StatelessWidget {
 }
 
 class _BookRow extends StatelessWidget {
-  const _BookRow({required this.book, required this.onMenu});
+  const _BookRow({
+    required this.book,
+    required this.onMenu,
+    this.selected,
+    this.onTap,
+  });
   final Book book;
   final void Function(Book book, Offset globalPosition) onMenu;
+  final bool? selected;
+  final VoidCallback? onTap;
 
   void _menuFromCenter(BuildContext context) {
     final box = context.findRenderObject() as RenderBox;
@@ -583,11 +791,18 @@ class _BookRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final selected = this.selected;
     return InkWell(
-      onTap: () => openBook(context, book),
-      onLongPress: () => _menuFromCenter(context),
-      onSecondaryTapUp: (d) => onMenu(book, d.globalPosition),
-      child: CompactBookTile(book: book, subtitle: book.author),
+      onTap: onTap ?? () => openBook(context, book),
+      onLongPress: selected != null ? onTap : () => _menuFromCenter(context),
+      onSecondaryTapUp: selected != null
+          ? null
+          : (d) => onMenu(book, d.globalPosition),
+      child: CompactBookTile(
+        book: book,
+        subtitle: book.author,
+        trailing: selected == null ? null : SelectionIcon(selected: selected),
+      ),
     );
   }
 }
