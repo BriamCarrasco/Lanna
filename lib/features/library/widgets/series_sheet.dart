@@ -73,6 +73,30 @@ class _SeriesSheetState extends ConsumerState<SeriesSheet> {
     );
   }
 
+  Future<void> _archive(List<Book> volumes) async {
+    final navigator = Navigator.of(context);
+    final messenger = ScaffoldMessenger.of(context);
+    final name = _name;
+    final confirmed = await confirmArchiveSeries(context, name, volumes.length);
+    if (!confirmed || !mounted) return;
+
+    final repo = ref.read(bookRepositoryProvider);
+    final ids = [for (final b in volumes) b.id];
+    await repo.archiveBooks(ids);
+    navigator.pop();
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text('«$name» archivada · ${ids.length} tomos'),
+        persist: false,
+        duration: const Duration(seconds: 6),
+        action: SnackBarAction(
+          label: 'Deshacer',
+          onPressed: () => unawaited(repo.restoreBooks(ids)),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final seriesKey = _key;
@@ -145,7 +169,8 @@ class _SeriesSheetState extends ConsumerState<SeriesSheet> {
                     position: PopupMenuPosition.under,
                     onSelected: (action) => switch (action) {
                       'rename' => unawaited(_rename(volumes)),
-                      _ => unawaited(_split(volumes)),
+                      'split' => unawaited(_split(volumes)),
+                      _ => unawaited(_archive(volumes)),
                     },
                     itemBuilder: (_) => [
                       lannaMenuItem(
@@ -157,6 +182,12 @@ class _SeriesSheetState extends ConsumerState<SeriesSheet> {
                         value: 'split',
                         icon: Icons.call_split,
                         label: 'Separar tomos',
+                      ),
+                      const PopupMenuDivider(height: LannaSpacing.s2),
+                      lannaMenuItem(
+                        value: 'archive',
+                        icon: Icons.inventory_2_outlined,
+                        label: 'Archivar serie',
                       ),
                     ],
                   ),

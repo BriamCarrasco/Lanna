@@ -111,6 +111,37 @@ Future<SeriesMove?> moveBooksToSeries(
   return (name: name, previous: previous);
 }
 
+Future<bool> confirmArchiveSeries(
+  BuildContext context,
+  String name,
+  int volumes,
+) async {
+  final confirmed = await showDialog<bool>(
+    context: context,
+    builder: (context) => AlertDialog(
+      backgroundColor: LannaColors.surfaceHigh,
+      title: Text('¿Archivar «$name»?'),
+      content: Text(
+        'Los $volumes tomos dejarán de aparecer en la biblioteca, pero '
+        'conservan su progreso, marcadores y subrayados. Los archivos se '
+        'quedan en su carpeta. Puedes recuperarlos desde Ajustes → Libros '
+        'archivados.',
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(false),
+          child: const Text('Cancelar'),
+        ),
+        FilledButton(
+          onPressed: () => Navigator.of(context).pop(true),
+          child: const Text('Archivar'),
+        ),
+      ],
+    ),
+  );
+  return confirmed ?? false;
+}
+
 Future<bool> confirmSplitSeries(
   BuildContext context,
   String name,

@@ -897,6 +897,126 @@ void main() {
     await tester.pump(const Duration(milliseconds: 50));
   });
 
+  testWidgets('una serie completa se archiva tras confirmar y se deshace', (
+    tester,
+  ) async {
+    final db = AppDatabase.forTesting(NativeDatabase.memory());
+    addTearDown(db.close);
+    for (final (id, series) in [
+      ('n1', 'Naruto'),
+      ('n2', 'Naruto'),
+      ('n3', 'Naruto'),
+      ('a1', 'Akira'),
+    ]) {
+      await db.upsertBook(
+        BooksCompanion.insert(
+          id: id,
+          title: 'Tomo $id',
+          filePath: '/Libros/$id.cbz',
+          format: BookFormat.comic,
+          series: Value(series),
+        ),
+      );
+    }
+
+    await _pumpApp(tester, db);
+    Future<void> archiveSeries({required bool confirm}) async {
+      await tester.tap(find.text('3 tomos'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byTooltip('Opciones de la serie'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Archivar serie'));
+      await tester.pumpAndSettle();
+      expect(find.text('¿Archivar «Naruto»?'), findsOneWidget);
+      await tester.tap(
+        confirm
+            ? find.widgetWithText(FilledButton, 'Archivar')
+            : find.text('Cancelar'),
+      );
+      await tester.pumpAndSettle();
+    }
+
+    Future<Set<String>> hidden() async {
+      final rows = await tester.runAsync(() => db.select(db.books).get());
+      return {
+        for (final b in rows!)
+          if (b.hidden) b.id,
+      };
+    }
+
+    await archiveSeries(confirm: false);
+    expect(await hidden(), isEmpty);
+    await tester.tap(find.byTooltip('Cerrar'));
+    await tester.pumpAndSettle();
+
+    await archiveSeries(confirm: true);
+    expect(find.byType(Dialog), findsNothing);
+    expect(find.text('3 tomos'), findsNothing);
+    expect(await hidden(), {'n1', 'n2', 'n3'});
+
+    await tester.tap(find.text('Deshacer'));
+    await tester.pumpAndSettle();
+    expect(await hidden(), isEmpty);
+    expect(find.text('3 tomos'), findsOneWidget);
+
+    await archiveSeries(confirm: true);
+    await tester.pump(const Duration(seconds: 7));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Ajustes'));
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('Libros archivados · 3'));
+    expect(find.text('Libros archivados · 3'), findsOneWidget);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(const Duration(milliseconds: 50));
+  });
+
+  testWidgets('la búsqueda muestra primero las series y luego los libros', (
+    tester,
+  ) async {
+    final db = AppDatabase.forTesting(NativeDatabase.memory());
+    addTearDown(db.close);
+    for (final (id, title, format, series) in [
+      ('guia', 'Naruto, guía oficial', BookFormat.epub, null),
+      ('n1', 'Tomo 1', BookFormat.comic, 'Naruto'),
+      ('n2', 'Tomo 2', BookFormat.comic, 'Naruto'),
+      ('r', 'Rayuela', BookFormat.epub, null),
+    ]) {
+      await db.upsertBook(
+        BooksCompanion.insert(
+          id: id,
+          title: title,
+          filePath: '/Libros/$id',
+          format: format,
+          series: Value(series),
+          addedAt: Value(DateTime(2026, 1, id == 'guia' ? 9 : 1)),
+        ),
+      );
+    }
+
+    await _pumpApp(tester, db);
+    await tester.enterText(find.byType(EditableText), 'naruto');
+    await tester.pumpAndSettle();
+
+    expect(find.byType(SeriesGridTile), findsOneWidget);
+    expect(find.byType(BookGridTile), findsOneWidget);
+    expect(find.text('Rayuela'), findsNothing);
+    expect(
+      tester.getTopLeft(find.byType(SeriesGridTile)).dx,
+      lessThan(tester.getTopLeft(find.byType(BookGridTile)).dx),
+    );
+
+    await tester.tap(find.text('2 tomos'));
+    await tester.pumpAndSettle();
+    expect(
+      find.descendant(of: find.byType(Dialog), matching: find.text('Tomo 2')),
+      findsWidgets,
+    );
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(const Duration(milliseconds: 50));
+  });
+
   testWidgets('Ctrl+F y / llevan al buscador, Esc lo limpia', (tester) async {
     final db = AppDatabase.forTesting(NativeDatabase.memory());
     addTearDown(db.close);

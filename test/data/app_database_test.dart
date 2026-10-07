@@ -186,6 +186,25 @@ void main() {
     expect(before['c'], isNull);
   });
 
+  test('archivar en lote oculta solo esos libros y se revierte', () async {
+    for (final id in ['a', 'b', 'c']) {
+      await db.upsertBook(sampleBook(id));
+    }
+    await db.saveProgress(bookId: 'a', percent: 0.5);
+
+    await db.setHidden(['a', 'b'], hidden: true);
+    expect((await db.watchLibrary().first).map((b) => b.id), ['c']);
+    expect(
+      (await db.watchArchived().first).map((b) => b.id),
+      unorderedEquals(['a', 'b']),
+    );
+    expect((await db.readProgress('a'))?.percent, 0.5);
+
+    await db.setHidden(['a', 'b'], hidden: false);
+    expect(await db.watchArchived().first, isEmpty);
+    expect(await db.watchLibrary().first, hasLength(3));
+  });
+
   test(
     'watchContinueReading: empezados y no terminados, por recencia',
     () async {

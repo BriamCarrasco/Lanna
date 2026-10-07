@@ -127,6 +127,12 @@ class AppDatabase extends _$AppDatabase {
     });
   }
 
+  Future<void> setHidden(List<String> ids, {required bool hidden}) {
+    return (update(books)..where((b) => b.id.isIn(ids))).write(
+      BooksCompanion(hidden: Value(hidden)),
+    );
+  }
+
   Stream<List<Book>> watchArchived() {
     return (select(books)
           ..where((b) => b.hidden.equals(true))

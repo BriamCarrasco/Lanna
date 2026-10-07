@@ -121,6 +121,12 @@ class BookRepository {
   Future<void> restoreBook(String id) =>
       _db.updateBook(id, const BooksCompanion(hidden: Value(false)));
 
+  Future<void> archiveBooks(List<String> ids) =>
+      _db.setHidden(ids, hidden: true);
+
+  Future<void> restoreBooks(List<String> ids) =>
+      _db.setHidden(ids, hidden: false);
+
   Future<void> hideBook(String id) =>
       _db.updateBook(id, const BooksCompanion(hidden: Value(true)));
 
