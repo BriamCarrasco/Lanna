@@ -82,6 +82,35 @@ Future<String?> renameSeries(
   return name;
 }
 
+Future<bool> confirmSplitSeries(
+  BuildContext context,
+  String name,
+  int volumes,
+) async {
+  final confirmed = await showDialog<bool>(
+    context: context,
+    builder: (context) => AlertDialog(
+      backgroundColor: LannaColors.surfaceHigh,
+      title: Text('¿Separar «$name»?'),
+      content: Text(
+        'Los $volumes tomos volverán a aparecer como libros sueltos en la '
+        'biblioteca. No se borra ningún archivo ni progreso de lectura.',
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(false),
+          child: const Text('Cancelar'),
+        ),
+        FilledButton(
+          onPressed: () => Navigator.of(context).pop(true),
+          child: const Text('Separar'),
+        ),
+      ],
+    ),
+  );
+  return confirmed ?? false;
+}
+
 class _SeriesNameDialog extends StatefulWidget {
   const _SeriesNameDialog({
     required this.title,

@@ -108,6 +108,9 @@ class BookRepository {
   Future<void> setSeries(List<String> ids, String? name) =>
       _db.setSeries(ids, name?.trim() ?? '');
 
+  Future<void> restoreSeries(Map<String, String?> seriesById) =>
+      _db.setSeriesById(seriesById);
+
   Future<void> restoreBook(String id) =>
       _db.updateBook(id, const BooksCompanion(hidden: Value(false)));
 

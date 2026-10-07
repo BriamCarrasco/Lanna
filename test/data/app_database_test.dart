@@ -169,6 +169,23 @@ void main() {
     },
   );
 
+  test('separar una serie se deshace con los valores originales', () async {
+    await db.upsertBook(sampleBook('a').copyWith(series: const Value('Akira')));
+    await db.upsertBook(sampleBook('b').copyWith(series: const Value('akira')));
+    await db.upsertBook(sampleBook('c'));
+    Future<Map<String, String?>> series() async => {
+      for (final b in await db.watchLibrary().first) b.id: b.series,
+    };
+    final before = await series();
+
+    await db.setSeries(['a', 'b', 'c'], '');
+    expect((await series()).values, everyElement(''));
+
+    await db.setSeriesById(before);
+    expect(await series(), before);
+    expect(before['c'], isNull);
+  });
+
   test(
     'watchContinueReading: empezados y no terminados, por recencia',
     () async {

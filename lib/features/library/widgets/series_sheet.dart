@@ -51,10 +51,26 @@ class _SeriesSheetState extends ConsumerState<SeriesSheet> {
 
   Future<void> _split(List<Book> volumes) async {
     final navigator = Navigator.of(context);
-    await ref.read(bookRepositoryProvider).setSeries([
-      for (final b in volumes) b.id,
-    ], '');
+    final messenger = ScaffoldMessenger.of(context);
+    final name = _name;
+    final confirmed = await confirmSplitSeries(context, name, volumes.length);
+    if (!confirmed || !mounted) return;
+
+    final repo = ref.read(bookRepositoryProvider);
+    final previous = {for (final b in volumes) b.id: b.series};
+    await repo.setSeries(previous.keys.toList(), '');
     navigator.pop();
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text('«$name» separada en ${volumes.length} tomos'),
+        persist: false,
+        duration: const Duration(seconds: 6),
+        action: SnackBarAction(
+          label: 'Deshacer',
+          onPressed: () => unawaited(repo.restoreSeries(previous)),
+        ),
+      ),
+    );
   }
 
   @override

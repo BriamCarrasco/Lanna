@@ -116,9 +116,12 @@ class AppDatabase extends _$AppDatabase {
         .watch();
   }
 
-  Future<void> setSeries(List<String> ids, String series) {
+  Future<void> setSeries(List<String> ids, String series) =>
+      setSeriesById({for (final id in ids) id: series});
+
+  Future<void> setSeriesById(Map<String, String?> seriesById) {
     return transaction(() async {
-      for (final id in ids) {
+      for (final MapEntry(key: id, value: series) in seriesById.entries) {
         await updateBook(id, BooksCompanion(series: Value(series)));
       }
     });
