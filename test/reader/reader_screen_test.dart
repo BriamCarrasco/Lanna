@@ -75,6 +75,33 @@ void main() {
     });
   }
 
+  for (final modo in seleccionables) {
+    readerTest(
+      'en la primera página el modo ${modo.name} no anima hacia atrás',
+      (tester, h) async {
+        await h.setAnimation(modo.name);
+        await abrirLargo(tester, h);
+
+        await h.turnForward(tester, back: true);
+        await settleReader(tester, rounds: 4);
+        expect(overlayDe(modo), findsNothing, reason: 'teclado');
+
+        await tester.tapAt(const Offset(10, 400));
+        await settleReader(tester, rounds: 4);
+        expect(overlayDe(modo), findsNothing, reason: 'toque en el borde');
+
+        await tester.flingFrom(
+          const Offset(150, 400),
+          const Offset(300, 0),
+          1500,
+        );
+        await settleReader(tester, rounds: 4);
+        expect(overlayDe(modo), findsNothing, reason: 'deslizamiento');
+        expect(tester.takeException(), isNull);
+      },
+    );
+  }
+
   readerTest('sin animación no se superpone nada', (tester, h) async {
     await h.setAnimation('none');
     await abrirLargo(tester, h);

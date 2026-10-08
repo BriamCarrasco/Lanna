@@ -255,6 +255,8 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
 
   bool get _atEnd => _location?.atEnd ?? false;
 
+  bool _canTurn(int dir) => dir > 0 ? !_atEnd : !_atStart;
+
   double _dragTravel = 0;
 
   Future<bool>? _curlStart;
@@ -275,7 +277,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
       final controller = _controller;
       if (controller == null) return;
       final forward = _rtl ? _dragTravel > 0 : _dragTravel < 0;
-      if (forward ? _atEnd : _atStart) return;
+      if (!_canTurn(forward ? 1 : -1)) return;
       final start = _curl.beginDrag(
         _foldFor(forward ? 1 : -1),
         mode: _transition ?? PageTransition.curl,
@@ -846,7 +848,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
   void _turn(int dir) {
     if (_showToc || _showAppearance || _showSearch) return;
     final controller = _controller;
-    if (controller == null) return;
+    if (controller == null || !_canTurn(dir)) return;
     Future<void> advance() =>
         dir > 0 ? controller.next() : controller.previous();
     final mode = _transition;

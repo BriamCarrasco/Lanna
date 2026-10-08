@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lanna/features/reader/comic/comic_engine_view.dart';
 import 'package:lanna/features/reader/reader_theme.dart';
+import 'package:lanna/features/reader/widgets/page_curl.dart';
 
 import '../support/reader_harness.dart';
 
@@ -53,6 +54,35 @@ void main() {
 
     expect(find.text('Página 2 de 3'), findsOneWidget);
     expect(tester.takeException(), isNull);
+  });
+
+  readerTest('en los extremos del cómic no hay animación de paso', (
+    tester,
+    h,
+  ) async {
+    await h.seedComic(pages: _pages, locator: 'page:3');
+    await h.pumpReader(tester, id: 'comic');
+    await h.setAnimation('slide');
+    await settleReader(tester, rounds: 4);
+    final overlay = find.byKey(PageTransition.slide.overlayKey);
+
+    await h.turnForward(tester);
+    await settleReader(tester, rounds: 2);
+    expect(overlay, findsNothing, reason: 'avanzó desde la última');
+    expect(find.text('Página 3 de 3'), findsOneWidget);
+
+    await h.turnForward(tester, back: true);
+    await settleReader(tester, rounds: 2);
+    expect(overlay, findsOneWidget, reason: 'retroceder sí debe animar');
+    await settleReader(tester);
+    await h.turnForward(tester, back: true);
+    await settleReader(tester);
+    expect(find.text('Página 1 de 3'), findsOneWidget);
+
+    await h.turnForward(tester, back: true);
+    await settleReader(tester, rounds: 2);
+    expect(overlay, findsNothing, reason: 'retrocedió desde la primera');
+    expect(find.text('Página 1 de 3'), findsOneWidget);
   });
 
   readerTest('al reabrir vuelve a la página guardada', (tester, h) async {
