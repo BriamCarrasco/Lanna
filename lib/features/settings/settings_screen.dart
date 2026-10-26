@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../core/features.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/theme/tokens.dart';
 import '../../data/book_repository.dart';
@@ -112,25 +113,27 @@ class SettingsScreen extends ConsumerWidget {
                     ],
                   ),
                 ),
-                const SizedBox(height: LannaSpacing.s5),
-                _Section(
-                  title: 'Sincronización · Google Drive',
-                  child: _SettingRow(
-                    title: 'Google Drive',
-                    subtitle: 'Sin conectar',
-                    trailing: OutlinedButton(
-                      onPressed: () => ScaffoldMessenger.of(context)
-                          .showSnackBar(
-                            const SnackBar(
-                              content: Text(
-                                'Sincronización con Drive: próximamente',
+                if (driveSyncEnabled) ...[
+                  const SizedBox(height: LannaSpacing.s5),
+                  _Section(
+                    title: 'Sincronización · Google Drive',
+                    child: _SettingRow(
+                      title: 'Google Drive',
+                      subtitle: 'Sin conectar',
+                      trailing: OutlinedButton(
+                        onPressed: () => ScaffoldMessenger.of(context)
+                            .showSnackBar(
+                              const SnackBar(
+                                content: Text(
+                                  'Sincronización con Drive: próximamente',
+                                ),
                               ),
                             ),
-                          ),
-                      child: const Text('Conectar'),
+                        child: const Text('Conectar'),
+                      ),
                     ),
                   ),
-                ),
+                ],
                 const SizedBox(height: LannaSpacing.s5),
                 _Section(
                   title: 'Progreso de lectura',

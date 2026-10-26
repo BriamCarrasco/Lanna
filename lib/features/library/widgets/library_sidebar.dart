@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/features.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/tokens.dart';
 
@@ -120,7 +121,7 @@ class LibrarySidebar extends StatelessWidget {
               child: _NavSection(active: active, onSelect: onSelect),
             ),
           ),
-          const _AccountChip(),
+          if (driveSyncEnabled) const _AccountChip(),
         ],
       ),
     );
