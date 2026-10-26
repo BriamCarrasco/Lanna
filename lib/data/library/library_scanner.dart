@@ -8,7 +8,6 @@ import 'package:uuid/uuid.dart';
 
 import '../import/fingerprint.dart';
 import '../local/app_database.dart';
-import '../models/book_format.dart';
 import '../storage/random_source.dart';
 import 'book_metadata.dart';
 import 'folder_access.dart';
@@ -215,7 +214,7 @@ class LibraryScanner {
         coverPath: Value(meta.coverPath),
         format: Value(format),
         series: Value(
-          format == BookFormat.comic
+          format.hasSeries
               ? (meta.series ?? seriesFromFileName(entry.relativePath))
               : null,
         ),
@@ -228,7 +227,7 @@ class LibraryScanner {
       series == null ? const Value.absent() : Value(series);
 
   String? _missingSeries(Book book, FolderEntry entry) {
-    if (book.format != BookFormat.comic || book.series != null) return null;
+    if (!book.format.hasSeries || book.series != null) return null;
     return seriesFromFileName(entry.relativePath);
   }
 

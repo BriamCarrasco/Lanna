@@ -5,7 +5,6 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/tokens.dart';
 import '../../../core/widgets/pressable.dart';
 import '../../../data/local/app_database.dart';
-import '../../../data/models/book_format.dart';
 import '../series_group.dart';
 import 'book_actions.dart';
 import 'book_cover.dart';
@@ -77,10 +76,9 @@ class LibraryGridSliver extends StatelessWidget {
             book: book,
             onMenu: onMenu,
           ),
-          BookEntry(:final book) when book.format != BookFormat.comic =>
-            Unselectable(
-              child: BookGridTile(book: book, onMenu: onMenu),
-            ),
+          BookEntry(:final book) when !book.format.hasSeries => Unselectable(
+            child: BookGridTile(book: book, onMenu: onMenu),
+          ),
           BookEntry(:final book) => BookGridTile(
             book: book,
             onMenu: onMenu,

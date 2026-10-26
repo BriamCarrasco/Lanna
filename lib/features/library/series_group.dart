@@ -2,7 +2,6 @@
 import '../../core/text_search.dart';
 import '../../data/comic/comic_book.dart';
 import '../../data/local/app_database.dart';
-import '../../data/models/book_format.dart';
 import 'book_search.dart';
 
 sealed class LibraryEntry {
@@ -31,7 +30,7 @@ class SeriesEntry extends LibraryEntry {
 
 String? seriesKeyOf(Book book) {
   final series = book.series;
-  if (book.format != BookFormat.comic || series == null) return null;
+  if (!book.format.hasSeries || series == null) return null;
   final key = foldForSearch(series);
   return key.isEmpty ? null : key;
 }

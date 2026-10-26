@@ -12,7 +12,6 @@ import '../../core/widgets/fade_in.dart';
 import '../../core/widgets/lanna_menu.dart';
 import '../../data/book_repository.dart';
 import '../../data/local/app_database.dart';
-import '../../data/models/book_format.dart';
 import 'library_filters.dart';
 import 'library_scan_controller.dart';
 import 'library_shell.dart';
@@ -105,11 +104,11 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
     });
   }
 
-  void _toggleAll(List<Book> comics) {
+  void _toggleAll(List<Book> volumes) {
     final selection = _selection;
     if (selection == null) return;
-    final all = comics.every((b) => selection.contains(b.id));
-    setState(() => _selection = all ? {} : {for (final b in comics) b.id});
+    final all = volumes.every((b) => selection.contains(b.id));
+    setState(() => _selection = all ? {} : {for (final b in volumes) b.id});
   }
 
   Future<void> _moveSelection() async {
@@ -193,8 +192,8 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
     final visible = library.whenData(
       (books) => _entries(books, query, progress),
     );
-    final hasComics =
-        library.valueOrNull?.any((b) => b.format == BookFormat.comic) ?? false;
+    final hasSeries =
+        library.valueOrNull?.any((b) => b.format.hasSeries) ?? false;
     final selection = _selection;
 
     return PopScope(
@@ -206,15 +205,15 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
           ? _scaffold(
               count: count,
               compact: compact,
-              hasComics: hasComics,
+              hasSeries: hasSeries,
               body: _body(visible, count, continueReading, query, hasFolders),
             )
           : _selectionScaffold(
               selection: selection,
               compact: compact,
-              comics: [
+              volumes: [
                 for (final b in booksOf(visible.valueOrNull ?? const []))
-                  if (b.format == BookFormat.comic) b,
+                  if (b.format.hasSeries) b,
               ],
               body: _body(visible, count, const [], query, hasFolders),
             ),
@@ -257,21 +256,21 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
   Widget _selectionScaffold({
     required Set<String> selection,
     required bool compact,
-    required List<Book> comics,
+    required List<Book> volumes,
     required Widget body,
   }) {
     final n = selection.length;
     final allSelected =
-        comics.isNotEmpty && comics.every((b) => selection.contains(b.id));
+        volumes.isNotEmpty && volumes.every((b) => selection.contains(b.id));
     return SectionScaffold(
       title: n == 0
-          ? 'Selecciona cómics'
+          ? 'Selecciona tomos'
           : '$n ${n == 1 ? 'seleccionado' : 'seleccionados'}',
       onBack: _endSelection,
       backIcon: Icons.close,
       actions: [
         IconButton(
-          onPressed: comics.isEmpty ? null : () => _toggleAll(comics),
+          onPressed: volumes.isEmpty ? null : () => _toggleAll(volumes),
           icon: Icon(allSelected ? Icons.deselect : Icons.select_all),
           tooltip: allSelected ? 'Quitar selección' : 'Seleccionar todo',
         ),
@@ -295,21 +294,21 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
   Widget _scaffold({
     required int count,
     required bool compact,
-    required bool hasComics,
+    required bool hasSeries,
     required Widget body,
   }) {
     final select = IconButton(
       onPressed: _startSelection,
       icon: Icon(Icons.checklist, size: compact ? null : 20),
       color: compact ? null : LannaColors.textMuted,
-      tooltip: 'Seleccionar cómics',
+      tooltip: 'Seleccionar tomos',
     );
     return SectionScaffold(
       title: 'Biblioteca',
       subtitle: '$count ${count == 1 ? 'libro' : 'libros'}',
       actions: compact
           ? [
-              if (hasComics) select,
+              if (hasSeries) select,
               PopupMenuButton<_SortMode>(
                 icon: const Icon(
                   Icons.sort,
@@ -344,7 +343,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                 sort: _sort,
                 onChanged: (s) => setState(() => _sort = s),
               ),
-              if (hasComics) select,
+              if (hasSeries) select,
               _RescanButton(onPressed: _rescan, muted: true),
               FilledButton.icon(
                 onPressed: _addFolder,
@@ -696,10 +695,9 @@ class _BookListSliver extends StatelessWidget {
             book: book,
             onMenu: onMenu,
           ),
-          BookEntry(:final book) when book.format != BookFormat.comic =>
-            Unselectable(
-              child: _BookRow(book: book, onMenu: onMenu),
-            ),
+          BookEntry(:final book) when !book.format.hasSeries => Unselectable(
+            child: _BookRow(book: book, onMenu: onMenu),
+          ),
           BookEntry(:final book) => _BookRow(
             book: book,
             onMenu: onMenu,

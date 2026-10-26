@@ -11,7 +11,6 @@ import '../../../core/widgets/lanna_dialog.dart';
 import '../../../core/widgets/lanna_menu.dart';
 import '../../../data/book_repository.dart';
 import '../../../data/local/app_database.dart';
-import '../../../data/models/book_format.dart';
 import 'book_details_dialog.dart';
 import 'series_dialogs.dart';
 
@@ -75,13 +74,13 @@ Future<void> showBookMenu(
         icon: Icons.collections_bookmark_outlined,
         label: 'Añadir a colección',
       ),
-      if (book.format == BookFormat.comic)
+      if (book.format.hasSeries)
         lannaMenuItem(
           value: 'series',
           icon: Icons.layers_outlined,
           label: 'Serie…',
         ),
-      if (onSelect != null && book.format == BookFormat.comic)
+      if (onSelect != null && book.format.hasSeries)
         lannaMenuItem(
           value: 'select',
           icon: Icons.check_circle_outline,

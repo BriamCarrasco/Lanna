@@ -281,6 +281,19 @@ void main() {
     expect(byPath['Novela 1.epub']?.series, isNull);
   });
 
+  test('los PDF nuevos deducen su serie del nombre', () async {
+    for (final name in ['Berserk Tomo 01.pdf', 'Berserk Tomo 02.pdf']) {
+      File(p.join(libros.path, name)).writeAsStringSync('%PDF-1.4 $name');
+    }
+
+    await repo.pickFolder();
+    await repo.scan();
+
+    final books = await allBooks();
+    expect(books, hasLength(2));
+    expect(books.map((b) => b.series), everyElement('Berserk'));
+  });
+
   test('un cómic que ya estaba recibe su serie al volver a escanear', () async {
     File(p.join(libros.path, 'Akira - Tomo 03.cbz'))
         .writeAsBytesSync(buildComicZip(pages: const ['1.png']));

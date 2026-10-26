@@ -22,6 +22,32 @@ Book _book(
 );
 
 void main() {
+  test('los PDF también se agrupan en series; los EPUB no', () {
+    final entries = groupSeries([
+      _book(
+        'b1',
+        series: 'Berserk',
+        format: BookFormat.pdf,
+        path: 'Berserk 01.pdf',
+      ),
+      _book(
+        'b2',
+        series: 'Berserk',
+        format: BookFormat.pdf,
+        path: 'Berserk 02.pdf',
+      ),
+      _book('e1', series: 'Dune', format: BookFormat.epub),
+      _book('e2', series: 'Dune', format: BookFormat.epub),
+    ]);
+
+    expect(entries, hasLength(3));
+    expect((entries.first as SeriesEntry).volumes.map((b) => b.id), [
+      'b1',
+      'b2',
+    ]);
+    expect(entries.skip(1).whereType<BookEntry>(), hasLength(2));
+  });
+
   test('dos o más tomos de la misma serie forman una sola entrada', () {
     final entries = groupSeries([
       _book('n10', series: 'Naruto', path: 'Naruto Vol. 10.cbz'),
