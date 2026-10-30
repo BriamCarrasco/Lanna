@@ -234,23 +234,28 @@ class _NativePageState extends State<NativePage> {
   @override
   Widget build(BuildContext context) {
     final metrics = widget.metrics;
-    return Padding(
-      padding: metrics.padding,
-      child: Stack(
-        fit: StackFit.expand,
-        children: [
-          for (var i = 0; i < widget.page.fragments.length; i++)
-            Positioned(
-              left: _fullBleed(i) ? 0 : _leftOf(widget.page.fragments[i]),
-              top: widget.page.fragments[i].top,
-              width: _fullBleed(i)
-                  ? metrics.size.width - metrics.padding.horizontal
-                  : metrics.columnWidth -
-                        widget.style.listInset(widget.page.fragments[i].block),
-              height: widget.page.fragments[i].height,
-              child: _fragment(widget.page.fragments[i], i),
-            ),
-        ],
+    return DefaultTextStyle(
+      style: const TextStyle(),
+      child: Padding(
+        padding: metrics.padding,
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            for (var i = 0; i < widget.page.fragments.length; i++)
+              Positioned(
+                left: _fullBleed(i) ? 0 : _leftOf(widget.page.fragments[i]),
+                top: widget.page.fragments[i].top,
+                width: _fullBleed(i)
+                    ? metrics.size.width - metrics.padding.horizontal
+                    : metrics.columnWidth -
+                          widget.style.listInset(
+                            widget.page.fragments[i].block,
+                          ),
+                height: widget.page.fragments[i].height,
+                child: _fragment(widget.page.fragments[i], i),
+              ),
+          ],
+        ),
       ),
     );
   }
