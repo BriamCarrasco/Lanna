@@ -628,10 +628,24 @@ class AppLocalizationsEn extends AppLocalizations {
   String get thisYear => 'This year';
 
   @override
-  String get last12Months => 'LAST 12 MONTHS';
+  String lastMonths(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'LAST $count MONTHS',
+      one: 'LAST MONTH',
+    );
+    return '$_temp0';
+  }
 
   @override
   String get noReading => 'No reading';
+
+  @override
+  String get timePerMonth => 'Time per month';
+
+  @override
+  String get daysWithReading => 'Days with reading';
 
   @override
   String get less => 'Less';

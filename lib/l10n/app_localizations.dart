@@ -1310,17 +1310,29 @@ abstract class AppLocalizations {
   /// **'Este año'**
   String get thisYear;
 
-  /// No description provided for @last12Months.
+  /// No description provided for @lastMonths.
   ///
   /// In es, this message translates to:
-  /// **'ÚLTIMOS 12 MESES'**
-  String get last12Months;
+  /// **'{count, plural, =1{ÚLTIMO MES} other{ÚLTIMOS {count} MESES}}'**
+  String lastMonths(int count);
 
   /// No description provided for @noReading.
   ///
   /// In es, this message translates to:
   /// **'Sin lectura'**
   String get noReading;
+
+  /// No description provided for @timePerMonth.
+  ///
+  /// In es, this message translates to:
+  /// **'Tiempo por mes'**
+  String get timePerMonth;
+
+  /// No description provided for @daysWithReading.
+  ///
+  /// In es, this message translates to:
+  /// **'Días con lectura'**
+  String get daysWithReading;
 
   /// No description provided for @less.
   ///

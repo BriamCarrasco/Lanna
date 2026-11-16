@@ -80,11 +80,13 @@ void main() {
     await pump(tester, db);
 
     expect(find.textContaining('empieza a medir'), findsNothing);
-    expect(find.text('25 min'), findsOneWidget);
+    expect(find.text('25 min'), findsWidgets);
     expect(find.text('Meta cumplida'), findsOneWidget);
     expect(find.text('2 días'), findsOneWidget);
     expect(find.text('1 libro terminado'), findsOneWidget);
-    expect(find.text('Hoy · 25 min'), findsOneWidget);
+    expect(find.text('Días con lectura'), findsOneWidget);
+    expect(find.text('3 días'), findsOneWidget);
+    expect(find.text('Tiempo por mes'), findsOneWidget);
 
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pump(const Duration(milliseconds: 50));
@@ -95,7 +97,7 @@ void main() {
     addTearDown(db.close);
     await addMinutes(db, 0, 25);
     await pump(tester, db);
-    expect(find.text('1 día'), findsOneWidget);
+    expect(find.text('Sin racha'), findsNothing);
 
     await tester.tap(find.text('Meta: 20 min'));
     await tester.pumpAndSettle();

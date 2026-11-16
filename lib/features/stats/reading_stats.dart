@@ -93,6 +93,27 @@ class ReadingStats {
     return 4;
   }
 
+  List<({DateTime month, int seconds})> monthlyTotals(int count) {
+    final months = [
+      for (var i = count - 1; i >= 0; i--)
+        DateTime(today.year, today.month - i),
+    ];
+    final totals = {for (final m in months) m: 0};
+    for (final MapEntry(key: day, value: seconds) in byDay.entries) {
+      final month = DateTime(day.year, day.month);
+      if (totals.containsKey(month) && !day.isAfter(today)) {
+        totals[month] = totals[month]! + seconds;
+      }
+    }
+    return [for (final m in months) (month: m, seconds: totals[m]!)];
+  }
+
+  int daysReadSince(DateTime first) => byDay.entries
+      .where(
+        (e) => e.value > 0 && !e.key.isBefore(first) && !e.key.isAfter(today),
+      )
+      .length;
+
   List<DateTime> calendarWeeks({int weeks = 53}) {
     final monday = _mondayOf(today);
     return [

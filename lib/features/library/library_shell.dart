@@ -1,4 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -166,17 +168,62 @@ class _LibraryShellState extends ConsumerState<LibraryShell> {
           ],
         ),
       ),
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: librarySections(context.l10n)
-            .indexWhere((e) => e.$3 == section),
-        onDestinationSelected: (i) =>
-            _select(librarySections(context.l10n)[i].$3, section),
-        labelBehavior: NavigationDestinationLabelBehavior.onlyShowSelected,
-        destinations: [
-          for (final item in librarySections(context.l10n))
-            NavigationDestination(icon: Icon(item.$1), label: item.$2),
-        ],
+      bottomNavigationBar: LayoutBuilder(
+        builder: (context, constraints) {
+          final sections = librarySections(context.l10n);
+          final theme = NavigationBarTheme.of(context);
+          final label = _fittedLabelStyle(
+            context,
+            theme.labelTextStyle?.resolve({}) ?? const TextStyle(),
+            [for (final s in sections) s.$2],
+            constraints.maxWidth / sections.length,
+          );
+          return NavigationBarTheme(
+            data: theme.copyWith(
+              labelTextStyle: label == null
+                  ? null
+                  : WidgetStateProperty.all(label),
+            ),
+            child: NavigationBar(
+              selectedIndex: sections.indexWhere((e) => e.$3 == section),
+              onDestinationSelected: (i) => _select(sections[i].$3, section),
+              labelBehavior: label == null
+                  ? NavigationDestinationLabelBehavior.alwaysHide
+                  : NavigationDestinationLabelBehavior.onlyShowSelected,
+              destinations: [
+                for (final item in sections)
+                  NavigationDestination(icon: Icon(item.$1), label: item.$2),
+              ],
+            ),
+          );
+        },
       ),
     );
+  }
+
+  static const _minLabelSize = 8.5;
+
+  TextStyle? _fittedLabelStyle(
+    BuildContext context,
+    TextStyle style,
+    List<String> labels,
+    double slot,
+  ) {
+    final scaler = MediaQuery.textScalerOf(context);
+    var widest = 0.0;
+    for (final label in labels) {
+      final painter = TextPainter(
+        text: TextSpan(text: label, style: style),
+        textDirection: TextDirection.ltr,
+        textScaler: scaler,
+        maxLines: 1,
+      )..layout();
+      widest = math.max(widest, painter.width);
+      painter.dispose();
+    }
+    final available = slot - 4;
+    if (widest <= available) return style;
+    final size = (style.fontSize ?? 12) * available / widest;
+    return size < _minLabelSize ? null : style.copyWith(fontSize: size);
   }
 }

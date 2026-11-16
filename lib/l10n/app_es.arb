@@ -202,8 +202,17 @@
   "thisWeek": "Esta semana",
   "sinceMonday": "Desde el lunes",
   "thisYear": "Este año",
-  "last12Months": "ÚLTIMOS 12 MESES",
+  "lastMonths": "{count, plural, =1{ÚLTIMO MES} other{ÚLTIMOS {count} MESES}}",
+  "@lastMonths": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "noReading": "Sin lectura",
+  "timePerMonth": "Tiempo por mes",
+  "daysWithReading": "Días con lectura",
   "less": "Menos",
   "more": "Más",
   "comicCbrFromFolder": "Este dispositivo no puede leer CBR desde una carpeta",

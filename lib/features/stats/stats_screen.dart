@@ -351,35 +351,227 @@ class _YearCardState extends State<_YearCard> {
         border: Border.all(color: LannaColors.border),
         borderRadius: LannaRadii.brLg,
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Text(
-            context.l10n.last12Months,
-            style: LannaType.xs.copyWith(color: LannaColors.textMuted),
-          ),
-          const SizedBox(height: LannaSpacing.s3),
-          _YearCalendar(
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final inner = constraints.maxWidth;
+          final wide =
+              inner >= _YearCalendar.fullWidth + 2 * _gap + _panelWidth;
+          final space = wide ? _YearCalendar.fullWidth : inner;
+          final weeks = _YearCalendar.weeksThatFit(space);
+          final first = stats.calendarWeeks(weeks: weeks).first;
+          final calendar = SizedBox(
+            width: _YearCalendar.widthFor(weeks, space),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                _YearCalendar(
+                  stats: stats,
+                  weeks: weeks,
+                  selected: _selected,
+                  onSelect: (d) => setState(() => _selected = d),
+                ),
+                const SizedBox(height: LannaSpacing.s3),
+                const Align(alignment: Alignment.centerRight, child: _Legend()),
+              ],
+            ),
+          );
+          final panel = _YearPanel(
             stats: stats,
-            selected: _selected,
-            onSelect: (d) => setState(() => _selected = d),
-          ),
-          const SizedBox(height: LannaSpacing.s3),
-          Wrap(
-            alignment: WrapAlignment.spaceBetween,
-            crossAxisAlignment: WrapCrossAlignment.center,
-            runSpacing: LannaSpacing.s2,
+            day: day,
+            seconds: seconds,
+            daysRead: stats.daysReadSince(first),
+            wide: wide,
+          );
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Text(
-                '${_dayLabel(day, stats.today, context.l10n)} · '
-                '${seconds == 0 ? context.l10n.noReading : formatReadingTime(seconds)}',
-                style: LannaType.sm.copyWith(color: LannaColors.text),
+                context.l10n.lastMonths(math.max(1, weeks * 7 ~/ 30.44)),
+                style: LannaType.xs.copyWith(color: LannaColors.textMuted),
               ),
-              const _Legend(),
+              const SizedBox(height: LannaSpacing.s3),
+              if (wide)
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    calendar,
+                    const SizedBox(width: _gap),
+                    Expanded(
+                      child: Container(
+                        padding: const EdgeInsets.only(left: _gap),
+                        decoration: const BoxDecoration(
+                          border: Border(
+                            left: BorderSide(color: LannaColors.border),
+                          ),
+                        ),
+                        child: panel,
+                      ),
+                    ),
+                  ],
+                )
+              else ...[
+                Align(alignment: Alignment.centerLeft, child: calendar),
+                const SizedBox(height: LannaSpacing.s4),
+                const Divider(
+                  height: 1,
+                  thickness: 1,
+                  color: LannaColors.border,
+                ),
+                const SizedBox(height: LannaSpacing.s4),
+                panel,
+              ],
             ],
-          ),
-        ],
+          );
+        },
       ),
+    );
+  }
+
+  static const _gap = 28.0;
+  static const _panelWidth = 260.0;
+}
+
+class _YearPanel extends StatelessWidget {
+  const _YearPanel({
+    required this.stats,
+    required this.day,
+    required this.seconds,
+    required this.daysRead,
+    required this.wide,
+  });
+
+  final ReadingStats stats;
+  final DateTime day;
+  final int seconds;
+  final int daysRead;
+  final bool wide;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final label = LannaType.sm.copyWith(color: LannaColors.textMuted);
+    final value = LannaType.title.copyWith(color: LannaColors.textStrong);
+    final isToday = day == stats.today;
+    final missing = math.max(0, stats.goalSeconds - seconds);
+    final String? note = !isToday && seconds > 0 && missing == 0
+        ? l10n.goalMet
+        : null;
+    final dayBlock = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(_dayLabel(day, stats.today, l10n), style: label, maxLines: 1),
+        const SizedBox(height: 2),
+        Text(
+          seconds == 0 ? l10n.noReading : formatReadingTime(seconds),
+          style: value,
+          maxLines: 1,
+        ),
+        if (note != null) Text(note, style: label, maxLines: 1),
+      ],
+    );
+    final daysBlock = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(l10n.daysWithReading, style: label, maxLines: 1),
+        const SizedBox(height: 2),
+        Text(l10n.daysCount(daysRead), style: value, maxLines: 1),
+      ],
+    );
+    final months = _MonthBars(totals: stats.monthlyTotals(6));
+    if (wide) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          dayBlock,
+          const SizedBox(height: LannaSpacing.s5),
+          months,
+          const SizedBox(height: LannaSpacing.s5),
+          daysBlock,
+        ],
+      );
+    }
+    return Wrap(
+      spacing: LannaSpacing.s6,
+      runSpacing: LannaSpacing.s5,
+      children: [
+        SizedBox(width: 150, child: dayBlock),
+        SizedBox(width: 150, child: daysBlock),
+        ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 320),
+          child: months,
+        ),
+      ],
+    );
+  }
+}
+
+class _MonthBars extends StatelessWidget {
+  const _MonthBars({required this.totals});
+
+  final List<({DateTime month, int seconds})> totals;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final muted = LannaType.micro.copyWith(
+      color: LannaColors.textMuted,
+      fontFeatures: const [FontFeature.tabularFigures()],
+    );
+    final most = totals.fold(0, (m, t) => math.max(m, t.seconds));
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          l10n.timePerMonth,
+          style: LannaType.sm.copyWith(color: LannaColors.textMuted),
+        ),
+        const SizedBox(height: LannaSpacing.s2),
+        for (final t in totals)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 3),
+            child: Row(
+              children: [
+                SizedBox(
+                  width: 40,
+                  child: Text(
+                    DateFormat.MMM(l10n.localeName).format(t.month),
+                    style: muted,
+                    maxLines: 1,
+                  ),
+                ),
+                Expanded(
+                  child: ClipRRect(
+                    borderRadius: const BorderRadius.all(Radius.circular(3)),
+                    child: SizedBox(
+                      height: 6,
+                      child: ColoredBox(
+                        color: _levelColor(0),
+                        child: FractionallySizedBox(
+                          alignment: Alignment.centerLeft,
+                          widthFactor: most == 0 ? 0 : t.seconds / most,
+                          child: ColoredBox(color: _levelColor(3)),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                SizedBox(
+                  width: 64,
+                  child: Text(
+                    t.seconds == 0 ? '—' : formatReadingTime(t.seconds),
+                    style: muted,
+                    textAlign: TextAlign.right,
+                    maxLines: 1,
+                  ),
+                ),
+              ],
+            ),
+          ),
+      ],
     );
   }
 }
@@ -415,11 +607,13 @@ class _Legend extends StatelessWidget {
 class _YearCalendar extends StatelessWidget {
   const _YearCalendar({
     required this.stats,
+    required this.weeks,
     required this.selected,
     required this.onSelect,
   });
 
   final ReadingStats stats;
+  final int weeks;
   final DateTime? selected;
   final ValueChanged<DateTime?> onSelect;
 
@@ -427,14 +621,32 @@ class _YearCalendar extends StatelessWidget {
   static const _labelWidth = 24.0;
   static const _labelHeight = 18.0;
   static const _minCell = 9.0;
-  static const _maxCell = 18.0;
+  static const _maxCell = 13.0;
+  static const _maxWeeks = 53;
+
+  static double get fullWidth =>
+      _labelWidth + _maxWeeks * (_maxCell + _gap) - _gap;
+
+  static double widthFor(int weeks, double space) {
+    final cell = ((space - _labelWidth + _gap) / weeks - _gap).clamp(
+      _minCell,
+      _maxCell,
+    );
+    return _labelWidth + weeks * (cell + _gap) - _gap;
+  }
+
+  static int weeksThatFit(double width) {
+    final fit = ((width - _labelWidth + _gap) / (_minCell + _gap)).floor();
+    return fit.clamp(1, _maxWeeks);
+  }
 
   @override
   Widget build(BuildContext context) {
-    final weeks = stats.calendarWeeks();
+    final weeks = stats.calendarWeeks(weeks: this.weeks);
     return LayoutBuilder(
       builder: (context, constraints) {
-        final fit = (constraints.maxWidth - _labelWidth) / weeks.length - _gap;
+        final fit =
+            (constraints.maxWidth - _labelWidth + _gap) / weeks.length - _gap;
         final cell = fit.clamp(_minCell, _maxCell);
         final layout = _CalendarLayout(
           weeks: weeks,
@@ -459,20 +671,11 @@ class _YearCalendar extends StatelessWidget {
             ),
           ),
         );
-        final fits = layout.size.width <= constraints.maxWidth - _labelWidth;
         return Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _WeekdayLabels(layout: layout, width: _labelWidth),
-            Flexible(
-              child: fits
-                  ? grid
-                  : SingleChildScrollView(
-                      scrollDirection: Axis.horizontal,
-                      reverse: true,
-                      child: grid,
-                    ),
-            ),
+            Flexible(child: grid),
           ],
         );
       },
@@ -488,6 +691,8 @@ class _YearCalendar extends StatelessWidget {
 
 class _WeekdayLabels extends StatelessWidget {
   const _WeekdayLabels({required this.layout, required this.width});
+
+  static const _height = 16.0;
 
   final _CalendarLayout layout;
   final double width;
@@ -507,9 +712,10 @@ class _WeekdayLabels extends StatelessWidget {
           ])
             Positioned(
               left: 0,
-              top: layout.cellRect(0, row).top,
-              height: layout.cell,
-              child: Center(child: Text(text, style: style)),
+              right: 0,
+              top: layout.cellRect(0, row).center.dy - _height / 2,
+              height: _height,
+              child: Center(child: Text(text, style: style, maxLines: 1)),
             ),
         ],
       ),

@@ -15,6 +15,47 @@ void main() {
   ReadingStats stats(List<({DateTime start, int seconds})> sessions) =>
       ReadingStats.compute(sessions: sessions, goalMinutes: 20, now: today);
 
+  test('el total por mes cubre los últimos meses, incluso los vacíos', () {
+    final s = stats([
+      read(today, 10),
+      read(DateTime(2026, 9, 30), 20),
+      read(DateTime(2026, 9, 1), 5),
+      read(DateTime(2026, 6, 15), 40),
+    ]);
+
+    final totals = s.monthlyTotals(3);
+    expect(
+      [for (final t in totals) t.month],
+      [DateTime(2026, 8), DateTime(2026, 9), DateTime(2026, 10)],
+    );
+    expect([for (final t in totals) t.seconds], [0, 1500, 600]);
+  });
+
+  test('el total por mes cruza el cambio de año', () {
+    final s = ReadingStats.compute(
+      sessions: [read(DateTime(2026, 12, 20), 15)],
+      goalMinutes: 20,
+      now: DateTime(2027, 1, 5),
+    );
+
+    final totals = s.monthlyTotals(2);
+    expect(totals.first.month, DateTime(2026, 12));
+    expect(totals.first.seconds, 900);
+    expect(totals.last.seconds, 0);
+  });
+
+  test('los días con lectura cuentan desde la fecha pedida', () {
+    final s = stats([
+      read(today, 1),
+      read(daysAgo(3), 1),
+      read(daysAgo(3), 4),
+      read(daysAgo(40), 30),
+    ]);
+
+    expect(s.daysReadSince(daysAgo(10)), 2);
+    expect(s.daysReadSince(daysAgo(60)), 3);
+  });
+
   test('la racha sigue viva si hoy todavía no se cumple la meta', () {
     final s = stats([
       read(daysAgo(1), 25),
