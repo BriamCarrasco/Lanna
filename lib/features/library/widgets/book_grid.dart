@@ -304,7 +304,7 @@ class BookGridTile extends StatelessWidget {
       onLongPress: selecting
           ? onTap
           : () {
-              final box = context.findRenderObject() as RenderBox;
+              final box = context.findRenderObject()! as RenderBox;
               onMenu(book, box.localToGlobal(box.size.center(Offset.zero)));
             },
       onSecondaryTapUp: selecting

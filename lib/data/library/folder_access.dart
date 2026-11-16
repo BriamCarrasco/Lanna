@@ -131,12 +131,15 @@ class SafFolderAccess implements FolderAccess {
 
   @override
   Future<List<FolderEntry>> list(String location) async {
-    final rows = await _channel.invokeListMethod<Map>('listTree', location);
+    final rows = await _channel.invokeListMethod<Map<Object?, Object?>>(
+      'listTree',
+      location,
+    );
     return [
-      for (final row in rows ?? const <Map>[])
+      for (final row in rows ?? const <Map<Object?, Object?>>[])
         FolderEntry(
-          location: row['uri'] as String,
-          relativePath: row['path'] as String,
+          location: row['uri']! as String,
+          relativePath: row['path']! as String,
           size: row['size'] as int?,
           modified: row['modified'] as int?,
         ),

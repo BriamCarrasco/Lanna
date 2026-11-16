@@ -1,4 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -187,7 +189,7 @@ class BookDetailsDialog extends ConsumerWidget {
                   FilledButton(
                     onPressed: () {
                       Navigator.of(context).pop();
-                      context.push('/reader/${book.id}');
+                      unawaited(context.push('/reader/${book.id}'));
                     },
                     child: Text(
                       started

@@ -27,7 +27,7 @@ void main() {
     await h.pumpReader(tester);
 
     final centro = tester.getCenter(find.byType(NativePage));
-    late final dynamic gesto;
+    late final TestGesture gesto;
     await tester.runAsync(() async {
       gesto = await tester.startGesture(centro);
       await gesto.moveBy(const Offset(-40, 0));

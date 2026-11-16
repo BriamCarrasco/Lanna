@@ -62,13 +62,11 @@ Offset selectionToolbarOrigin({
   required Size toolbar,
 }) {
   final maxLeft = math.max(8.0, viewport.width - toolbar.width - 8);
-  final left = (selection.center.dx - toolbar.width / 2)
-      .clamp(8.0, maxLeft)
-      .toDouble();
+  final left = (selection.center.dx - toolbar.width / 2).clamp(8.0, maxLeft);
   var top = selection.top - toolbar.height - 10;
   if (top < 60) {
     final maxTop = math.max(60.0, viewport.height - toolbar.height - 50);
-    top = (selection.bottom + 10).clamp(60.0, maxTop).toDouble();
+    top = (selection.bottom + 10).clamp(60.0, maxTop);
   }
   return Offset(left, top);
 }
@@ -205,12 +203,14 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
       _refreshSnapshot();
     }, fireImmediately: true);
     _syncSystemUi();
-    _open();
+    unawaited(_open());
   }
 
   void _syncSystemUi() {
-    SystemChrome.setEnabledSystemUIMode(
-      _chromeVisible ? SystemUiMode.edgeToEdge : SystemUiMode.immersiveSticky,
+    unawaited(
+      SystemChrome.setEnabledSystemUIMode(
+        _chromeVisible ? SystemUiMode.edgeToEdge : SystemUiMode.immersiveSticky,
+      ),
     );
   }
 
@@ -229,11 +229,13 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
     final loc = _location;
     if (loc == null) return;
     _saveTimer?.cancel();
-    _repo.saveProgress(
-      bookId: widget.bookId,
-      locator: loc.cfi,
-      percent: _lastPercent,
-      chapterIndex: loc.chapterIndex,
+    unawaited(
+      _repo.saveProgress(
+        bookId: widget.bookId,
+        locator: loc.cfi,
+        percent: _lastPercent,
+        chapterIndex: loc.chapterIndex,
+      ),
     );
   }
 
@@ -399,7 +401,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
     final next = (effective.top + 52.0, effective.bottom + 48.0);
     if (_lastInsets == next && !force) return;
     _lastInsets = next;
-    controller.setInsets(next.$1, next.$2);
+    unawaited(controller.setInsets(next.$1, next.$2));
   }
 
   String _comicError(ComicFormatException e) {
@@ -502,7 +504,11 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
       _openedFile?.close();
     }
     final source = NativeBookSource(root: extractDir, book: epubBook);
-    return (callbacks, locator, percent) => createEpubView(
+    return (
+      ReaderEngineCallbacks callbacks,
+      String? locator,
+      double? percent,
+    ) => createEpubView(
       key: ValueKey(widget.bookId),
       source: source,
       initialLocator: locator,
@@ -525,26 +531,28 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
       return null;
     }
     _pdfDocument = document;
-    return (callbacks, locator, _) => PdfEngineView(
-      key: ValueKey(widget.bookId),
-      document: document,
-      initialLocator: locator,
-      initialRtl: rtl,
-      callbacks: callbacks,
-    );
+    return (ReaderEngineCallbacks callbacks, String? locator, double? _) =>
+        PdfEngineView(
+          key: ValueKey(widget.bookId),
+          document: document,
+          initialLocator: locator,
+          initialRtl: rtl,
+          callbacks: callbacks,
+        );
   }
 
   Future<_EngineBuilder?> _prepareComic(SourceSpec spec, bool? rtl) async {
     final extractDir = await _extractDir();
     final archive = await ComicArchive.open(spec, cacheDir: extractDir.path);
     _comicArchive = archive;
-    return (callbacks, locator, _) => ComicEngineView(
-      key: ValueKey(widget.bookId),
-      archive: archive,
-      initialLocator: locator,
-      initialRtl: rtl,
-      callbacks: callbacks,
-    );
+    return (ReaderEngineCallbacks callbacks, String? locator, double? _) =>
+        ComicEngineView(
+          key: ValueKey(widget.bookId),
+          archive: archive,
+          initialLocator: locator,
+          initialRtl: rtl,
+          callbacks: callbacks,
+        );
   }
 
   Future<String?> _askPassword() async {
@@ -637,15 +645,17 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
     final repo = ref.read(bookRepositoryProvider);
     final existing = _currentBookmark;
     if (existing != null) {
-      repo.deleteBookmark(existing.id);
+      unawaited(repo.deleteBookmark(existing.id));
       _notify(context.l10n.bookmarkRemoved);
     } else {
-      repo.addBookmark(
-        bookId: widget.bookId,
-        cfi: loc.cfi,
-        chapterIndex: loc.chapterIndex,
-        percent: _lastPercent,
-        label: _currentChapterLabel() ?? loc.label,
+      unawaited(
+        repo.addBookmark(
+          bookId: widget.bookId,
+          cfi: loc.cfi,
+          chapterIndex: loc.chapterIndex,
+          percent: _lastPercent,
+          label: _currentChapterLabel() ?? loc.label,
+        ),
       );
       _notify(context.l10n.bookmarkAdded);
     }
@@ -663,18 +673,20 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
   void _addHighlight(String color) {
     final sel = _selection;
     if (sel == null) return;
-    ref
-        .read(bookRepositoryProvider)
-        .addHighlight(
-          bookId: widget.bookId,
-          cfi: sel.cfi,
-          text: sel.text,
-          color: color,
-          chapterIndex: _location?.chapterIndex,
-          percent: _lastPercent,
-        );
-    _controller?.addHighlight(sel.cfi, color);
-    _controller?.clearSelection();
+    unawaited(
+      ref
+          .read(bookRepositoryProvider)
+          .addHighlight(
+            bookId: widget.bookId,
+            cfi: sel.cfi,
+            text: sel.text,
+            color: color,
+            chapterIndex: _location?.chapterIndex,
+            percent: _lastPercent,
+          ),
+    );
+    unawaited(_controller?.addHighlight(sel.cfi, color));
+    unawaited(_controller?.clearSelection());
     setState(() => _selection = null);
   }
 
@@ -714,8 +726,8 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
                       padding: const EdgeInsets.all(LannaSpacing.s1 + 2),
                       child: GestureDetector(
                         onTap: () {
-                          repo.setHighlightColor(highlight.id, c);
-                          _controller?.addHighlight(cfi, c);
+                          unawaited(repo.setHighlightColor(highlight.id, c));
+                          unawaited(_controller?.addHighlight(cfi, c));
                           Navigator.of(context).pop();
                         },
                         child: Container(
@@ -825,11 +837,13 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
 
     _saveTimer?.cancel();
     _saveTimer = Timer(const Duration(milliseconds: 700), () {
-      _repo.saveProgress(
-        bookId: widget.bookId,
-        locator: loc.cfi,
-        percent: _lastPercent,
-        chapterIndex: loc.chapterIndex,
+      unawaited(
+        _repo.saveProgress(
+          bookId: widget.bookId,
+          locator: loc.cfi,
+          percent: _lastPercent,
+          chapterIndex: loc.chapterIndex,
+        ),
       );
     });
   }
@@ -842,8 +856,8 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
       settings.preset.foreground,
       0.06,
     )!;
-    _controller?.applyPresentation(settings.toPresentation());
-    WakelockPlus.toggle(enable: settings.keepAwake);
+    unawaited(_controller?.applyPresentation(settings.toPresentation()));
+    unawaited(WakelockPlus.toggle(enable: settings.keepAwake));
   }
 
   Future<void> _animatedTurn(
@@ -891,17 +905,17 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
       _searchHits = const [];
       _searchBusy = true;
     });
-    _controller?.search(trimmed);
+    unawaited(_controller?.search(trimmed));
   }
 
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
-    SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+    unawaited(SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge));
     _settingsSub?.close();
     _bookmarksSub?.close();
     _highlightsSub?.close();
-    WakelockPlus.disable();
+    unawaited(WakelockPlus.disable());
     _primeTimer?.cancel();
     _curl.dispose();
     unawaited(_releaseSources());
@@ -994,7 +1008,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
   }
 
   void _jumpTo(String cfi) {
-    _controller?.goToCfi(cfi);
+    unawaited(_controller?.goToCfi(cfi));
     setState(() {
       _showToc = false;
       _showSearch = false;
@@ -1006,10 +1020,12 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
       onReady: (c) {
         _controller = c;
         _applySettings(settings);
-        c.applyHighlights([
-          for (final h in _highlights)
-            HighlightSpec(cfi: h.cfi, color: h.color),
-        ]);
+        unawaited(
+          c.applyHighlights([
+            for (final h in _highlights)
+              HighlightSpec(cfi: h.cfi, color: h.color),
+          ]),
+        );
         _pushInsets(force: true);
         _focusNode.requestFocus();
       },
@@ -1143,8 +1159,8 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
       highlightColors: _highlightColors,
       onHighlightSelect: (h) => _jumpTo(h.cfi),
       onHighlightDelete: (h) {
-        repo.deleteHighlight(h.id);
-        _controller?.removeHighlight(h.cfi);
+        unawaited(repo.deleteHighlight(h.id));
+        unawaited(_controller?.removeHighlight(h.cfi));
       },
       onClose: () => setState(() => _showToc = false),
     );
@@ -1231,8 +1247,8 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
                   visualDensity: VisualDensity.compact,
                   icon: Icon(Icons.copy, size: 17, color: chrome.onBarMuted),
                   onPressed: () {
-                    Clipboard.setData(ClipboardData(text: sel.text));
-                    _controller?.clearSelection();
+                    unawaited(Clipboard.setData(ClipboardData(text: sel.text)));
+                    unawaited(_controller?.clearSelection());
                     setState(() => _selection = null);
                     _notify(context.l10n.textCopied);
                   },

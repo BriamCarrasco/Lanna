@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
+import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -98,7 +99,7 @@ class _PdfEngineViewState extends FixedLayoutEngineState<PdfEngineView>
       },
       onHighlightTap: (cfi) => widget.callbacks.onHighlightTapped?.call(cfi),
       onTapEmpty: () {
-        if (_selection != null) clearSelection();
+        if (_selection != null) unawaited(clearSelection());
       },
     );
   }

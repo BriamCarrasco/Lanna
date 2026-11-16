@@ -1,4 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -110,7 +112,7 @@ class CollectionScreen extends ConsumerWidget {
         : match.first.collection.name;
     final repo = ref.read(bookRepositoryProvider);
     final compact = MediaQuery.sizeOf(context).width < 720;
-    void addBooks() => showDialog(
+    void addBooks() => showDialog<void>(
       context: context,
       builder: (_) => _AddBooksDialog(collectionId: collectionId),
     );
@@ -231,11 +233,15 @@ class _AddBooksDialog extends ConsumerWidget {
                         value: inCollection.contains(book.id),
                         onChanged: (v) {
                           if (v ?? false) {
-                            repo.addBookToCollection(collectionId, book.id);
+                            unawaited(
+                              repo.addBookToCollection(collectionId, book.id),
+                            );
                           } else {
-                            repo.removeBookFromCollection(
-                              collectionId,
-                              book.id,
+                            unawaited(
+                              repo.removeBookFromCollection(
+                                collectionId,
+                                book.id,
+                              ),
                             );
                           }
                         },

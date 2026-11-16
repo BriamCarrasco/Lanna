@@ -216,13 +216,17 @@ class ComicArchive {
     _requests.send((id, index));
     final future = completer.future;
     _recent[index] = future;
-    future.then(
-      (_) {},
-      onError: (_) {
-        _recent.remove(index);
-      },
+    unawaited(
+      future.then<void>(
+        (_) {},
+        onError: (Object _) {
+          _recent.remove(index)?.ignore();
+        },
+      ),
     );
-    if (_recent.length > _recentLimit) _recent.remove(_recent.keys.first);
+    if (_recent.length > _recentLimit) {
+      _recent.remove(_recent.keys.first)?.ignore();
+    }
     return future;
   }
 

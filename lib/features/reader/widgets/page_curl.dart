@@ -232,21 +232,23 @@ class PageCurlController {
       final revert = complete ? null : _revert;
       _revert = null;
       _springing = true;
-      _anim
-          .animateWith(
-            SpringSimulation(
-              curlSpring,
-              _anim.value,
-              complete ? 1 : 0,
-              velocity,
-              tolerance: const Tolerance(velocity: 0.01),
-            ),
-          )
-          .orCancel
-          .then((_) {
-            _springing = false;
-            unawaited(_settle(revert));
-          }, onError: _cancelSpring);
+      unawaited(
+        _anim
+            .animateWith(
+              SpringSimulation(
+                curlSpring,
+                _anim.value,
+                complete ? 1 : 0,
+                velocity,
+                tolerance: const Tolerance(velocity: 0.01),
+              ),
+            )
+            .orCancel
+            .then((_) {
+              _springing = false;
+              unawaited(_settle(revert));
+            }, onError: _cancelSpring),
+      );
       return;
     }
     final remaining = complete ? 1 - _anim.value : _anim.value;

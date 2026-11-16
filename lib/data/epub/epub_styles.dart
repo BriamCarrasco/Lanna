@@ -1,8 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
+import 'package:flutter/foundation.dart';
 import 'package:html/dom.dart' as dom;
 
 enum CssUnit { percent, em, px }
 
+@immutable
 class CssLength {
   const CssLength(this.value, this.unit);
 

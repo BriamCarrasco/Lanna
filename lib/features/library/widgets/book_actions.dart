@@ -32,7 +32,7 @@ Future<void> showBookMenu(
   Offset globalPosition, {
   VoidCallback? onSelect,
 }) async {
-  final overlay = Overlay.of(context).context.findRenderObject() as RenderBox;
+  final overlay = Overlay.of(context).context.findRenderObject()! as RenderBox;
   final anchor = overlay.globalToLocal(globalPosition);
   final selected = await showMenu<String>(
     context: context,
@@ -219,14 +219,18 @@ class _CollectionPickerState extends ConsumerState<_CollectionPicker> {
                         value: selected.contains(c.collection.id),
                         onChanged: (v) {
                           if (v ?? false) {
-                            repo.addBookToCollection(
-                              c.collection.id,
-                              widget.book.id,
+                            unawaited(
+                              repo.addBookToCollection(
+                                c.collection.id,
+                                widget.book.id,
+                              ),
                             );
                           } else {
-                            repo.removeBookFromCollection(
-                              c.collection.id,
-                              widget.book.id,
+                            unawaited(
+                              repo.removeBookFromCollection(
+                                c.collection.id,
+                                widget.book.id,
+                              ),
                             );
                           }
                         },

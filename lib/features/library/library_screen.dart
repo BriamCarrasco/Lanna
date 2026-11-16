@@ -790,7 +790,7 @@ class _BookRow extends StatelessWidget {
   final VoidCallback? onTap;
 
   void _menuFromCenter(BuildContext context) {
-    final box = context.findRenderObject() as RenderBox;
+    final box = context.findRenderObject()! as RenderBox;
     onMenu(book, box.localToGlobal(box.size.center(Offset.zero)));
   }
 

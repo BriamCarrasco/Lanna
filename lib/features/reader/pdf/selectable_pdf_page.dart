@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
+import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -75,7 +76,7 @@ class _SelectablePdfPageState extends State<SelectablePdfPage> {
   @override
   void initState() {
     super.initState();
-    _loadText();
+    unawaited(_loadText());
   }
 
   @override
@@ -84,7 +85,7 @@ class _SelectablePdfPageState extends State<SelectablePdfPage> {
     if (old.pageNumber != widget.pageNumber ||
         old.document != widget.document) {
       _raw = null;
-      _loadText();
+      unawaited(_loadText());
     }
   }
 

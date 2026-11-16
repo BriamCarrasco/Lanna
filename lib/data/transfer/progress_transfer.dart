@@ -84,9 +84,12 @@ class ProgressEntry {
     final title = _text(json['title'], 512);
     if (hash == null && title == null) return null;
     final format = _format(json['format']);
-    final progress = json['progress'];
+    final progress = switch (json['progress']) {
+      final Map<Object?, Object?> map => map,
+      _ => null,
+    };
     final finishedAt = _date(json['finishedAt']);
-    final updatedAt = progress is Map ? _date(progress['updatedAt']) : null;
+    final updatedAt = _date(progress?['updatedAt']);
     if (updatedAt == null && finishedAt == null) return null;
     return ProgressEntry(
       hash: hash,
@@ -95,9 +98,11 @@ class ProgressEntry {
       format: format,
       locator: updatedAt == null
           ? null
-          : _locator((progress as Map)['locator'], format),
-      percent: updatedAt == null ? 0 : _percent(progress['percent']),
-      chapterIndex: updatedAt == null ? null : _index(progress['chapterIndex']),
+          : _locator(progress?['locator'], format),
+      percent: updatedAt == null ? 0 : _percent(progress?['percent']),
+      chapterIndex: updatedAt == null
+          ? null
+          : _index(progress?['chapterIndex']),
       updatedAt: updatedAt,
       finishedAt: finishedAt,
     );
