@@ -1309,28 +1309,89 @@ void main() {
       matching: text is String ? find.text(text) : find.textContaining(text),
     );
 
-    testWidgets('el pie muestra la página estimada del libro', (tester) async {
-      final source = sourceWith([
-        '<p>${'palabra ' * 500}</p>',
-        '<p>${'palabra ' * 500}</p>',
-      ]);
-      final controller = await mount(tester, source);
-      final number = footer(RegExp(r'^\d+ / \d+$'));
+    final exact = RegExp(r'^\d+ / \d+$');
+    final any = RegExp(r'^\d+( / \d+)?$');
 
-      expect(number, findsOneWidget);
-      final first = tester.widget<Text>(number).data!;
-      expect(first, startsWith('1 / '));
-      final total = int.parse(first.split(' / ').last);
-      expect(total, greaterThan(1));
+    Future<void> counted(WidgetTester tester) async {
+      for (var i = 0; i < 40 && footer(exact).evaluate().isEmpty; i++) {
+        await settle(tester);
+      }
+      expect(footer(exact), findsOneWidget, reason: 'no terminó de contar');
+    }
 
-      await act(tester, () => controller.next());
-      expect(tester.widget<Text>(number).data, startsWith('2 / '));
+    (int, int) shown(WidgetTester tester) {
+      final parts = tester.widget<Text>(footer(exact)).data!.split(' / ');
+      return (int.parse(parts.first), int.parse(parts.last));
+    }
+
+    List<String> libro() => [
+      '<p>${'palabra ' * 700}</p>',
+      '<p>${'palabra ' * 300}</p>',
+      '<p>${'palabra ' * 900}</p>',
+      '<p>${'palabra ' * 150}</p>',
+    ];
+
+    testWidgets('el total es el número real de páginas del libro', (
+      tester,
+    ) async {
+      final controller = await mount(tester, sourceWith(libro()));
+      await counted(tester);
+      final (first, total) = shown(tester);
+      expect(first, 1);
+
+      var pages = 1;
+      for (var i = 0; i < 200; i++) {
+        final before = tester.widget<Text>(footer(exact)).data;
+        await act(tester, () => controller.next());
+        if (tester.widget<Text>(footer(exact)).data == before) break;
+        pages++;
+        expect(shown(tester), (pages, total));
+      }
+      expect(pages, total);
+    });
+
+    testWidgets('una página conserva su número al volver a ella', (
+      tester,
+    ) async {
+      final controller = await mount(tester, sourceWith(libro()));
+      await counted(tester);
+
+      final seen = <String>[];
+      for (var i = 0; i < 9; i++) {
+        seen.add(tester.widget<Text>(footer(exact)).data!);
+        await act(tester, () => controller.next());
+      }
+      for (var i = 8; i >= 0; i--) {
+        await act(tester, () => controller.previous());
+        expect(tester.widget<Text>(footer(exact)).data, seen[i]);
+      }
+    });
+
+    testWidgets('abrir a mitad del libro da el mismo número que leyendo', (
+      tester,
+    ) async {
+      final leyendo = await mount(tester, sourceWith(libro()));
+      await counted(tester);
+      await act(tester, () => leyendo.goToCfi('spine:2#0'));
+      final expected = shown(tester);
+
+      await tester.pumpWidget(const SizedBox.shrink());
+      await mount(tester, sourceWith(libro()), locator: 'spine:2#0');
+      final during = <String>{};
+      for (var i = 0; i < 40 && footer(exact).evaluate().isEmpty; i++) {
+        for (final e in footer(any).evaluate()) {
+          during.add((e.widget as Text).data!.split(' / ').first);
+        }
+        await settle(tester);
+      }
+      expect(shown(tester), expected);
+      expect(during.difference({'${expected.$1}'}), isEmpty);
     });
 
     testWidgets('se puede ocultar desde la presentación', (tester) async {
       final source = sourceWith(['<p>${'palabra ' * 500}</p>']);
       final controller = await mount(tester, source);
-      expect(footer(RegExp(r'^\d+ / \d+$')), findsOneWidget);
+      await counted(tester);
 
       await act(
         tester,
@@ -1343,7 +1404,7 @@ void main() {
         ),
       );
 
-      expect(footer(RegExp(r'^\d+ / \d+$')), findsNothing);
+      expect(footer(any), findsNothing);
     });
 
     testWidgets('con dos columnas cada una lleva su número, en su orden', (

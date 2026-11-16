@@ -1,9 +1,12 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 import 'dart:async';
+import 'dart:io';
+import 'dart:math' as math;
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
+import 'package:path/path.dart' as p;
 
 import '../../../core/theme/app_theme.dart';
 import '../../../data/epub/epub_document.dart';
@@ -12,7 +15,7 @@ import '../engine_support.dart';
 import '../reader_engine.dart';
 import 'book_source.dart';
 import 'page_canvas.dart';
-import 'page_estimate.dart';
+import 'page_counts.dart';
 import 'paginator.dart';
 
 class NativeEpubView extends StatefulWidget {
@@ -41,6 +44,14 @@ class _NativeEpubViewState extends State<NativeEpubView>
       GlobalKey<SelectionAreaState>();
 
   final Map<int, PaginationJob> _jobs = {};
+
+  late PageCounts _counts = PageCounts(widget.source.chapterCount);
+  late final PageCountStore _countStore = PageCountStore(
+    File(p.join(widget.source.root.path, '.lanna-pages.json')),
+  );
+  int _countRound = 0;
+  int _countingRound = -1;
+  bool _countsStored = false;
 
   PaginationStyle _style = const PaginationStyle();
   PaginationMetrics _metrics = const PaginationMetrics(size: Size.zero);
@@ -72,6 +83,7 @@ class _NativeEpubViewState extends State<NativeEpubView>
     } catch (_) {}
     if (!mounted) return;
     _applyMetrics();
+    _resetCounts();
 
     final locator = ReaderLocator.parse(widget.initialLocator);
     final percent = widget.initialPercent ?? 0;
@@ -148,6 +160,7 @@ class _NativeEpubViewState extends State<NativeEpubView>
     _applyMetrics();
     if (_layoutKey == before) return;
     _jobs.clear();
+    _resetCounts();
     await _openChapter(chapter, offset: offset);
     _settle();
   }
@@ -228,6 +241,7 @@ class _NativeEpubViewState extends State<NativeEpubView>
   }
 
   void _evictFar() {
+    _harvestCounts();
     _jobs.removeWhere((i, _) => (i - _chapter).abs() > 1);
     widget.source.keepNear(_chapter);
   }
@@ -269,6 +283,8 @@ class _NativeEpubViewState extends State<NativeEpubView>
     if (mounted) {
       final job = _jobs[_chapter];
       if (job != null && job.isDone) {
+        _harvestCounts();
+        setState(() {});
         widget.callbacks.onPageCount?.call(job.pageCount);
         _emitLocation();
       }
@@ -348,6 +364,92 @@ class _NativeEpubViewState extends State<NativeEpubView>
         budget: const Duration(milliseconds: 3),
       );
       if (!ready) return;
+    }
+    unawaited(_countPages());
+  }
+
+  void _resetCounts() {
+    final round = ++_countRound;
+    _counts = PageCounts(widget.source.chapterCount);
+    _countsStored = false;
+    if (_metrics.size.isEmpty) return;
+    unawaited(
+      _countStore.read(_layoutKey).then((saved) {
+        if (!mounted || round != _countRound || saved == null) return;
+        if (!_counts.restore(saved)) return;
+        _countsStored = true;
+        setState(() {});
+      }),
+    );
+  }
+
+  void _harvestCounts() {
+    for (final MapEntry(key: chapter, value: job) in _jobs.entries) {
+      if (job.isDone) _counts.record(chapter, job.pageCount);
+    }
+  }
+
+  int? _pagesOf(int chapter) {
+    final known = _counts.of(chapter);
+    if (known != null) return known;
+    final job = _jobs[chapter];
+    return job != null && job.isDone ? math.max(1, job.pageCount) : null;
+  }
+
+  bool get _numberReady {
+    for (var c = 0; c < _chapter; c++) {
+      if (_pagesOf(c) == null) return false;
+    }
+    return true;
+  }
+
+  Future<void> _countPages() async {
+    final round = _countRound;
+    if (_countingRound == round || _metrics.size.isEmpty) return;
+    _countingRound = round;
+    final key = _layoutKey;
+    bool live() => mounted && round == _countRound;
+
+    while (live()) {
+      _harvestCounts();
+      final chapter = _counts.nextMissing(_chapter);
+      if (chapter == null) break;
+      final ready = _numberReady;
+
+      var pages = 1;
+      try {
+        final document = await widget.source.document(chapter);
+        if (!live()) return;
+        final job =
+            _jobs[chapter] ??
+            Paginator(
+              style: _style,
+              metrics: _metrics,
+              images: widget.source.imageSize,
+            ).jobFor(document);
+        while (!job.isDone) {
+          if (!_animating) {
+            job.step(budget: const Duration(milliseconds: 4));
+          }
+          if (job.isDone) break;
+          await SchedulerBinding.instance.endOfFrame;
+          if (!live()) return;
+        }
+        pages = job.pageCount;
+      } catch (_) {}
+      if (!live()) return;
+
+      _counts.record(chapter, pages);
+      if ((chapter - _chapter).abs() > 2) widget.source.release(chapter);
+      if (ready != _numberReady) setState(() {});
+    }
+
+    if (!live()) return;
+    setState(() {});
+    final counts = _counts.toList();
+    if (counts != null && !_countsStored) {
+      _countsStored = true;
+      unawaited(_countStore.write(key, counts));
     }
   }
 
@@ -467,6 +569,7 @@ class _NativeEpubViewState extends State<NativeEpubView>
     }
 
     _jobs.clear();
+    _resetCounts();
     await _openChapter(chapter, offset: offset);
     _settle();
   }
@@ -640,37 +743,15 @@ class _NativeEpubViewState extends State<NativeEpubView>
     );
   }
 
-  Map<int, int> _knownPages() {
-    final known = <int, int>{};
-    for (final MapEntry(key: chapter, value: job) in _jobs.entries) {
-      if (job.isDone) {
-        known[chapter] = job.pageCount;
-        continue;
-      }
-      final document = widget.source.cached(chapter);
-      if (document == null || job.pageCount == 0) continue;
-      final projected = projectedPages(
-        pagesSoFar: job.pageCount,
-        reachedOffset: job.pages.last.end,
-        length: document.length,
-      );
-      if (projected != null) known[chapter] = projected;
-    }
-    return known;
-  }
-
   List<Widget> _pageFooter(PageLayout page) {
     if (!_pageNumbers) return const [];
-    final estimate = estimatePage(
+    final number = pageNumber(
       chapter: _chapter,
       pageInChapter: page.index,
-      weights: [
-        for (var c = 0; c < widget.source.chapterCount; c++)
-          widget.source.weightOf(c),
-      ],
-      knownPages: _knownPages(),
+      chapterCount: widget.source.chapterCount,
+      pagesOf: _pagesOf,
     );
-    if (estimate == null) return const [];
+    if (number == null) return const [];
 
     final style = TextStyle(
       fontFamily: AppFonts.ui,
@@ -688,7 +769,9 @@ class _NativeEpubViewState extends State<NativeEpubView>
           right: 0,
           bottom: bottom,
           child: Text(
-            '${estimate.current} / ${estimate.total}',
+            number.total == null
+                ? '${number.current}'
+                : '${number.current} / ${number.total}',
             textAlign: TextAlign.center,
             style: style,
           ),
@@ -707,7 +790,7 @@ class _NativeEpubViewState extends State<NativeEpubView>
             width: metrics.columnWidth,
             bottom: bottom,
             child: Text(
-              '${(estimate.current - 1) * metrics.columns + column + 1}',
+              '${(number.current - 1) * metrics.columns + column + 1}',
               textAlign: TextAlign.center,
               style: style,
             ),
@@ -717,6 +800,7 @@ class _NativeEpubViewState extends State<NativeEpubView>
 
   @override
   void dispose() {
+    _countRound++;
     _prefetchTimer?.cancel();
     _resize?.cancel();
     super.dispose();
