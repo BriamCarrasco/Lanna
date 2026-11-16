@@ -84,7 +84,7 @@ void main() {
     });
   }
 
-  for (final width in const [1400.0, 1920.0]) {
+  for (final width in const [1100.0, 1400.0, 1920.0, 2200.0]) {
     testWidgets('a ${width}px se ven los 12 meses y el resumen', (
       tester,
     ) async {
@@ -100,9 +100,10 @@ void main() {
       final legend = tester.getRect(find.text('Más'));
       expect(legend.right - grid.right, lessThan(4));
       final panel = tester.getRect(find.text('Tiempo por mes'));
-      if (width >= 1900) {
+      if (width >= 1300) {
         expect(panel.left, greaterThan(grid.right));
         expect(panel.top, lessThan(grid.bottom));
+        expect(panel.left - grid.right, lessThan(2 * 28 + 6));
       } else {
         expect(panel.top, greaterThan(grid.bottom));
       }

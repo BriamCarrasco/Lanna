@@ -320,7 +320,7 @@ class _RingPainter extends CustomPainter {
 }
 
 Color _levelColor(int level) => switch (level) {
-  0 => LannaColors.surfaceActive,
+  0 => const Color(0xFF222027),
   1 => LannaColors.accent.withValues(alpha: 0.3),
   2 => LannaColors.accent.withValues(alpha: 0.55),
   3 => LannaColors.accent.withValues(alpha: 0.8),
@@ -355,8 +355,8 @@ class _YearCardState extends State<_YearCard> {
         builder: (context, constraints) {
           final inner = constraints.maxWidth;
           final wide =
-              inner >= _YearCalendar.fullWidth + 2 * _gap + _panelWidth;
-          final space = wide ? _YearCalendar.fullWidth : inner;
+              inner >= _YearCalendar.compactWidth + 2 * _gap + _panelWidth;
+          final space = wide ? inner - 2 * _gap - _panelWidth : inner;
           final weeks = _YearCalendar.weeksThatFit(space);
           final first = stats.calendarWeeks(weeks: weeks).first;
           final calendar = SizedBox(
@@ -367,6 +367,7 @@ class _YearCardState extends State<_YearCard> {
                 _YearCalendar(
                   stats: stats,
                   weeks: weeks,
+                  space: space,
                   selected: _selected,
                   onSelect: (d) => setState(() => _selected = d),
                 ),
@@ -428,7 +429,7 @@ class _YearCardState extends State<_YearCard> {
   }
 
   static const _gap = 28.0;
-  static const _panelWidth = 260.0;
+  static const _panelWidth = 220.0;
 }
 
 class _YearPanel extends StatelessWidget {
@@ -486,9 +487,9 @@ class _YearPanel extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           dayBlock,
-          const SizedBox(height: LannaSpacing.s5),
+          const SizedBox(height: LannaSpacing.s4),
           months,
-          const SizedBox(height: LannaSpacing.s5),
+          const SizedBox(height: LannaSpacing.s4),
           daysBlock,
         ],
       );
@@ -532,7 +533,7 @@ class _MonthBars extends StatelessWidget {
         const SizedBox(height: LannaSpacing.s2),
         for (final t in totals)
           Padding(
-            padding: const EdgeInsets.symmetric(vertical: 3),
+            padding: const EdgeInsets.symmetric(vertical: 2),
             child: Row(
               children: [
                 SizedBox(
@@ -608,31 +609,40 @@ class _YearCalendar extends StatelessWidget {
   const _YearCalendar({
     required this.stats,
     required this.weeks,
+    required this.space,
     required this.selected,
     required this.onSelect,
   });
 
   final ReadingStats stats;
   final int weeks;
+  final double space;
   final DateTime? selected;
   final ValueChanged<DateTime?> onSelect;
 
   static const _gap = 3.0;
+  static const _maxGap = 5.0;
   static const _labelWidth = 24.0;
   static const _labelHeight = 18.0;
   static const _minCell = 9.0;
-  static const _maxCell = 13.0;
+  static const _maxCell = 22.0;
   static const _maxWeeks = 53;
 
-  static double get fullWidth =>
-      _labelWidth + _maxWeeks * (_maxCell + _gap) - _gap;
+  static double get compactWidth =>
+      _labelWidth + _maxWeeks * (_minCell + _gap) - _gap;
 
-  static double widthFor(int weeks, double space) {
-    final cell = ((space - _labelWidth + _gap) / weeks - _gap).clamp(
+  static ({double cell, double gap}) metrics(int weeks, double space) {
+    final gap = ((space - _labelWidth) / weeks * 0.18).clamp(_gap, _maxGap);
+    final cell = ((space - _labelWidth + gap) / weeks - gap).clamp(
       _minCell,
       _maxCell,
     );
-    return _labelWidth + weeks * (cell + _gap) - _gap;
+    return (cell: cell, gap: gap);
+  }
+
+  static double widthFor(int weeks, double space) {
+    final m = metrics(weeks, space);
+    return _labelWidth + weeks * (m.cell + m.gap) - m.gap;
   }
 
   static int weeksThatFit(double width) {
@@ -643,15 +653,13 @@ class _YearCalendar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final weeks = stats.calendarWeeks(weeks: this.weeks);
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final fit =
-            (constraints.maxWidth - _labelWidth + _gap) / weeks.length - _gap;
-        final cell = fit.clamp(_minCell, _maxCell);
+    return Builder(
+      builder: (context) {
+        final m = metrics(weeks.length, space);
         final layout = _CalendarLayout(
           weeks: weeks,
-          cell: cell,
-          gap: _gap,
+          cell: m.cell,
+          gap: m.gap,
           labelWidth: 0,
           labelHeight: _labelHeight,
         );
@@ -846,5 +854,6 @@ class _CalendarPainter extends CustomPainter {
   bool shouldRepaint(_CalendarPainter old) =>
       old.stats != stats ||
       old.selected != selected ||
-      old.layout.cell != layout.cell;
+      old.layout.cell != layout.cell ||
+      old.layout.gap != layout.gap;
 }
