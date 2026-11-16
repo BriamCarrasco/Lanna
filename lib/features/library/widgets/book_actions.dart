@@ -11,18 +11,14 @@ import '../../../core/widgets/lanna_dialog.dart';
 import '../../../core/widgets/lanna_menu.dart';
 import '../../../data/book_repository.dart';
 import '../../../data/local/app_database.dart';
+import '../../../l10n/l10n.dart';
 import 'book_details_dialog.dart';
 import 'series_dialogs.dart';
 
 void openBook(BuildContext context, Book book) {
   if (!book.available) {
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          'No se encuentra «${book.title}» en su carpeta. '
-          'Revisa la carpeta y actualiza la biblioteca.',
-        ),
-      ),
+      SnackBar(content: Text(context.l10n.bookMissingInFolder(book.title))),
     );
     return;
   }
@@ -48,55 +44,55 @@ Future<void> showBookMenu(
       lannaMenuItem(
         value: 'open',
         icon: Icons.menu_book_outlined,
-        label: 'Abrir',
+        label: context.l10n.open,
       ),
       lannaMenuItem(
         value: 'details',
         icon: Icons.info_outline,
-        label: 'Detalles',
+        label: context.l10n.details,
       ),
       lannaMenuItem(
         value: 'favorite',
         icon: book.favoritedAt != null ? Icons.favorite : Icons.favorite_border,
         label: book.favoritedAt != null
-            ? 'Quitar de favoritos'
-            : 'Añadir a favoritos',
+            ? context.l10n.removeFavorite
+            : context.l10n.addFavorite,
       ),
       lannaMenuItem(
         value: 'finished',
         icon: book.finishedAt != null ? Icons.remove_done : Icons.done_all,
         label: book.finishedAt != null
-            ? 'Marcar como no terminado'
-            : 'Marcar como terminado',
+            ? context.l10n.markUnfinished
+            : context.l10n.markFinished,
       ),
       lannaMenuItem(
         value: 'collection',
         icon: Icons.collections_bookmark_outlined,
-        label: 'Añadir a colección',
+        label: context.l10n.addToCollection,
       ),
       if (book.format.hasSeries)
         lannaMenuItem(
           value: 'series',
           icon: Icons.layers_outlined,
-          label: 'Serie…',
+          label: context.l10n.seriesEllipsis,
         ),
       if (onSelect != null && book.format.hasSeries)
         lannaMenuItem(
           value: 'select',
           icon: Icons.check_circle_outline,
-          label: 'Seleccionar',
+          label: context.l10n.select,
         ),
       const PopupMenuDivider(height: LannaSpacing.s2),
       book.folderId != null
           ? lannaMenuItem(
               value: 'delete',
               icon: Icons.inventory_2_outlined,
-              label: 'Archivar',
+              label: context.l10n.archive,
             )
           : lannaMenuItem(
               value: 'delete',
               icon: Icons.delete_outline,
-              label: 'Eliminar',
+              label: context.l10n.delete,
               danger: true,
             ),
     ],
@@ -133,13 +129,15 @@ Future<void> showBookMenu(
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              '«${book.title}» ${archived ? 'archivado' : 'eliminado'}',
+              archived
+                  ? context.l10n.bookArchived(book.title)
+                  : context.l10n.bookDeleted(book.title),
             ),
             persist: false,
             duration: const Duration(seconds: 5),
             action: archived
                 ? SnackBarAction(
-                    label: 'Deshacer',
+                    label: context.l10n.undo,
                     onPressed: () => unawaited(repo.restoreBook(book.id)),
                   )
                 : null,
@@ -195,7 +193,7 @@ class _CollectionPickerState extends ConsumerState<_CollectionPicker> {
     final repo = ref.read(bookRepositoryProvider);
 
     return LannaDialog(
-      title: 'Añadir a colección',
+      title: context.l10n.addToCollection,
       maxWidth: 380,
       maxHeight: 460,
       children: [
@@ -206,7 +204,7 @@ class _CollectionPickerState extends ConsumerState<_CollectionPicker> {
                     vertical: LannaSpacing.s5,
                   ),
                   child: Text(
-                    'Todavía no tienes colecciones',
+                    context.l10n.noCollectionsYet,
                     style: LannaType.md.copyWith(color: LannaColors.textMuted),
                   ),
                 )
@@ -242,9 +240,9 @@ class _CollectionPickerState extends ConsumerState<_CollectionPicker> {
             Expanded(
               child: TextField(
                 controller: _newController,
-                decoration: const InputDecoration(
+                decoration: InputDecoration(
                   isDense: true,
-                  hintText: 'Nueva colección',
+                  hintText: context.l10n.newCollection,
                 ),
                 onSubmitted: (_) => _createAndAdd(),
               ),
@@ -261,7 +259,7 @@ class _CollectionPickerState extends ConsumerState<_CollectionPicker> {
           alignment: Alignment.centerRight,
           child: TextButton(
             onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Listo'),
+            child: Text(context.l10n.done),
           ),
         ),
       ],

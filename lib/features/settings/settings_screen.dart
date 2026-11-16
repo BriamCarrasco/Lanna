@@ -8,6 +8,7 @@ import '../../core/theme/app_theme.dart';
 import '../../core/theme/tokens.dart';
 import '../../data/book_repository.dart';
 import '../../data/local/app_database.dart';
+import '../../l10n/l10n.dart';
 import '../library/library_scan_controller.dart';
 import '../library/widgets/section_scaffold.dart';
 import '../reader/reader_settings_provider.dart';
@@ -26,9 +27,8 @@ Future<void> _openUrl(BuildContext context, String url) async {
     mode: LaunchMode.externalApplication,
   );
   if (!ok && context.mounted) {
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(const SnackBar(content: Text('No se pudo abrir el enlace')));
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(context.l10n.linkOpenFailed)));
   }
 }
 
@@ -45,7 +45,7 @@ class SettingsScreen extends ConsumerWidget {
     final controller = ref.read(readerSettingsControllerProvider);
 
     return SectionScaffold(
-      title: 'Ajustes',
+      title: context.l10n.settings,
       child: LayoutBuilder(
         builder: (context, constraints) {
           final compact = constraints.maxWidth < 620;
@@ -61,19 +61,19 @@ class SettingsScreen extends ConsumerWidget {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 _Section(
-                  title: 'Lectura',
+                  title: context.l10n.reading,
                   child: Column(
                     children: [
                       _SettingRow(
-                        title: 'Animación de paso de página',
-                        subtitle: 'Efecto al avanzar entre páginas',
+                        title: context.l10n.pageAnimation,
+                        subtitle: context.l10n.pageAnimationHint,
                         stack: compact,
                         trailing: _Segmented(
-                          options: const {
-                            'curl': 'Pasar hoja',
-                            'slide': 'Deslizar',
-                            'fade': 'Desvanecer',
-                            'none': 'Ninguna',
+                          options: {
+                            'curl': context.l10n.animationCurl,
+                            'slide': context.l10n.animationSlide,
+                            'fade': context.l10n.animationFade,
+                            'none': context.l10n.animationNone,
                           },
                           value: settings.pageAnimation,
                           onChanged: controller.setPageAnimation,
@@ -81,7 +81,7 @@ class SettingsScreen extends ConsumerWidget {
                       ),
                       const _RowDivider(),
                       _SettingRow(
-                        title: 'Tocar los bordes para pasar página',
+                        title: context.l10n.edgeTaps,
                         trailing: _Toggle(
                           value: settings.edgeTaps,
                           onChanged: controller.setEdgeTaps,
@@ -89,7 +89,7 @@ class SettingsScreen extends ConsumerWidget {
                       ),
                       const _RowDivider(),
                       _SettingRow(
-                        title: 'Mantener la pantalla encendida al leer',
+                        title: context.l10n.keepAwake,
                         trailing: _Toggle(
                           value: settings.keepAwake,
                           onChanged: controller.setKeepAwake,
@@ -97,8 +97,8 @@ class SettingsScreen extends ConsumerWidget {
                       ),
                       const _RowDivider(),
                       _SettingRow(
-                        title: 'Meta diaria de lectura',
-                        subtitle: 'La racha cuenta los días en que la cumples',
+                        title: context.l10n.dailyGoalSetting,
+                        subtitle: context.l10n.dailyGoalHint,
                         stack: compact,
                         trailing: _Segmented(
                           options: {
@@ -113,55 +113,64 @@ class SettingsScreen extends ConsumerWidget {
                     ],
                   ),
                 ),
+                const SizedBox(height: LannaSpacing.s5),
+                _Section(
+                  title: context.l10n.language,
+                  child: _SettingRow(
+                    title: context.l10n.appLanguage,
+                    stack: compact,
+                    trailing: _Segmented(
+                      options: {
+                        'system': context.l10n.languageSystem,
+                        'es': 'Español',
+                        'en': 'English',
+                      },
+                      value: settings.language,
+                      onChanged: controller.setLanguage,
+                    ),
+                  ),
+                ),
                 if (driveSyncEnabled) ...[
                   const SizedBox(height: LannaSpacing.s5),
                   _Section(
-                    title: 'Sincronización · Google Drive',
+                    title: context.l10n.syncDrive,
                     child: _SettingRow(
                       title: 'Google Drive',
-                      subtitle: 'Sin conectar',
+                      subtitle: context.l10n.notConnected,
                       trailing: OutlinedButton(
                         onPressed: () => ScaffoldMessenger.of(context)
                             .showSnackBar(
-                              const SnackBar(
-                                content: Text(
-                                  'Sincronización con Drive: próximamente',
-                                ),
-                              ),
+                              SnackBar(content: Text(context.l10n.driveSoon)),
                             ),
-                        child: const Text('Conectar'),
+                        child: Text(context.l10n.connect),
                       ),
                     ),
                   ),
                 ],
                 const SizedBox(height: LannaSpacing.s5),
                 _Section(
-                  title: 'Progreso de lectura',
+                  title: context.l10n.readingProgress,
                   child: Column(
                     children: [
                       _SettingRow(
-                        title: 'Exportar progreso',
-                        subtitle:
-                            'Guarda un respaldo para llevarlo a otro '
-                            'dispositivo',
+                        title: context.l10n.exportProgress,
+                        subtitle: context.l10n.exportProgressHint,
                         stack: compact,
                         trailing: OutlinedButton.icon(
                           onPressed: () => exportProgressFile(context, ref),
                           icon: const Icon(Icons.upload_outlined, size: 18),
-                          label: const Text('Exportar'),
+                          label: Text(context.l10n.export),
                         ),
                       ),
                       const _RowDivider(),
                       _SettingRow(
-                        title: 'Importar progreso',
-                        subtitle:
-                            'Los libros se reconocen por su contenido; '
-                            'se conserva siempre la lectura más reciente',
+                        title: context.l10n.importProgress,
+                        subtitle: context.l10n.importProgressHint,
                         stack: compact,
                         trailing: OutlinedButton.icon(
                           onPressed: () => importProgressFile(context, ref),
                           icon: const Icon(Icons.download_outlined, size: 18),
-                          label: const Text('Importar'),
+                          label: Text(context.l10n.import),
                         ),
                       ),
                     ],
@@ -176,8 +185,8 @@ class SettingsScreen extends ConsumerWidget {
                   children: [
                     _flexChild(
                       compact,
-                      const _Section(
-                        title: 'Carpetas de la biblioteca',
+                      _Section(
+                        title: context.l10n.libraryFolders,
                         child: Padding(
                           padding: EdgeInsets.all(LannaSpacing.s4),
                           child: _Folders(),
@@ -190,8 +199,8 @@ class SettingsScreen extends ConsumerWidget {
                     ),
                     _flexChild(
                       compact,
-                      const _Section(
-                        title: 'Acerca de',
+                      _Section(
+                        title: context.l10n.about,
                         child: Padding(
                           padding: EdgeInsets.all(LannaSpacing.s4),
                           child: _About(),
@@ -214,7 +223,10 @@ class _Folders extends ConsumerWidget {
 
   Future<void> _add(BuildContext context, WidgetRef ref) => reportScan(
     ScaffoldMessenger.of(context),
-    ref.read(libraryScanProvider.notifier).addFolder(),
+    context.l10n,
+    ref
+        .read(libraryScanProvider.notifier)
+        .addFolder(dialogTitle: context.l10n.chooseBooksFolder),
   );
 
   Future<void> _remove(
@@ -226,15 +238,12 @@ class _Folders extends ConsumerWidget {
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: LannaColors.surfaceHigh,
-        title: Text('¿Quitar «${folder.name}»?'),
-        content: const Text(
-          'Sus libros dejarán de aparecer en la biblioteca, junto con su '
-          'progreso, marcadores y subrayados. Los archivos no se tocan.',
-        ),
+        title: Text(context.l10n.removeFolderTitle(folder.name)),
+        content: Text(context.l10n.removeFolderBody),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Cancelar'),
+            child: Text(context.l10n.cancel),
           ),
           FilledButton(
             style: FilledButton.styleFrom(
@@ -242,7 +251,7 @@ class _Folders extends ConsumerWidget {
               foregroundColor: LannaColors.surface,
             ),
             onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('Quitar'),
+            child: Text(context.l10n.remove),
           ),
         ],
       ),
@@ -261,9 +270,8 @@ class _Folders extends ConsumerWidget {
       children: [
         Text(
           folders.isEmpty
-              ? 'Todavía no elegiste ninguna carpeta. Lanna lee los libros '
-                    'desde ahí, sin copiarlos.'
-              : 'Lanna lee los libros desde estas carpetas, sin copiarlos.',
+              ? context.l10n.noFolderHint
+              : context.l10n.foldersHint,
           style: LannaType.sm.copyWith(color: LannaColors.textMuted),
         ),
         for (final folder in folders) ...[
@@ -301,13 +309,13 @@ class _Folders extends ConsumerWidget {
                     ? null
                     : () => _remove(context, ref, folder),
                 icon: const Icon(Icons.close, size: 18),
-                tooltip: 'Quitar carpeta',
+                tooltip: context.l10n.removeFolder,
               ),
             ],
           ),
         ],
         const SizedBox(height: LannaSpacing.s3),
-        _LinkText('Añadir carpeta', onTap: () => _add(context, ref)),
+        _LinkText(context.l10n.addFolder, onTap: () => _add(context, ref)),
         if (archived > 0) ...[
           const SizedBox(height: LannaSpacing.s4),
           const Divider(height: 1, color: LannaColors.borderSubtle),
@@ -321,7 +329,7 @@ class _Folders extends ConsumerWidget {
               ),
               const SizedBox(width: LannaSpacing.s2),
               _LinkText(
-                'Libros archivados · $archived',
+                context.l10n.archivedBooksCount(archived),
                 onTap: () => showArchivedBooks(context),
               ),
             ],
@@ -345,10 +353,13 @@ class _About extends StatelessWidget {
           style: LannaType.sm.copyWith(color: LannaColors.text),
         ),
         const SizedBox(height: LannaSpacing.s3),
-        _LinkText('Código fuente', onTap: () => _openUrl(context, _sourceUrl)),
+        _LinkText(
+          context.l10n.sourceCode,
+          onTap: () => _openUrl(context, _sourceUrl),
+        ),
         const SizedBox(height: LannaSpacing.s2),
         _LinkText(
-          'Buscar actualizaciones',
+          context.l10n.checkUpdates,
           onTap: () => _openUrl(context, _releasesUrl),
         ),
       ],

@@ -36,6 +36,8 @@ void main() {
       }
 
       tester.view.physicalSize = size;
+      tester.platformDispatcher.localesTestValue = const [Locale('es')];
+      addTearDown(tester.platformDispatcher.clearLocalesTestValue);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(tester.view.resetPhysicalSize);
       addTearDown(tester.view.resetDevicePixelRatio);

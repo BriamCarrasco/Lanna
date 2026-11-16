@@ -42,8 +42,8 @@ class BookRepository {
 
   Stream<List<LibraryFolder>> watchFolders() => _db.watchFolders();
 
-  Future<LibraryFolder?> pickFolder() async {
-    final picked = await _access.pick();
+  Future<LibraryFolder?> pickFolder({String? dialogTitle}) async {
+    final picked = await _access.pick(dialogTitle: dialogTitle);
     if (picked == null) return null;
     final existing = await _db.findFolderByLocation(picked.location);
     if (existing != null) return existing;

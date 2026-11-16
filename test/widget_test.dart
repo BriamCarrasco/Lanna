@@ -20,6 +20,8 @@ Future<void> _pumpApp(
 }) async {
   tester.view.physicalSize = size;
   tester.view.devicePixelRatio = 1.0;
+  tester.platformDispatcher.localesTestValue = const [Locale('es')];
+  addTearDown(tester.platformDispatcher.clearLocalesTestValue);
   addTearDown(tester.view.resetPhysicalSize);
   addTearDown(tester.view.resetDevicePixelRatio);
 
@@ -446,7 +448,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byType(Dialog), findsOneWidget);
-    expect(find.text('3 tomos · 1 leídos'), findsOneWidget);
+    expect(find.text('3 tomos · 1 leído'), findsOneWidget);
     final order = [
       for (final id in ['n1', 'n2', 'n10'])
         tester.getTopLeft(

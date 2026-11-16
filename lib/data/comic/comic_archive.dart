@@ -44,13 +44,25 @@ ComicContainer sniffSource(RandomSource source) {
   }
 }
 
-class ComicFormatException implements Exception {
-  const ComicFormatException(this.message);
+enum ComicError {
+  cbrFromFolder,
+  invalid,
+  stopped,
+  noPages,
+  closed,
+  damaged,
+  extractFailed,
+  readFailed,
+}
 
-  final String message;
+class ComicFormatException implements Exception {
+  const ComicFormatException(this.kind, [this.detail = '']);
+
+  final ComicError kind;
+  final String detail;
 
   @override
-  String toString() => message;
+  String toString() => detail.isEmpty ? kind.name : '${kind.name}: $detail';
 }
 
 ({List<int> pages, int? info}) selectComicEntries(List<String> names) {
@@ -111,10 +123,10 @@ class ComicArchive {
         await _extractWithPlugin(spec.path!, cacheDir),
       ),
       ComicContainer.rar => throw const ComicFormatException(
-        'Este dispositivo no puede leer CBR desde una carpeta',
+        ComicError.cbrFromFolder,
       ),
       ComicContainer.unknown => throw const ComicFormatException(
-        'El archivo no es un CBZ ni un CBR válido',
+        ComicError.invalid,
       ),
     };
     if (source != _Source.directory) _discardExtraction(cacheDir);
@@ -134,13 +146,19 @@ class ComicArchive {
         case (final int id, final TransferableTypedData data):
           pending.remove(id)?.complete(data.materialize().asUint8List());
         case (final int id, final String error):
-          pending.remove(id)?.completeError(ComicFormatException(error));
+          pending
+              .remove(id)
+              ?.completeError(
+                ComicFormatException(ComicError.readFailed, error),
+              );
         case (null, final String error):
           if (!init.isCompleted) {
-            init.completeError(ComicFormatException(error));
+            init.completeError(
+              ComicFormatException(ComicError.readFailed, error),
+            );
           }
         default:
-          const stopped = ComicFormatException('El lector de cómics se detuvo');
+          const stopped = ComicFormatException(ComicError.stopped);
           if (!init.isCompleted) init.completeError(stopped);
           for (final completer in pending.values) {
             completer.completeError(stopped);
@@ -178,7 +196,7 @@ class ComicArchive {
     );
     if (pages.isEmpty) {
       await archive.close();
-      throw const ComicFormatException('El cómic no tiene páginas');
+      throw const ComicFormatException(ComicError.noPages);
     }
     return archive;
   }
@@ -188,7 +206,7 @@ class ComicArchive {
 
   Future<Uint8List> page(int index) {
     if (_closed) {
-      return Future.error(const ComicFormatException('El cómic está cerrado'));
+      return Future.error(const ComicFormatException(ComicError.closed));
     }
     final cached = _recent.remove(index);
     if (cached != null) return _recent[index] = cached;
@@ -244,7 +262,8 @@ class ComicArchive {
     );
     if (result['success'] != true) {
       throw ComicFormatException(
-        'No se pudo extraer el CBR: ${result['message'] ?? ''}'.trim(),
+        ComicError.extractFailed,
+        '${result['message'] ?? ''}'.trim(),
       );
     }
     marker.writeAsStringSync('');
@@ -290,7 +309,7 @@ class _SourceHandle extends AbstractFileHandle {
 
   @override
   void writeFromSync(List<int> buffer, [int start = 0, int? end]) =>
-      throw UnsupportedError('solo lectura');
+      throw UnsupportedError('read only');
 }
 
 class _ZipReader implements _EntryReader {
@@ -300,7 +319,7 @@ class _ZipReader implements _EntryReader {
       _files = ZipDecoder().decodeStream(_input).files;
     } catch (_) {
       _input.closeSync();
-      throw const ComicFormatException('El CBZ está dañado');
+      throw const ComicFormatException(ComicError.damaged);
     }
     names = [for (final f in _files) f.isFile ? f.name : ''];
   }
@@ -357,8 +376,7 @@ class _DirectoryReader implements _EntryReader {
 }
 
 String _describe(Object error) => switch (error) {
-  ComicFormatException(:final message) => message,
-  LibArchiveException(:final message) => 'No se pudo leer el CBR: $message',
+  LibArchiveException(:final message) => message,
   _ => '$error',
 };
 

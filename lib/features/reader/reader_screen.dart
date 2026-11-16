@@ -23,6 +23,7 @@ import '../../data/library/folder_access.dart';
 import '../../data/local/app_database.dart';
 import '../../data/models/book_format.dart';
 import '../../data/storage/random_source.dart';
+import '../../l10n/l10n.dart';
 import '../stats/reading_tracker.dart';
 import 'comic/comic_engine_view.dart';
 import 'epub_view_factory.dart';
@@ -401,12 +402,26 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
     controller.setInsets(next.$1, next.$2);
   }
 
+  String _comicError(ComicFormatException e) {
+    final l10n = context.l10n;
+    return switch (e.kind) {
+      ComicError.cbrFromFolder => l10n.comicCbrFromFolder,
+      ComicError.invalid => l10n.comicInvalid,
+      ComicError.stopped => l10n.comicStopped,
+      ComicError.noPages => l10n.comicNoPages,
+      ComicError.closed => l10n.comicClosed,
+      ComicError.damaged => l10n.comicDamaged,
+      ComicError.extractFailed => l10n.comicExtractFailed(e.detail),
+      ComicError.readFailed => l10n.comicReadFailed(e.detail),
+    };
+  }
+
   Future<void> _open() async {
     final repo = ref.read(bookRepositoryProvider);
     final book = await repo.findBook(widget.bookId);
     if (!mounted) return;
     if (book == null) {
-      setState(() => _error = 'El libro no está en la biblioteca');
+      setState(() => _error = context.l10n.bookNotInLibrary);
       return;
     }
     final OpenedFile opened;
@@ -414,7 +429,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
       opened = await repo.openBookFile(book);
     } catch (_) {
       if (mounted) {
-        setState(() => _error = 'No se encontró el archivo del libro');
+        setState(() => _error = context.l10n.bookFileNotFound);
       }
       return;
     }
@@ -441,10 +456,10 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
         BookFormat.comic => await _prepareComic(spec, rtl),
       };
     } on ComicFormatException catch (e) {
-      if (mounted) setState(() => _error = e.message);
+      if (mounted) setState(() => _error = _comicError(e));
       return;
     } catch (e) {
-      if (mounted) setState(() => _error = 'No se pudo abrir el libro\n$e');
+      if (mounted) setState(() => _error = context.l10n.bookOpenError('$e'));
       return;
     }
 
@@ -454,7 +469,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
       return;
     }
     if (engine == null) {
-      setState(() => _error ??= 'No se pudo leer la estructura del libro');
+      setState(() => _error ??= context.l10n.bookStructureError);
       return;
     }
 
@@ -503,9 +518,10 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
     try {
       document = await openPdfDocument(spec, passwordProvider: _askPassword);
     } catch (_) {
+      if (!mounted) return null;
       _error = _passwordDenied
-          ? 'PDF protegido con contraseña'
-          : 'No se pudo abrir el PDF';
+          ? context.l10n.pdfPasswordProtected
+          : context.l10n.pdfOpenError;
       return null;
     }
     _pdfDocument = document;
@@ -539,22 +555,22 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
       barrierDismissible: false,
       builder: (context) => AlertDialog(
         backgroundColor: LannaColors.surfaceHigh,
-        title: const Text('PDF protegido'),
+        title: Text(context.l10n.pdfProtected),
         content: TextField(
           controller: controller,
           autofocus: true,
           obscureText: true,
-          decoration: const InputDecoration(hintText: 'Contraseña'),
+          decoration: InputDecoration(hintText: context.l10n.password),
           onSubmitted: (v) => Navigator.of(context).pop(v),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Cancelar'),
+            child: Text(context.l10n.cancel),
           ),
           FilledButton(
             onPressed: () => Navigator.of(context).pop(controller.text),
-            child: const Text('Abrir'),
+            child: Text(context.l10n.open),
           ),
         ],
       ),
@@ -622,7 +638,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
     final existing = _currentBookmark;
     if (existing != null) {
       repo.deleteBookmark(existing.id);
-      _notify('Marcador quitado');
+      _notify(context.l10n.bookmarkRemoved);
     } else {
       repo.addBookmark(
         bookId: widget.bookId,
@@ -631,7 +647,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
         percent: _lastPercent,
         label: _currentChapterLabel() ?? loc.label,
       );
-      _notify('Marcador añadido');
+      _notify(context.l10n.bookmarkAdded);
     }
   }
 
@@ -725,14 +741,14 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
               leading: const Icon(Icons.notes),
               title: Text(
                 highlight.note?.isNotEmpty ?? false
-                    ? 'Editar nota'
-                    : 'Añadir nota',
+                    ? context.l10n.editNote
+                    : context.l10n.addNote,
               ),
               onTap: () => Navigator.of(context).pop('note'),
             ),
             ListTile(
               leading: const Icon(Icons.delete_outline),
-              title: const Text('Eliminar'),
+              title: Text(context.l10n.delete),
               onTap: () => Navigator.of(context).pop('delete'),
             ),
             const SizedBox(height: LannaSpacing.s1 + 2),
@@ -756,21 +772,21 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: LannaColors.surfaceHigh,
-        title: const Text('Nota'),
+        title: Text(context.l10n.note),
         content: TextField(
           controller: controller,
           autofocus: true,
           maxLines: 4,
-          decoration: const InputDecoration(hintText: 'Escribe una nota'),
+          decoration: InputDecoration(hintText: context.l10n.writeNote),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Cancelar'),
+            child: Text(context.l10n.cancel),
           ),
           FilledButton(
             onPressed: () => Navigator.of(context).pop(controller.text.trim()),
-            child: const Text('Guardar'),
+            child: Text(context.l10n.save),
           ),
         ],
       ),
@@ -1218,7 +1234,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
                     Clipboard.setData(ClipboardData(text: sel.text));
                     _controller?.clearSelection();
                     setState(() => _selection = null);
-                    _notify('Texto copiado');
+                    _notify(context.l10n.textCopied);
                   },
                 ),
               ],
@@ -1265,7 +1281,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
             ReaderBarButton(
               icon: Icons.format_list_bulleted,
               active: _showToc,
-              tooltip: 'Índice',
+              tooltip: context.l10n.tableOfContents,
               color: chrome.onBarMuted,
               onTap: () => setState(() {
                 _showToc = !_showToc;
@@ -1275,7 +1291,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
             ReaderBarButton(
               label: 'Aa',
               active: _showAppearance,
-              tooltip: 'Apariencia',
+              tooltip: context.l10n.appearance,
               color: chrome.onBarMuted,
               onTap: () => setState(() {
                 _showAppearance = !_showAppearance;
@@ -1287,7 +1303,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
                   ? Icons.bookmark
                   : Icons.bookmark_border,
               active: _currentBookmark != null,
-              tooltip: 'Marcador',
+              tooltip: context.l10n.bookmark,
               color: chrome.onBarMuted,
               onTap: _location == null ? null : _toggleBookmark,
             ),
@@ -1295,7 +1311,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
               ReaderBarButton(
                 icon: Icons.search,
                 active: _showSearch,
-                tooltip: 'Buscar',
+                tooltip: context.l10n.search,
                 color: chrome.onBarMuted,
                 onTap: () => setState(() {
                   _showSearch = !_showSearch;
@@ -1347,7 +1363,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
             ),
             if (mins != null && mins > 0) ...[
               Text('  ·  ', style: style),
-              Text('quedan ~$mins min', style: style),
+              Text(context.l10n.minutesLeft(mins), style: style),
             ],
           ],
         ),
@@ -1382,7 +1398,7 @@ class _ErrorView extends StatelessWidget {
           const SizedBox(height: LannaSpacing.s4),
           TextButton(
             onPressed: () => Navigator.of(context).maybePop(),
-            child: const Text('Volver'),
+            child: Text(context.l10n.back),
           ),
         ],
       ),

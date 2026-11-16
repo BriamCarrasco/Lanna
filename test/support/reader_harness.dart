@@ -16,6 +16,7 @@ import 'package:lanna/features/reader/native/book_source.dart';
 import 'package:lanna/features/reader/native/native_epub_view.dart';
 import 'package:lanna/features/reader/reader_screen.dart';
 import 'package:lanna/features/reader/reader_theme.dart';
+import 'package:lanna/l10n/app_localizations.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider_platform_interface/path_provider_platform_interface.dart';
 import 'package:wakelock_plus/wakelock_plus.dart' as wakelock;
@@ -303,7 +304,12 @@ extension ReaderHarnessX on ReaderHarness {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [appDatabaseProvider.overrideWithValue(db)],
-        child: MaterialApp(home: ReaderScreen(bookId: id)),
+        child: MaterialApp(
+          locale: const Locale('es'),
+          supportedLocales: AppLocalizations.supportedLocales,
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          home: ReaderScreen(bookId: id),
+        ),
       ),
     );
     await settleReader(tester);

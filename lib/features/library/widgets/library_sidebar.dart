@@ -7,6 +7,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/features.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/tokens.dart';
+import '../../../l10n/l10n.dart';
 
 enum LibrarySection {
   library,
@@ -18,18 +19,20 @@ enum LibrarySection {
   settings,
 }
 
-const librarySections = <(IconData, String, LibrarySection)>[
-  (Icons.menu_book_outlined, 'Biblioteca', LibrarySection.library),
-  (Icons.favorite_border, 'Favoritos', LibrarySection.favorites),
-  (Icons.folder_outlined, 'Carpetas', LibrarySection.folders),
+List<(IconData, String, LibrarySection)> librarySections(
+  AppLocalizations l10n,
+) => [
+  (Icons.menu_book_outlined, l10n.library, LibrarySection.library),
+  (Icons.favorite_border, l10n.favorites, LibrarySection.favorites),
+  (Icons.folder_outlined, l10n.folders, LibrarySection.folders),
   (
     Icons.collections_bookmark_outlined,
-    'Colecciones',
+    l10n.collections,
     LibrarySection.collections,
   ),
-  (Icons.person_outline, 'Autores', LibrarySection.authors),
-  (Icons.insights_outlined, 'Estadísticas', LibrarySection.stats),
-  (Icons.settings_outlined, 'Ajustes', LibrarySection.settings),
+  (Icons.person_outline, l10n.authors, LibrarySection.authors),
+  (Icons.insights_outlined, l10n.stats, LibrarySection.stats),
+  (Icons.settings_outlined, l10n.settings, LibrarySection.settings),
 ];
 
 void goToLibrarySection(BuildContext context, LibrarySection section) {
@@ -167,7 +170,7 @@ class LibrarySearchField extends StatelessWidget {
               decoration: InputDecoration(
                 isDense: true,
                 border: InputBorder.none,
-                hintText: 'Buscar en la biblioteca',
+                hintText: context.l10n.searchLibrary,
                 hintStyle: LannaType.md.copyWith(color: LannaColors.textMuted),
                 contentPadding: const EdgeInsets.symmetric(
                   vertical: LannaSpacing.s2,
@@ -217,16 +220,15 @@ class _NavSection extends StatelessWidget {
   final LibrarySection active;
   final ValueChanged<LibrarySection> onSelect;
 
-  static const _items = librarySections;
-
   static const _itemHeight = 36.0;
   static const _gap = 3.0;
 
   @override
   Widget build(BuildContext context) {
-    final index = _items.indexWhere((e) => e.$3 == active);
+    final items = librarySections(context.l10n);
+    final index = items.indexWhere((e) => e.$3 == active);
     return SizedBox(
-      height: _items.length * (_itemHeight + _gap) - _gap,
+      height: items.length * (_itemHeight + _gap) - _gap,
       child: Stack(
         children: [
           AnimatedPositioned(
@@ -245,14 +247,14 @@ class _NavSection extends StatelessWidget {
           ),
           Column(
             children: [
-              for (var i = 0; i < _items.length; i++) ...[
+              for (var i = 0; i < items.length; i++) ...[
                 if (i > 0) const SizedBox(height: _gap),
                 _NavItem(
-                  icon: _items[i].$1,
-                  label: _items[i].$2,
+                  icon: items[i].$1,
+                  label: items[i].$2,
                   selected: i == index,
                   height: _itemHeight,
-                  onTap: () => onSelect(_items[i].$3),
+                  onTap: () => onSelect(items[i].$3),
                 ),
               ],
             ],
@@ -352,7 +354,7 @@ class _AccountChip extends StatelessWidget {
           const SizedBox(width: LannaSpacing.s2 + 1),
           Expanded(
             child: Text(
-              'Google Drive · Sin conectar',
+              context.l10n.driveDisconnected,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: LannaType.sm.copyWith(color: LannaColors.textMuted),

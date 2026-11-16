@@ -10,6 +10,7 @@ import '../../../core/theme/tokens.dart';
 import '../../../core/widgets/lanna_menu.dart';
 import '../../../data/book_repository.dart';
 import '../../../data/local/app_database.dart';
+import '../../../l10n/l10n.dart';
 import '../series_group.dart';
 import 'book_actions.dart';
 import 'book_grid.dart';
@@ -52,6 +53,7 @@ class _SeriesSheetState extends ConsumerState<SeriesSheet> {
   Future<void> _split(List<Book> volumes) async {
     final navigator = Navigator.of(context);
     final messenger = ScaffoldMessenger.of(context);
+    final l10n = context.l10n;
     final name = _name;
     final confirmed = await confirmSplitSeries(context, name, volumes.length);
     if (!confirmed || !mounted) return;
@@ -62,11 +64,11 @@ class _SeriesSheetState extends ConsumerState<SeriesSheet> {
     navigator.pop();
     messenger.showSnackBar(
       SnackBar(
-        content: Text('«$name» separada en ${volumes.length} tomos'),
+        content: Text(l10n.seriesSplit(name, volumes.length)),
         persist: false,
         duration: const Duration(seconds: 6),
         action: SnackBarAction(
-          label: 'Deshacer',
+          label: l10n.undo,
           onPressed: () => unawaited(repo.restoreSeries(previous)),
         ),
       ),
@@ -76,6 +78,7 @@ class _SeriesSheetState extends ConsumerState<SeriesSheet> {
   Future<void> _archive(List<Book> volumes) async {
     final navigator = Navigator.of(context);
     final messenger = ScaffoldMessenger.of(context);
+    final l10n = context.l10n;
     final name = _name;
     final confirmed = await confirmArchiveSeries(context, name, volumes.length);
     if (!confirmed || !mounted) return;
@@ -86,11 +89,11 @@ class _SeriesSheetState extends ConsumerState<SeriesSheet> {
     navigator.pop();
     messenger.showSnackBar(
       SnackBar(
-        content: Text('«$name» archivada · ${ids.length} tomos'),
+        content: Text(l10n.seriesArchived(name, ids.length)),
         persist: false,
         duration: const Duration(seconds: 6),
         action: SnackBarAction(
-          label: 'Deshacer',
+          label: l10n.undo,
           onPressed: () => unawaited(repo.restoreBooks(ids)),
         ),
       ),
@@ -153,9 +156,8 @@ class _SeriesSheetState extends ConsumerState<SeriesSheet> {
                         ),
                         const SizedBox(height: LannaSpacing.s1),
                         Text(
-                          '${volumes.length} '
-                          '${volumes.length == 1 ? 'tomo' : 'tomos'}'
-                          '${finished > 0 ? ' · $finished leídos' : ''}',
+                          '${context.l10n.volumesCount(volumes.length)}'
+                          '${finished > 0 ? ' · ${context.l10n.seriesReadCount(finished)}' : ''}',
                           style: LannaType.sm.copyWith(
                             color: LannaColors.textMuted,
                           ),
@@ -164,7 +166,7 @@ class _SeriesSheetState extends ConsumerState<SeriesSheet> {
                     ),
                   ),
                   PopupMenuButton<String>(
-                    tooltip: 'Opciones de la serie',
+                    tooltip: context.l10n.seriesOptions,
                     icon: const Icon(Icons.more_vert),
                     position: PopupMenuPosition.under,
                     onSelected: (action) => switch (action) {
@@ -176,25 +178,25 @@ class _SeriesSheetState extends ConsumerState<SeriesSheet> {
                       lannaMenuItem(
                         value: 'rename',
                         icon: Icons.edit_outlined,
-                        label: 'Renombrar serie',
+                        label: context.l10n.renameSeries,
                       ),
                       lannaMenuItem(
                         value: 'split',
                         icon: Icons.call_split,
-                        label: 'Separar tomos',
+                        label: context.l10n.splitVolumes,
                       ),
                       const PopupMenuDivider(height: LannaSpacing.s2),
                       lannaMenuItem(
                         value: 'archive',
                         icon: Icons.inventory_2_outlined,
-                        label: 'Archivar serie',
+                        label: context.l10n.archiveSeries,
                       ),
                     ],
                   ),
                   IconButton(
                     onPressed: () => Navigator.of(context).pop(),
                     icon: const Icon(Icons.close),
-                    tooltip: 'Cerrar',
+                    tooltip: context.l10n.close,
                   ),
                 ],
               ),
@@ -202,9 +204,9 @@ class _SeriesSheetState extends ConsumerState<SeriesSheet> {
             const Divider(height: 1, color: LannaColors.border),
             Flexible(
               child: volumes.isEmpty
-                  ? const Padding(
+                  ? Padding(
                       padding: EdgeInsets.all(LannaSpacing.s6),
-                      child: Text('Esta serie ya no tiene tomos'),
+                      child: Text(context.l10n.seriesEmpty),
                     )
                   : CustomScrollView(
                       shrinkWrap: true,

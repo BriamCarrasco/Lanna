@@ -9,6 +9,7 @@ import '../../core/text_search.dart';
 import '../../core/theme/tokens.dart';
 import '../../data/book_repository.dart';
 import '../../data/local/app_database.dart';
+import '../../l10n/l10n.dart';
 import 'book_search.dart';
 import 'library_shell.dart';
 import 'widgets/book_actions.dart';
@@ -29,21 +30,17 @@ class FavoritesScreen extends ConsumerWidget {
     ];
 
     return SectionScaffold(
-      title: 'Favoritos',
-      subtitle:
-          '${favorites.length} ${favorites.length == 1 ? 'libro' : 'libros'}',
+      title: context.l10n.favorites,
+      subtitle: context.l10n.booksCount(favorites.length),
       child: favorites.isEmpty
-          ? const SectionEmpty(
+          ? SectionEmpty(
               icon: Icons.favorite_border,
-              message:
-                  'Todavía no tienes favoritos. Abre el menú de un libro '
-                  '(clic derecho o mantener presionado) y elige '
-                  '«Añadir a favoritos».',
+              message: context.l10n.noFavoritesHint,
             )
           : shown.isEmpty
-          ? const SectionEmpty(
+          ? SectionEmpty(
               icon: Icons.search_off,
-              message: 'Sin resultados en tus favoritos',
+              message: context.l10n.noFavoritesResults,
             )
           : CustomScrollView(
               scrollCacheExtent: const ScrollCacheExtent.viewport(1),

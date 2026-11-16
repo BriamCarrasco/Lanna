@@ -199,7 +199,7 @@ class RarReader {
     _release();
     final archive = _api._new();
     if (archive == nullptr) {
-      throw const LibArchiveException('libarchive no pudo reservar memoria');
+      throw const LibArchiveException('libarchive could not allocate memory');
     }
     _archive = archive;
     _api._supportRar(archive);
@@ -243,7 +243,7 @@ class RarReader {
     if (index <= _position || _atEnd) _reopen();
     while (_position < index) {
       if (!_advance()) {
-        throw LibArchiveException('Falta la entrada ${names[index]}');
+        throw LibArchiveException('Missing entry ${names[index]}');
       }
     }
     final expected = _api._entrySize(_entry.value);
@@ -262,7 +262,7 @@ class RarReader {
     }
     final bytes = out.takeBytes();
     if (expected > 0 && bytes.length != expected) {
-      throw LibArchiveException('La entrada ${names[index]} está incompleta');
+      throw LibArchiveException('Entry ${names[index]} is incomplete');
     }
     return bytes;
   }

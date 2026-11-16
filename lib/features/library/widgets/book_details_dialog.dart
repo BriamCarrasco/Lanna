@@ -2,11 +2,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart' show DateFormat;
 
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/tokens.dart';
 import '../../../data/book_repository.dart';
 import '../../../data/local/app_database.dart';
+import '../../../l10n/l10n.dart';
 import '../../stats/reading_stats.dart';
 import '../../stats/stats_providers.dart';
 import 'book_cover.dart';
@@ -29,22 +31,18 @@ Future<bool> confirmDeleteBook(
       backgroundColor: LannaColors.surfaceHigh,
       title: Text(
         book.folderId != null
-            ? '¿Archivar «${book.title}»?'
-            : '¿Eliminar «${book.title}»?',
+            ? context.l10n.archiveBookTitle(book.title)
+            : context.l10n.deleteBookTitle(book.title),
       ),
       content: Text(
         book.folderId != null
-            ? 'Dejará de aparecer en la biblioteca, pero conserva su '
-                  'progreso, marcadores y subrayados. El archivo se queda en '
-                  'su carpeta. Puedes recuperarlo desde Ajustes → Libros '
-                  'archivados.'
-            : 'Se quitará de la biblioteca y se borrará el archivo importado, '
-                  'junto con su progreso y marcadores. No se puede deshacer.',
+            ? context.l10n.archiveBookBody
+            : context.l10n.deleteBookBody,
       ),
       actions: [
         TextButton(
           onPressed: () => Navigator.of(context).pop(false),
-          child: const Text('Cancelar'),
+          child: Text(context.l10n.cancel),
         ),
         FilledButton(
           style: book.folderId != null
@@ -54,7 +52,9 @@ Future<bool> confirmDeleteBook(
                   foregroundColor: LannaColors.surface,
                 ),
           onPressed: () => Navigator.of(context).pop(true),
-          child: Text(book.folderId != null ? 'Archivar' : 'Eliminar'),
+          child: Text(
+            book.folderId != null ? context.l10n.archive : context.l10n.delete,
+          ),
         ),
       ],
     ),
@@ -119,18 +119,24 @@ class BookDetailsDialog extends ConsumerWidget {
                             _Chip(formatLabel(book)),
                             if (book.fileSizeBytes != null)
                               _Chip(_formatSize(book.fileSizeBytes!)),
-                            _Chip('Añadido ${_formatDate(book.addedAt)}'),
+                            _Chip(
+                              context.l10n.addedOn(
+                                _formatDate(book.addedAt, context.l10n),
+                              ),
+                            ),
                             if (book.finishedAt != null)
                               _Chip(
-                                'Terminado ${_formatDate(book.finishedAt!)}',
+                                context.l10n.finishedOn(
+                                  _formatDate(book.finishedAt!, context.l10n),
+                                ),
                               ),
                           ],
                         ),
                         const SizedBox(height: LannaSpacing.s3),
                         Text(
                           started
-                              ? 'Progreso de lectura: $percent %'
-                              : 'Sin empezar',
+                              ? context.l10n.readingProgressPercent(percent)
+                              : context.l10n.notStarted,
                           style: LannaType.sm.copyWith(
                             color: LannaColors.textMuted,
                           ),
@@ -139,6 +145,7 @@ class BookDetailsDialog extends ConsumerWidget {
                           const SizedBox(height: 2),
                           Text(
                             _readingLine(
+                              context.l10n,
                               reading,
                               progress?.percent ?? 0,
                               finished: book.finishedAt != null,
@@ -169,12 +176,12 @@ class BookDetailsDialog extends ConsumerWidget {
                     style: TextButton.styleFrom(
                       foregroundColor: LannaColors.accentStrong,
                     ),
-                    child: const Text('Eliminar'),
+                    child: Text(context.l10n.delete),
                   ),
                   const Spacer(),
                   TextButton(
                     onPressed: () => Navigator.of(context).pop(),
-                    child: const Text('Cerrar'),
+                    child: Text(context.l10n.close),
                   ),
                   const SizedBox(width: LannaSpacing.s2),
                   FilledButton(
@@ -182,7 +189,11 @@ class BookDetailsDialog extends ConsumerWidget {
                       Navigator.of(context).pop();
                       context.push('/reader/${book.id}');
                     },
-                    child: Text(started ? 'Seguir leyendo' : 'Leer'),
+                    child: Text(
+                      started
+                          ? context.l10n.continueReading
+                          : context.l10n.read,
+                    ),
                   ),
                 ],
               ),
@@ -224,11 +235,12 @@ String _formatSize(int bytes) {
 }
 
 String _readingLine(
+  AppLocalizations l10n,
   BookReading reading,
   double percent, {
   required bool finished,
 }) {
-  final read = 'Tiempo leído: ${formatReadingTime(reading.seconds)}';
+  final read = l10n.timeRead(formatReadingTime(reading.seconds));
   if (finished) return read;
   final left = remainingEstimate(
     seconds: reading.seconds,
@@ -236,11 +248,8 @@ String _readingLine(
     percent: percent,
   );
   if (left == null) return read;
-  return '$read · faltan ~${formatReadingTime(left.inSeconds)}';
+  return l10n.timeReadRemaining(read, formatReadingTime(left.inSeconds));
 }
 
-String _formatDate(DateTime date) {
-  final d = date.toLocal();
-  return '${d.day.toString().padLeft(2, '0')}/'
-      '${d.month.toString().padLeft(2, '0')}/${d.year}';
-}
+String _formatDate(DateTime date, AppLocalizations l10n) =>
+    DateFormat(l10n.dateShortPattern, l10n.localeName).format(date.toLocal());

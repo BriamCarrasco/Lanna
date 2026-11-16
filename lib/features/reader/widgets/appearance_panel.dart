@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/tokens.dart';
+import '../../../l10n/l10n.dart';
 import '../reader_theme.dart';
 
 class AppearancePanel extends StatelessWidget {
@@ -55,7 +56,7 @@ class AppearancePanel extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.only(bottom: LannaSpacing.s4),
             child: Text(
-              'Apariencia',
+              context.l10n.appearance,
               style: LannaType.base.copyWith(
                 fontFamily: AppFonts.serif,
                 fontWeight: FontWeight.w600,
@@ -64,7 +65,7 @@ class AppearancePanel extends StatelessWidget {
             ),
           ),
           _Row(
-            label: 'Tema',
+            label: context.l10n.theme,
             chrome: chrome,
             child: Row(
               children: [
@@ -86,11 +87,15 @@ class AppearancePanel extends StatelessWidget {
           if (_typography) ...[
             const SizedBox(height: LannaSpacing.s3),
             _Row(
-              label: 'Fuente',
+              label: context.l10n.font,
               chrome: chrome,
               child: _Segmented(
                 options: bookFontAvailable
-                    ? const {'serif': 'Serif', 'sans': 'Sans', 'book': 'Libro'}
+                    ? {
+                        'serif': 'Serif',
+                        'sans': 'Sans',
+                        'book': context.l10n.fontBook,
+                      }
                     : const {'serif': 'Serif', 'sans': 'Sans'},
                 value: settings.fontFamily,
                 serifKey: 'serif',
@@ -101,14 +106,13 @@ class AppearancePanel extends StatelessWidget {
             if (bookFontUnsupported) ...[
               const SizedBox(height: LannaSpacing.s2),
               Text(
-                'Este libro trae su fuente en un formato que Lanna todavía '
-                'no puede abrir (WOFF2).',
+                context.l10n.woff2Unsupported,
                 style: LannaType.sm.copyWith(color: chrome.onBarMuted),
               ),
             ],
             const SizedBox(height: LannaSpacing.s3),
             _Row(
-              label: 'Tamaño',
+              label: context.l10n.size,
               chrome: chrome,
               child: _SizeSlider(
                 value: settings.fontScale,
@@ -118,7 +122,7 @@ class AppearancePanel extends StatelessWidget {
             ),
             const SizedBox(height: LannaSpacing.s3),
             _Row(
-              label: 'Interlínea',
+              label: context.l10n.lineSpacing,
               chrome: chrome,
               child: _LineHeightSegmented(
                 value: settings.lineHeight,
@@ -129,10 +133,14 @@ class AppearancePanel extends StatelessWidget {
           ],
           const SizedBox(height: LannaSpacing.s3),
           _Row(
-            label: 'Páginas',
+            label: context.l10n.pages,
             chrome: chrome,
             child: _Segmented(
-              options: const {'auto': 'Auto', 'single': '1', 'double': '2'},
+              options: {
+                'auto': context.l10n.columnsAuto,
+                'single': '1',
+                'double': '2',
+              },
               value: settings.columns,
               chrome: chrome,
               onChanged: onColumns,
@@ -141,10 +149,10 @@ class AppearancePanel extends StatelessWidget {
           if (onPageNumbers case final onPageNumbers?) ...[
             const SizedBox(height: LannaSpacing.s3),
             _Row(
-              label: 'N.º pág.',
+              label: context.l10n.pageNumbers,
               chrome: chrome,
               child: _Segmented(
-                options: const {'on': 'Mostrar', 'off': 'Ocultar'},
+                options: {'on': context.l10n.show, 'off': context.l10n.hide},
                 value: settings.pageNumbers ? 'on' : 'off',
                 chrome: chrome,
                 onChanged: (v) => onPageNumbers(v == 'on'),
@@ -154,10 +162,13 @@ class AppearancePanel extends StatelessWidget {
           if (onDirection case final onDirection?) ...[
             const SizedBox(height: LannaSpacing.s3),
             _Row(
-              label: 'Lectura',
+              label: context.l10n.reading,
               chrome: chrome,
               child: _Segmented(
-                options: const {'ltr': 'Izq → Der', 'rtl': 'Der → Izq'},
+                options: {
+                  'ltr': context.l10n.leftToRight,
+                  'rtl': context.l10n.rightToLeft,
+                },
                 value: rtl ? 'rtl' : 'ltr',
                 chrome: chrome,
                 onChanged: (v) => onDirection(v == 'rtl'),

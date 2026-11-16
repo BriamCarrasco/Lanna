@@ -17,7 +17,7 @@ abstract final class EpubPackage {
 
   static EpubBook parseArchive(EpubArchive archive) {
     if (!archive.exists(archive.opfPath)) {
-      throw FormatException('OPF no encontrado: ${archive.opfPath}');
+      throw FormatException('OPF not found: ${archive.opfPath}');
     }
     final opf = archive.xml(archive.opfPath);
     final pkg = opf.rootElement;

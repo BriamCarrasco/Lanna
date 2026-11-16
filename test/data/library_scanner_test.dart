@@ -22,7 +22,7 @@ class _PickingAccess extends DirectoryFolderAccess {
   bool denyDelete = false;
 
   @override
-  Future<({String location, String name})?> pick() async =>
+  Future<({String location, String name})?> pick({String? dialogTitle}) async =>
       (location: next, name: p.basename(next));
 
   @override

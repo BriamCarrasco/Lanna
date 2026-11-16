@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/theme/app_theme.dart';
 import '../../data/book_repository.dart';
+import '../../l10n/l10n.dart';
 import 'reader_screen.dart';
 
 class ReaderEntry extends ConsumerWidget {
@@ -34,14 +35,14 @@ class _NotFound extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Text(
-              'El libro no está en la biblioteca',
+            Text(
+              context.l10n.bookNotInLibrary,
               style: TextStyle(color: LannaColors.textMuted),
             ),
             const SizedBox(height: 16),
             TextButton(
               onPressed: () => Navigator.of(context).maybePop(),
-              child: const Text('Volver'),
+              child: Text(context.l10n.back),
             ),
           ],
         ),

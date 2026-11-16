@@ -121,6 +121,7 @@ class ReaderSettings {
     this.keepAwake = false,
     this.pageNumbers = true,
     this.dailyGoalMinutes = 20,
+    this.language = 'system',
   });
 
   static const dailyGoals = [10, 20, 30, 45, 60];
@@ -144,6 +145,7 @@ class ReaderSettings {
   final bool keepAwake;
   final bool pageNumbers;
   final int dailyGoalMinutes;
+  final String language;
 
   static const minScale = 70;
   static const maxScale = 220;
@@ -161,6 +163,7 @@ class ReaderSettings {
       keepAwake: row.keepAwake,
       pageNumbers: row.pageNumbers,
       dailyGoalMinutes: row.dailyGoalMinutes,
+      language: row.language,
     );
   }
 
@@ -175,6 +178,7 @@ class ReaderSettings {
     keepAwake: Value(keepAwake),
     pageNumbers: Value(pageNumbers),
     dailyGoalMinutes: Value(dailyGoalMinutes),
+    language: Value(language),
   );
 
   ReaderSettings copyWith({
@@ -188,6 +192,7 @@ class ReaderSettings {
     bool? keepAwake,
     bool? pageNumbers,
     int? dailyGoalMinutes,
+    String? language,
   }) => ReaderSettings(
     preset: preset ?? this.preset,
     fontScale: (fontScale ?? this.fontScale).clamp(minScale, maxScale),
@@ -199,6 +204,7 @@ class ReaderSettings {
     keepAwake: keepAwake ?? this.keepAwake,
     pageNumbers: pageNumbers ?? this.pageNumbers,
     dailyGoalMinutes: dailyGoalMinutes ?? this.dailyGoalMinutes,
+    language: language ?? this.language,
   );
 
   static const fontFamilies = ['serif', 'sans', 'book'];

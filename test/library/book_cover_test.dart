@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:lanna/data/local/app_database.dart';
 import 'package:lanna/data/models/book_format.dart';
 import 'package:lanna/features/library/widgets/book_cover.dart';
+import 'package:lanna/l10n/app_localizations.dart';
 
 void main() {
   test('el ancho de decodificación sigue a la pantalla, en escalones', () {
@@ -28,6 +29,10 @@ void main() {
     );
     await tester.pumpWidget(
       MaterialApp(
+        locale: const Locale('es'),
+        supportedLocales: AppLocalizations.supportedLocales,
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+
         home: Center(
           child: SizedBox(width: 150, child: BookCover(book: book)),
         ),

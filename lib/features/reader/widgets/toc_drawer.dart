@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import '../../../core/theme/tokens.dart';
 import '../../../data/epub/epub_book.dart';
 import '../../../data/local/app_database.dart';
+import '../../../l10n/l10n.dart';
 import '../reader_theme.dart';
 import 'reader_panel_frame.dart';
 
@@ -107,8 +108,10 @@ class _TocDrawerState extends State<TocDrawer> {
             ),
             child: Text(
               [
-                if (widget.chapterCount > 0) '${widget.chapterCount} capítulos',
-                if (widget.pageCount > 0) '${widget.pageCount} páginas',
+                if (widget.chapterCount > 0)
+                  context.l10n.chaptersCount(widget.chapterCount),
+                if (widget.pageCount > 0)
+                  context.l10n.pagesCount(widget.pageCount),
               ].join(' · '),
               style: LannaType.micro.copyWith(color: chrome.onBarMuted),
             ),
@@ -129,7 +132,7 @@ class _TocDrawerState extends State<TocDrawer> {
 
     walk(widget.toc, 0);
     if (flat.isEmpty) {
-      return _Empty('Este libro no trae índice', chrome: chrome);
+      return _Empty(context.l10n.noToc, chrome: chrome);
     }
 
     final current = widget.currentHref?.split('#').first;
@@ -179,7 +182,7 @@ class _TocDrawerState extends State<TocDrawer> {
   Widget _bookmarksList() {
     final chrome = widget.chrome;
     if (widget.bookmarks.isEmpty) {
-      return _Empty('Sin marcadores todavía', chrome: chrome);
+      return _Empty(context.l10n.noBookmarks, chrome: chrome);
     }
     return ListView.builder(
       padding: const EdgeInsets.symmetric(vertical: LannaSpacing.s2),
@@ -214,7 +217,7 @@ class _TocDrawerState extends State<TocDrawer> {
                       Text(
                         bookmark.label?.trim().isNotEmpty ?? false
                             ? bookmark.label!.trim()
-                            : 'Marcador',
+                            : context.l10n.bookmark,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: LannaType.sm.copyWith(
@@ -249,7 +252,7 @@ class _TocDrawerState extends State<TocDrawer> {
   Widget _notesList() {
     final chrome = widget.chrome;
     if (widget.highlights.isEmpty) {
-      return _Empty('Sin notas todavía', chrome: chrome);
+      return _Empty(context.l10n.noNotes, chrome: chrome);
     }
     return ListView.builder(
       padding: const EdgeInsets.symmetric(vertical: LannaSpacing.s2),
@@ -378,9 +381,9 @@ class _TabToggle extends StatelessWidget {
       ),
       child: Row(
         children: [
-          cell('Capítulos', _Tab.chapters),
-          cell('Marcadores', _Tab.bookmarks),
-          cell('Notas', _Tab.notes),
+          cell(context.l10n.chapters, _Tab.chapters),
+          cell(context.l10n.bookmarks, _Tab.bookmarks),
+          cell(context.l10n.notes, _Tab.notes),
         ],
       ),
     );

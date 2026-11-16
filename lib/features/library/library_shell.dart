@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../core/theme/app_theme.dart';
 import '../../core/theme/tokens.dart';
+import '../../l10n/l10n.dart';
 import 'widgets/library_sidebar.dart';
 
 final librarySearchProvider = StateProvider<String>((ref) => '');
@@ -166,11 +167,13 @@ class _LibraryShellState extends ConsumerState<LibraryShell> {
         ),
       ),
       bottomNavigationBar: NavigationBar(
-        selectedIndex: librarySections.indexWhere((e) => e.$3 == section),
-        onDestinationSelected: (i) => _select(librarySections[i].$3, section),
+        selectedIndex: librarySections(context.l10n)
+            .indexWhere((e) => e.$3 == section),
+        onDestinationSelected: (i) =>
+            _select(librarySections(context.l10n)[i].$3, section),
         labelBehavior: NavigationDestinationLabelBehavior.onlyShowSelected,
         destinations: [
-          for (final item in librarySections)
+          for (final item in librarySections(context.l10n))
             NavigationDestination(icon: Icon(item.$1), label: item.$2),
         ],
       ),

@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/tokens.dart';
+import '../../../l10n/l10n.dart';
 import '../library_scan_controller.dart';
 
 class EmptyLibraryView extends StatelessWidget {
@@ -41,8 +42,8 @@ class EmptyLibraryView extends StatelessWidget {
             const SizedBox(height: LannaSpacing.s4),
             Text(
               hasFolders
-                  ? 'No encontramos libros en tus carpetas'
-                  : 'Tu biblioteca está vacía',
+                  ? context.l10n.noBooksInFolders
+                  : context.l10n.yourLibraryEmpty,
               textAlign: TextAlign.center,
               style: LannaType.title.copyWith(color: LannaColors.text),
             ),
@@ -51,10 +52,8 @@ class EmptyLibraryView extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: LannaSpacing.s5),
               child: Text(
                 hasFolders
-                    ? 'Lanna lee EPUB, PDF, CBZ y CBR. Copia tus libros a la '
-                          'carpeta y actualiza la biblioteca.'
-                    : 'Elige la carpeta donde guardas tus libros. Lanna los lee '
-                          'desde ahí, sin copiarlos.',
+                    ? context.l10n.emptyLibraryHintFolders
+                    : context.l10n.emptyLibraryHint,
                 textAlign: TextAlign.center,
                 style: LannaType.md.copyWith(color: LannaColors.textMuted),
               ),
@@ -69,7 +68,7 @@ class EmptyLibraryView extends StatelessWidget {
                   return OutlinedButton.icon(
                     onPressed: running ? null : onRescan,
                     icon: const Icon(Icons.refresh, size: 18),
-                    label: const Text('Actualizar'),
+                    label: Text(context.l10n.refresh),
                   );
                 },
               )
@@ -77,7 +76,7 @@ class EmptyLibraryView extends StatelessWidget {
               FilledButton.icon(
                 onPressed: onAddFolder,
                 icon: const Icon(Icons.create_new_folder_outlined, size: 18),
-                label: const Text('Elegir carpeta'),
+                label: Text(context.l10n.chooseFolder),
               ),
           ],
         ),

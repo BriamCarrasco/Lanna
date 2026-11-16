@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/book_repository.dart';
 import '../../data/library/library_scanner.dart';
 import '../../data/local/app_database.dart';
+import '../../l10n/l10n.dart';
 
 class ScanState {
   const ScanState({
@@ -53,8 +54,10 @@ class LibraryScanController extends Notifier<ScanState> {
     }
   }
 
-  Future<ScanReport?> addFolder() async {
-    final folder = await ref.read(bookRepositoryProvider).pickFolder();
+  Future<ScanReport?> addFolder({String? dialogTitle}) async {
+    final folder = await ref
+        .read(bookRepositoryProvider)
+        .pickFolder(dialogTitle: dialogTitle);
     if (folder == null) return null;
     return scan();
   }
@@ -67,32 +70,29 @@ final libraryScanProvider = NotifierProvider<LibraryScanController, ScanState>(
   LibraryScanController.new,
 );
 
-String describeScan(ScanReport report) {
+String describeScan(ScanReport report, AppLocalizations l10n) {
   final parts = [
-    if (report.added > 0)
-      '${report.added} ${report.added == 1 ? 'libro nuevo' : 'libros nuevos'}',
-    if (report.relocated > 0)
-      '${report.relocated} ${report.relocated == 1 ? 'movido' : 'movidos'}',
-    if (report.missing > 0)
-      '${report.missing} ${report.missing == 1 ? 'no encontrado' : 'no encontrados'}',
-    if (report.failed > 0)
-      '${report.failed} ${report.failed == 1 ? 'no se pudo leer' : 'no se pudieron leer'}',
-    for (final name in report.unreachable) 'sin acceso a «$name»',
+    if (report.added > 0) l10n.scanNewBooks(report.added),
+    if (report.relocated > 0) l10n.scanMoved(report.relocated),
+    if (report.missing > 0) l10n.scanMissing(report.missing),
+    if (report.failed > 0) l10n.scanFailed(report.failed),
+    for (final name in report.unreachable) l10n.scanNoAccess(name),
   ];
-  return parts.isEmpty ? 'La biblioteca está al día' : parts.join(' · ');
+  return parts.isEmpty ? l10n.libraryUpToDate : parts.join(' · ');
 }
 
 Future<void> reportScan(
   ScaffoldMessengerState messenger,
+  AppLocalizations l10n,
   Future<ScanReport?> work,
 ) async {
   try {
     final report = await work;
     if (report == null) return;
-    messenger.showSnackBar(SnackBar(content: Text(describeScan(report))));
+    messenger.showSnackBar(SnackBar(content: Text(describeScan(report, l10n))));
   } catch (e) {
     messenger.showSnackBar(
-      SnackBar(content: Text('No se pudo revisar la carpeta: $e')),
+      SnackBar(content: Text(l10n.scanFolderFailed('$e'))),
     );
   }
 }

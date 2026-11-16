@@ -5,6 +5,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 
 import '../../../data/epub/epub_book.dart';
+import '../../../l10n/l10n.dart';
 import '../engine_support.dart';
 import '../reader_engine.dart';
 
@@ -96,12 +97,13 @@ abstract class FixedLayoutEngineState<W extends FixedLayoutEngine>
     try {
       await prepare();
     } catch (error) {
-      widget.callbacks.onError?.call('No se pudo abrir el libro\n$error');
+      if (!mounted) return;
+      widget.callbacks.onError?.call(context.l10n.bookOpenError('$error'));
       return;
     }
     if (!mounted) return;
     if (pageCount == 0) {
-      widget.callbacks.onError?.call('El libro no tiene páginas');
+      widget.callbacks.onError?.call(context.l10n.bookNoPages);
       return;
     }
     _starts = null;
@@ -215,8 +217,8 @@ abstract class FixedLayoutEngineState<W extends FixedLayoutEngine>
         percentage: last / pageCount,
         chapterIndex: _first - 1,
         label: last > _first
-            ? 'Páginas $_first–$last de $pageCount'
-            : 'Página $_first de $pageCount',
+            ? context.l10n.pageRange(_first, last, pageCount)
+            : context.l10n.pageOf(_first, pageCount),
         atStart: _spreadIndex == 0,
         atEnd: _spreadIndex >= _spreadCount - 1,
       ),
@@ -236,8 +238,11 @@ abstract class FixedLayoutEngineState<W extends FixedLayoutEngine>
 
   @override
   String scrubLabel(double fraction) {
-    final page = (fraction * pageCount).ceil().clamp(1, math.max(1, pageCount));
-    return 'Pág. $page de $pageCount';
+    final page = (fraction * pageCount)
+        .ceil()
+        .clamp(1, math.max(1, pageCount))
+        .toInt();
+    return context.l10n.pageShortOf(page, pageCount);
   }
 
   @override

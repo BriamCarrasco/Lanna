@@ -61,3 +61,7 @@ app.*.map.json
 /test_driver/png_report_driver.dart
 /assets/curl_lab/
 /CURL_LAB_REPORT.md
+
+# SonarQube
+.sonar-token
+.scannerwork/

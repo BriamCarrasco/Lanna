@@ -8,6 +8,7 @@ import '../../core/theme/app_theme.dart';
 import '../../core/theme/tokens.dart';
 import '../../data/book_repository.dart';
 import '../../data/local/app_database.dart';
+import '../../l10n/l10n.dart';
 import 'library_shell.dart';
 import 'widgets/book_actions.dart';
 import 'widgets/book_grid.dart';
@@ -32,7 +33,7 @@ class _AuthorsScreenState extends ConsumerState<AuthorsScreen> {
     for (final book in books) {
       final key = (book.author?.trim().isNotEmpty ?? false)
           ? book.author!.trim()
-          : 'Sin autor';
+          : context.l10n.noAuthor;
       byAuthor.putIfAbsent(key, () => []).add(book);
     }
     var authors = byAuthor.keys.toList()
@@ -46,11 +47,10 @@ class _AuthorsScreenState extends ConsumerState<AuthorsScreen> {
         : byAuthor[_selected] ?? const <Book>[];
 
     return SectionScaffold(
-      title: _selected ?? 'Autores',
+      title: _selected ?? context.l10n.authors,
       subtitle: _selected == null
-          ? '${authors.length} ${authors.length == 1 ? 'autor' : 'autores'}'
-          : '${selectedBooks.length} '
-                '${selectedBooks.length == 1 ? 'libro' : 'libros'}',
+          ? context.l10n.authorsCount(authors.length)
+          : context.l10n.booksCount(selectedBooks.length),
       onBack: _selected == null ? null : () => setState(() => _selected = null),
       child: _selected == null
           ? _AuthorList(
@@ -91,9 +91,9 @@ class _AuthorList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (authors.isEmpty) {
-      return const SectionEmpty(
+      return SectionEmpty(
         icon: Icons.person_outline,
-        message: 'No hay libros en la biblioteca',
+        message: context.l10n.noBooksInLibrary,
       );
     }
     return ListView.separated(
@@ -113,7 +113,7 @@ class _AuthorList extends StatelessWidget {
           ),
           title: Text(author, style: LannaType.base),
           trailing: Text(
-            '$count ${count == 1 ? 'libro' : 'libros'}',
+            context.l10n.booksCount(count),
             style: LannaType.sm.copyWith(color: LannaColors.textMuted),
           ),
           onTap: () => onTap(author),

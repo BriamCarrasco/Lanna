@@ -22,7 +22,7 @@ class EpubArchive {
     try {
       archive = ZipDecoder().decodeBytes(epubBytes);
     } catch (_) {
-      throw const FormatException('El archivo no es un ZIP/EPUB válido');
+      throw const FormatException('The file is not a valid ZIP/EPUB');
     }
     return EpubArchive.fromDecoded(archive);
   }
@@ -93,7 +93,7 @@ class EpubArchive {
     final rootfile = doc.findAllElements('rootfile').firstOrNull;
     final fullPath = rootfile?.getAttribute('full-path');
     if (fullPath == null || fullPath.isEmpty) {
-      throw const FormatException('container.xml sin rootfile válido');
+      throw const FormatException('container.xml has no valid rootfile');
     }
     return fullPath.replaceAll('\\', '/');
   }

@@ -11,6 +11,7 @@ import '../../core/widgets/lanna_dialog.dart';
 import '../../core/widgets/lanna_menu.dart';
 import '../../data/book_repository.dart';
 import '../../data/local/app_database.dart';
+import '../../l10n/l10n.dart';
 import 'library_shell.dart';
 import 'widgets/book_actions.dart';
 import 'widgets/book_grid.dart';
@@ -32,36 +33,34 @@ class CollectionsScreen extends ConsumerWidget {
     final compact = MediaQuery.sizeOf(context).width < 720;
     void create() => promptName(
       context,
-      title: 'Nueva colección',
+      title: context.l10n.newCollection,
       onSubmit: (name) =>
           ref.read(bookRepositoryProvider).createCollection(name),
     );
 
     return SectionScaffold(
-      title: 'Colecciones',
-      subtitle:
-          '${collections.length} '
-          '${collections.length == 1 ? 'colección' : 'colecciones'}',
+      title: context.l10n.collections,
+      subtitle: context.l10n.collectionsCount(collections.length),
       actions: [
         if (compact)
           IconButton(
             onPressed: create,
             icon: const Icon(Icons.create_new_folder_outlined),
-            tooltip: 'Nueva colección',
+            tooltip: context.l10n.newCollection,
           )
         else
           FilledButton.icon(
             onPressed: create,
             icon: const Icon(Icons.add, size: 18),
-            label: const Text('Nueva colección'),
+            label: Text(context.l10n.newCollection),
           ),
       ],
       child: collections.isEmpty
           ? SectionEmpty(
               icon: Icons.folder_outlined,
               message: query.isEmpty
-                  ? 'Crea una colección para agrupar tus libros'
-                  : 'Ninguna colección coincide con la búsqueda',
+                  ? context.l10n.createCollectionHint
+                  : context.l10n.noCollectionMatches,
             )
           : ListView.separated(
               padding: const EdgeInsets.symmetric(vertical: LannaSpacing.s2),
@@ -83,7 +82,7 @@ class CollectionsScreen extends ConsumerWidget {
                   ),
                   title: Text(c.collection.name, style: LannaType.base),
                   trailing: Text(
-                    '${c.bookCount} ${c.bookCount == 1 ? 'libro' : 'libros'}',
+                    context.l10n.booksCount(c.bookCount),
                     style: LannaType.sm.copyWith(color: LannaColors.textMuted),
                   ),
                   onTap: () => context.push('/collections/${c.collection.id}'),
@@ -106,7 +105,9 @@ class CollectionScreen extends ConsumerWidget {
         const <Book>[];
     final all = ref.watch(collectionsProvider).valueOrNull ?? const [];
     final match = all.where((c) => c.collection.id == collectionId).toList();
-    final name = match.isEmpty ? 'Colección' : match.first.collection.name;
+    final name = match.isEmpty
+        ? context.l10n.collection
+        : match.first.collection.name;
     final repo = ref.read(bookRepositoryProvider);
     final compact = MediaQuery.sizeOf(context).width < 720;
     void addBooks() => showDialog(
@@ -116,27 +117,27 @@ class CollectionScreen extends ConsumerWidget {
 
     return SectionScaffold(
       title: name,
-      subtitle: '${books.length} ${books.length == 1 ? 'libro' : 'libros'}',
+      subtitle: context.l10n.booksCount(books.length),
       onBack: () => context.go('/collections'),
       actions: [
         if (compact)
           IconButton(
             onPressed: addBooks,
             icon: const Icon(Icons.add),
-            tooltip: 'Añadir libros',
+            tooltip: context.l10n.addBooks,
           )
         else
           TextButton.icon(
             onPressed: addBooks,
             icon: const Icon(Icons.add, size: 18),
-            label: const Text('Añadir libros'),
+            label: Text(context.l10n.addBooks),
           ),
         PopupMenuButton<String>(
           onSelected: (value) async {
             if (value == 'rename') {
               await promptName(
                 context,
-                title: 'Renombrar colección',
+                title: context.l10n.renameCollection,
                 initial: name,
                 onSubmit: (n) => repo.renameCollection(collectionId, n),
               );
@@ -149,21 +150,21 @@ class CollectionScreen extends ConsumerWidget {
             lannaMenuItem(
               value: 'rename',
               icon: Icons.edit_outlined,
-              label: 'Renombrar',
+              label: context.l10n.rename,
             ),
             lannaMenuItem(
               value: 'delete',
               icon: Icons.delete_outline,
-              label: 'Eliminar colección',
+              label: context.l10n.deleteCollection,
               danger: true,
             ),
           ],
         ),
       ],
       child: books.isEmpty
-          ? const SectionEmpty(
+          ? SectionEmpty(
               icon: Icons.folder_open_outlined,
-              message: 'Esta colección está vacía',
+              message: context.l10n.emptyCollection,
             )
           : CustomScrollView(
               scrollCacheExtent: const ScrollCacheExtent.viewport(1),
@@ -200,12 +201,12 @@ class _AddBooksDialog extends ConsumerWidget {
     final repo = ref.read(bookRepositoryProvider);
 
     return LannaDialog(
-      title: 'Libros en la colección',
+      title: context.l10n.booksInCollection,
       children: [
         Flexible(
           child: library.isEmpty
               ? Text(
-                  'La biblioteca está vacía',
+                  context.l10n.libraryEmpty,
                   style: LannaType.md.copyWith(color: LannaColors.textMuted),
                 )
               : ListView(
@@ -246,7 +247,7 @@ class _AddBooksDialog extends ConsumerWidget {
           alignment: Alignment.centerRight,
           child: TextButton(
             onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Listo'),
+            child: Text(context.l10n.done),
           ),
         ),
       ],
@@ -296,15 +297,15 @@ class _NamePromptDialogState extends State<_NamePromptDialog> {
       content: TextField(
         controller: _controller,
         autofocus: true,
-        decoration: const InputDecoration(hintText: 'Nombre'),
+        decoration: InputDecoration(hintText: context.l10n.name),
         onSubmitted: (_) => _submit(),
       ),
       actions: [
         TextButton(
           onPressed: () => Navigator.of(context).pop(),
-          child: const Text('Cancelar'),
+          child: Text(context.l10n.cancel),
         ),
-        FilledButton(onPressed: _submit, child: const Text('Guardar')),
+        FilledButton(onPressed: _submit, child: Text(context.l10n.save)),
       ],
     );
   }

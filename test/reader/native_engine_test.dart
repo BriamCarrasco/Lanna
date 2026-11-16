@@ -10,6 +10,7 @@ import 'package:lanna/features/reader/native/book_source.dart';
 import 'package:lanna/features/reader/native/native_epub_view.dart';
 import 'package:lanna/features/reader/native/page_canvas.dart';
 import 'package:lanna/features/reader/reader_engine.dart';
+import 'package:lanna/l10n/app_localizations.dart';
 
 void main() {
   late Directory root;
@@ -107,6 +108,10 @@ void main() {
 
     await tester.pumpWidget(
       MaterialApp(
+        locale: const Locale('es'),
+        supportedLocales: AppLocalizations.supportedLocales,
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+
         home: Scaffold(
           body: Center(
             child: SizedBox(
@@ -999,6 +1004,10 @@ void main() {
 
       await tester.pumpWidget(
         MaterialApp(
+          locale: const Locale('es'),
+          supportedLocales: AppLocalizations.supportedLocales,
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+
           home: Scaffold(
             body: Center(
               child: ValueListenableBuilder<Size>(

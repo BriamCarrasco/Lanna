@@ -60,6 +60,9 @@ void main() {
       );
       await db.customStatement('DROP TABLE reading_sessions');
     }
+    if (version < 19) {
+      await db.customStatement('ALTER TABLE reader_prefs DROP COLUMN language');
+    }
     if (withDeadTable) {
       await db.customStatement(
         'CREATE TABLE book_locations ('
@@ -178,6 +181,7 @@ void main() {
 
     expect(await hasTable(db, 'reading_sessions'), isTrue);
     expect(await columns(db, 'reader_prefs'), contains('daily_goal_minutes'));
+    expect(await columns(db, 'reader_prefs'), contains('language'));
     expect(await columns(db, 'books'), contains('finished_at'));
   });
 

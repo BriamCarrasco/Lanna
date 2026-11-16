@@ -11,6 +11,7 @@ import '../../core/theme/tokens.dart';
 import '../../data/book_repository.dart';
 import '../../data/comic/comic_book.dart';
 import '../../data/local/app_database.dart';
+import '../../l10n/l10n.dart';
 import 'book_search.dart';
 import 'library_scan_controller.dart';
 import 'library_shell.dart';
@@ -80,7 +81,10 @@ class _FoldersScreenState extends ConsumerState<FoldersScreen> {
 
   Future<void> _addFolder() => reportScan(
     ScaffoldMessenger.of(context),
-    ref.read(libraryScanProvider.notifier).addFolder(),
+    context.l10n,
+    ref
+        .read(libraryScanProvider.notifier)
+        .addFolder(dialogTitle: context.l10n.chooseBooksFolder),
   );
 
   @override
@@ -100,14 +104,14 @@ class _FoldersScreenState extends ConsumerState<FoldersScreen> {
 
   Widget _noFolders() {
     return SectionScaffold(
-      title: 'Carpetas',
+      title: context.l10n.folders,
       child: SectionEmpty(
         icon: Icons.folder_outlined,
-        message: 'Todavía no elegiste ninguna carpeta',
+        message: context.l10n.noFoldersChosen,
         action: FilledButton.icon(
           onPressed: _addFolder,
           icon: const Icon(Icons.create_new_folder_outlined, size: 18),
-          label: const Text('Elegir carpeta'),
+          label: Text(context.l10n.chooseFolder),
         ),
       ),
     );
@@ -119,9 +123,8 @@ class _FoldersScreenState extends ConsumerState<FoldersScreen> {
     String query,
   ) {
     return SectionScaffold(
-      title: 'Carpetas',
-      subtitle:
-          '${folders.length} ${folders.length == 1 ? 'carpeta' : 'carpetas'}',
+      title: context.l10n.folders,
+      subtitle: context.l10n.foldersCount(folders.length),
       child: _FolderList(
         entries: [
           for (final f in folders)
@@ -168,9 +171,9 @@ class _FoldersScreenState extends ConsumerState<FoldersScreen> {
     if (query.isEmpty) {
       final level = browseFolder(inFolder, _path);
       if (level.folders.isEmpty && level.books.isEmpty) {
-        return const SectionEmpty(
+        return SectionEmpty(
           icon: Icons.folder_open_outlined,
-          message: 'Esta carpeta no tiene libros',
+          message: context.l10n.folderNoBooks,
         );
       }
       return _LevelView(level: level, onEnter: _enter);
@@ -180,9 +183,9 @@ class _FoldersScreenState extends ConsumerState<FoldersScreen> {
         if (bookMatches(b, query)) b,
     ];
     if (matches.isEmpty) {
-      return const SectionEmpty(
+      return SectionEmpty(
         icon: Icons.search_off,
-        message: 'Sin resultados en esta carpeta',
+        message: context.l10n.noFolderResults,
       );
     }
     return _LevelView(
@@ -280,7 +283,7 @@ class _FolderTile extends StatelessWidget {
       leading: const Icon(Icons.folder_outlined, color: LannaColors.textMuted),
       title: Text(name, style: LannaType.base),
       trailing: Text(
-        '$count ${count == 1 ? 'libro' : 'libros'}',
+        context.l10n.booksCount(count),
         style: LannaType.sm.copyWith(color: LannaColors.textMuted),
       ),
       onTap: onTap,

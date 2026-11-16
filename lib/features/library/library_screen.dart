@@ -12,6 +12,7 @@ import '../../core/widgets/fade_in.dart';
 import '../../core/widgets/lanna_menu.dart';
 import '../../data/book_repository.dart';
 import '../../data/local/app_database.dart';
+import '../../l10n/l10n.dart';
 import 'library_filters.dart';
 import 'library_scan_controller.dart';
 import 'library_shell.dart';
@@ -28,12 +29,15 @@ import 'widgets/series_dialogs.dart';
 import 'widgets/series_sheet.dart';
 
 enum _SortMode {
-  recent('Recientes'),
-  title('Título'),
-  author('Autor');
+  recent,
+  title,
+  author;
 
-  const _SortMode(this.label);
-  final String label;
+  String label(AppLocalizations l10n) => switch (this) {
+    recent => l10n.sortRecent,
+    title => l10n.sortTitle,
+    author => l10n.sortAuthor,
+  };
 }
 
 enum _ViewMode { grid, list }
@@ -67,11 +71,15 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
 
   Future<void> _addFolder() => reportScan(
     ScaffoldMessenger.of(context),
-    ref.read(libraryScanProvider.notifier).addFolder(),
+    context.l10n,
+    ref
+        .read(libraryScanProvider.notifier)
+        .addFolder(dialogTitle: context.l10n.chooseBooksFolder),
   );
 
   Future<void> _rescan() => reportScan(
     ScaffoldMessenger.of(context),
+    context.l10n,
     ref.read(libraryScanProvider.notifier).scan(),
   );
 
@@ -120,22 +128,23 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
         if (ids.contains(b.id)) b,
     ];
     final messenger = ScaffoldMessenger.of(context);
+    final l10n = context.l10n;
     final repo = ref.read(bookRepositoryProvider);
     final moved = await moveBooksToSeries(context, ref, books);
     if (moved == null || !mounted) return;
     _endSelection();
-    final count = '${books.length} ${books.length == 1 ? 'tomo' : 'tomos'}';
+    final count = l10n.volumesCount(books.length);
     messenger.showSnackBar(
       SnackBar(
         content: Text(
           moved.name.isEmpty
-              ? '$count fuera de su serie'
-              : '$count en «${moved.name}»',
+              ? l10n.volumesOutOfSeries(count)
+              : l10n.volumesInSeries(moved.name, count),
         ),
         persist: false,
         duration: const Duration(seconds: 6),
         action: SnackBarAction(
-          label: 'Deshacer',
+          label: l10n.undo,
           onPressed: () => unawaited(repo.restoreSeries(moved.previous)),
         ),
       ),
@@ -264,27 +273,29 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
         volumes.isNotEmpty && volumes.every((b) => selection.contains(b.id));
     return SectionScaffold(
       title: n == 0
-          ? 'Selecciona tomos'
-          : '$n ${n == 1 ? 'seleccionado' : 'seleccionados'}',
+          ? context.l10n.selectVolumes
+          : context.l10n.selectedCount(n),
       onBack: _endSelection,
       backIcon: Icons.close,
       actions: [
         IconButton(
           onPressed: volumes.isEmpty ? null : () => _toggleAll(volumes),
           icon: Icon(allSelected ? Icons.deselect : Icons.select_all),
-          tooltip: allSelected ? 'Quitar selección' : 'Seleccionar todo',
+          tooltip: allSelected
+              ? context.l10n.clearSelection
+              : context.l10n.selectAll,
         ),
         if (compact)
           IconButton.filled(
             onPressed: n == 0 ? null : () => unawaited(_moveSelection()),
             icon: const Icon(Icons.layers_outlined),
-            tooltip: 'Mover a serie',
+            tooltip: context.l10n.moveToSeries,
           )
         else
           FilledButton.icon(
             onPressed: n == 0 ? null : () => unawaited(_moveSelection()),
             icon: const Icon(Icons.layers_outlined, size: 18),
-            label: const Text('Mover a serie'),
+            label: Text(context.l10n.moveToSeries),
           ),
       ],
       child: body,
@@ -301,11 +312,11 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
       onPressed: _startSelection,
       icon: Icon(Icons.checklist, size: compact ? null : 20),
       color: compact ? null : LannaColors.textMuted,
-      tooltip: 'Seleccionar tomos',
+      tooltip: context.l10n.selectVolumesTooltip,
     );
     return SectionScaffold(
-      title: 'Biblioteca',
-      subtitle: '$count ${count == 1 ? 'libro' : 'libros'}',
+      title: context.l10n.library,
+      subtitle: context.l10n.booksCount(count),
       actions: compact
           ? [
               if (hasSeries) select,
@@ -316,13 +327,13 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                   color: LannaColors.textMuted,
                 ),
                 initialValue: _sort,
-                tooltip: 'Ordenar',
+                tooltip: context.l10n.sort,
                 onSelected: (s) => setState(() => _sort = s),
                 itemBuilder: (_) => [
                   for (final m in _SortMode.values)
                     lannaChoiceItem(
                       value: m,
-                      label: m.label,
+                      label: m.label(context.l10n),
                       selected: m == _sort,
                     ),
                 ],
@@ -331,7 +342,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
               IconButton(
                 onPressed: _addFolder,
                 icon: const Icon(Icons.create_new_folder_outlined),
-                tooltip: 'Añadir carpeta',
+                tooltip: context.l10n.addFolder,
               ),
             ]
           : [
@@ -348,7 +359,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
               FilledButton.icon(
                 onPressed: _addFolder,
                 icon: const Icon(Icons.create_new_folder_outlined, size: 18),
-                label: const Text('Añadir carpeta'),
+                label: Text(context.l10n.addFolder),
               ),
             ],
       child: body,
@@ -369,7 +380,7 @@ class _RescanButton extends ConsumerWidget {
       onPressed: running ? null : onPressed,
       icon: Icon(Icons.refresh, size: muted ? 20 : null),
       color: muted ? LannaColors.textMuted : null,
-      tooltip: 'Actualizar biblioteca',
+      tooltip: context.l10n.refreshLibrary,
     );
   }
 }
@@ -393,8 +404,8 @@ class _ScanBanner extends ConsumerWidget {
         children: [
           Text(
             scan.total == 0
-                ? 'Revisando tus carpetas…'
-                : 'Revisando tus carpetas… ${scan.done} de ${scan.total}',
+                ? context.l10n.scanning
+                : context.l10n.scanningProgress(scan.done, scan.total),
             style: LannaType.sm.copyWith(color: LannaColors.textMuted),
           ),
           const SizedBox(height: LannaSpacing.s2),
@@ -448,13 +459,13 @@ class _LibraryBody extends StatelessWidget {
     final searching = query.trim().isNotEmpty;
     return entries.when(
       loading: () => const Center(child: CircularProgressIndicator()),
-      error: (e, _) => Center(child: Text('Error: $e')),
+      error: (e, _) => Center(child: Text(context.l10n.errorDetail('$e'))),
       data: (entries) {
         if (libraryEmpty || (entries.isEmpty && !filters.active)) {
           return searching
               ? SectionEmpty(
                   icon: Icons.search_off,
-                  message: 'Sin resultados para «$query»',
+                  message: context.l10n.noResultsFor(query),
                 )
               : FadeIn(
                   child: EmptyLibraryView(
@@ -471,13 +482,13 @@ class _LibraryBody extends StatelessWidget {
             physics: const AlwaysScrollableScrollPhysics(),
             slivers: [
               if (continueReading.isNotEmpty) ...[
-                const _SectionLabel('Seguir leyendo'),
+                _SectionLabel(context.l10n.continueReading),
                 SliverToBoxAdapter(
                   child: ContinueReadingRow(items: continueReading),
                 ),
               ],
               _SectionLabel(
-                searching ? 'Resultados' : 'Todos los libros',
+                searching ? context.l10n.results : context.l10n.allBooks,
                 trailing: '${booksOf(entries).length}',
                 action: FiltersButton(filters: filters, onChanged: onFilters),
               ),
@@ -489,10 +500,10 @@ class _LibraryBody extends StatelessWidget {
                     ),
                     child: SectionEmpty(
                       icon: Icons.filter_alt_off_outlined,
-                      message: 'Ningún libro coincide con los filtros',
+                      message: context.l10n.noFilterMatches,
                       action: TextButton(
                         onPressed: () => onFilters(const LibraryFilters()),
-                        child: const Text('Quitar filtros'),
+                        child: Text(context.l10n.clearFilters),
                       ),
                     ),
                   ),
@@ -635,7 +646,7 @@ class _SortButton extends StatelessWidget {
         for (final mode in _SortMode.values)
           lannaChoiceItem(
             value: mode,
-            label: mode.label,
+            label: mode.label(context.l10n),
             selected: mode == sort,
           ),
       ],
@@ -653,7 +664,7 @@ class _SortButton extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             Text(
-              sort.label,
+              sort.label(context.l10n),
               style: LannaType.md.copyWith(color: LannaColors.text),
             ),
             const SizedBox(width: LannaSpacing.s1 + 2),
@@ -745,7 +756,7 @@ class _SeriesRow extends StatelessWidget {
                     style: LannaType.md.copyWith(fontWeight: FontWeight.w600),
                   ),
                   Text(
-                    '$count ${count == 1 ? 'tomo' : 'tomos'}',
+                    context.l10n.volumesCount(count),
                     style: LannaType.sm.copyWith(color: LannaColors.textMuted),
                   ),
                 ],

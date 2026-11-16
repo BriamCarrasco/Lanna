@@ -10,6 +10,7 @@ import '../../core/widgets/lanna_dialog.dart';
 import '../../data/book_repository.dart';
 import '../../data/library/folder_access.dart';
 import '../../data/local/app_database.dart';
+import '../../l10n/l10n.dart';
 import '../library/widgets/compact_book_tile.dart';
 
 Future<void> showArchivedBooks(BuildContext context) {
@@ -33,11 +34,8 @@ class ArchivedBooksDialog extends ConsumerWidget {
     };
 
     return LannaDialog(
-      title: 'Libros archivados',
-      subtitle:
-          'No aparecen en la biblioteca. Al restaurarlos vuelven con su '
-          'progreso, marcadores y subrayados. También puedes eliminarlos del '
-          'dispositivo.',
+      title: context.l10n.archivedBooks,
+      subtitle: context.l10n.archivedBooksHint,
       serifTitle: true,
       maxWidth: 480,
       maxHeight: 560,
@@ -49,7 +47,7 @@ class ArchivedBooksDialog extends ConsumerWidget {
                     vertical: LannaSpacing.s6,
                   ),
                   child: Text(
-                    'No hay libros archivados',
+                    context.l10n.noArchivedBooks,
                     textAlign: TextAlign.center,
                     style: LannaType.md.copyWith(color: LannaColors.textMuted),
                   ),
@@ -70,7 +68,7 @@ class ArchivedBooksDialog extends ConsumerWidget {
           alignment: Alignment.centerRight,
           child: TextButton(
             onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Cerrar'),
+            child: Text(context.l10n.close),
           ),
         ),
       ],
@@ -99,13 +97,13 @@ class _ArchivedRow extends ConsumerWidget {
             onPressed: () => unawaited(
               ref.read(bookRepositoryProvider).restoreBook(book.id),
             ),
-            child: const Text('Restaurar'),
+            child: Text(context.l10n.restore),
           ),
           IconButton(
             onPressed: () => unawaited(_delete(context, ref)),
             icon: const Icon(Icons.delete_outline),
             color: LannaColors.danger,
-            tooltip: 'Eliminar del dispositivo',
+            tooltip: context.l10n.deleteFromDevice,
           ),
         ],
       ),
@@ -114,20 +112,20 @@ class _ArchivedRow extends ConsumerWidget {
 
   Future<void> _delete(BuildContext context, WidgetRef ref) async {
     final messenger = ScaffoldMessenger.of(context);
+    final l10n = context.l10n;
     final repo = ref.read(bookRepositoryProvider);
     final confirmed = await confirmDeleteFromDevice(context, book, folder);
     if (!confirmed) return;
     String message;
     try {
       await repo.deleteFromDevice(book.id);
-      message = '«${book.title}» eliminado del dispositivo';
+      message = l10n.bookDeletedFromDevice(book.title);
     } on FolderWriteDenied {
-      message =
-          'Lanna no tiene permiso para borrar en '
-          '${folder == null ? 'esa carpeta' : '«$folder»'}. Vuelve a añadir '
-          'la carpeta desde la Biblioteca para concederlo.';
+      message = folder == null
+          ? l10n.deleteDenied
+          : l10n.deleteDeniedFolder(folder!);
     } catch (_) {
-      message = 'No se pudo eliminar «${book.title}». Inténtalo de nuevo.';
+      message = l10n.deleteFailed(book.title);
     }
     messenger.showSnackBar(
       SnackBar(
@@ -149,17 +147,16 @@ Future<bool> confirmDeleteFromDevice(
     context: context,
     builder: (context) => AlertDialog(
       backgroundColor: LannaColors.surfaceHigh,
-      title: Text('¿Eliminar «${book.title}» del dispositivo?'),
+      title: Text(context.l10n.deleteFromDeviceTitle(book.title)),
       content: Text(
-        'Se borrará el archivo «$file»'
-        '${folder == null ? '' : ' de la carpeta «$folder»'} y se quitará '
-        'de Lanna junto con su progreso, marcadores, subrayados y tiempo de '
-        'lectura. No se puede deshacer.',
+        folder == null
+            ? context.l10n.deleteFromDeviceBody(file)
+            : context.l10n.deleteFromFolderBody(file, folder),
       ),
       actions: [
         TextButton(
           onPressed: () => Navigator.of(context).pop(false),
-          child: const Text('Cancelar'),
+          child: Text(context.l10n.cancel),
         ),
         FilledButton(
           style: FilledButton.styleFrom(
@@ -167,7 +164,7 @@ Future<bool> confirmDeleteFromDevice(
             foregroundColor: LannaColors.surface,
           ),
           onPressed: () => Navigator.of(context).pop(true),
-          child: const Text('Eliminar'),
+          child: Text(context.l10n.delete),
         ),
       ],
     ),

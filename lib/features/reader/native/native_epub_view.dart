@@ -7,6 +7,7 @@ import 'package:flutter/scheduler.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../../data/epub/epub_document.dart';
+import '../../../l10n/l10n.dart';
 import '../engine_support.dart';
 import '../reader_engine.dart';
 import 'book_source.dart';
@@ -186,7 +187,7 @@ class _NativeEpubViewState extends State<NativeEpubView>
   }) async {
     final token = ++_navToken;
     if (widget.source.chapterCount == 0) {
-      _fail('El libro no tiene capítulos legibles', 'spine vacío');
+      _fail(context.l10n.bookNoChapters, 'empty spine');
       return false;
     }
     final clamped = chapter.clamp(0, widget.source.chapterCount - 1);
@@ -195,7 +196,7 @@ class _NativeEpubViewState extends State<NativeEpubView>
     try {
       document = await widget.source.document(clamped);
     } catch (error) {
-      _fail('No se pudo leer el capítulo ${clamped + 1}', error);
+      if (mounted) _fail(context.l10n.chapterReadError(clamped + 1), error);
       return false;
     }
     if (!mounted || token != _navToken) return false;
@@ -304,7 +305,7 @@ class _NativeEpubViewState extends State<NativeEpubView>
           document.length,
         ),
         chapterIndex: _chapter,
-        label: 'Capítulo ${_chapter + 1} de ${widget.source.chapterCount}',
+        label: context.l10n.chapterOf(_chapter + 1, widget.source.chapterCount),
         remainingMinutes: widget.source.remainingMinutes(_chapter, _offset),
         atStart: atStart,
         atEnd: atEnd,
@@ -406,7 +407,7 @@ class _NativeEpubViewState extends State<NativeEpubView>
     try {
       document = await widget.source.document(chapter);
     } catch (error) {
-      _fail('No se pudo leer el capítulo ${chapter + 1}', error);
+      if (mounted) _fail(context.l10n.chapterReadError(chapter + 1), error);
       return;
     }
     if (!mounted) return;
@@ -424,7 +425,7 @@ class _NativeEpubViewState extends State<NativeEpubView>
 
   Future<bool> _goToPercentage(double percentage) async {
     if (widget.source.chapterCount == 0) {
-      _fail('El libro no tiene capítulos legibles', 'spine vacío');
+      _fail(context.l10n.bookNoChapters, 'empty spine');
       return false;
     }
     final (chapter, within) = widget.source.locate(percentage);
@@ -432,7 +433,7 @@ class _NativeEpubViewState extends State<NativeEpubView>
     try {
       document = await widget.source.document(chapter);
     } catch (error) {
-      _fail('No se pudo leer el capítulo ${chapter + 1}', error);
+      if (mounted) _fail(context.l10n.chapterReadError(chapter + 1), error);
       return false;
     }
     if (!mounted) return false;

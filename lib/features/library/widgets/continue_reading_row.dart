@@ -6,6 +6,7 @@ import '../../../core/theme/tokens.dart';
 import '../../../core/widgets/pressable.dart';
 import '../../../data/local/app_database.dart';
 import '../../../data/models/book_format.dart';
+import '../../../l10n/l10n.dart';
 import 'book_actions.dart';
 import 'book_cover.dart';
 
@@ -56,7 +57,9 @@ class _Card extends StatelessWidget {
   Widget build(BuildContext context) {
     final pct = item.progress.percent.clamp(0.0, 1.0);
     final chapter = item.progress.chapterIndex;
-    final unit = item.book.format == BookFormat.epub ? 'Cap.' : 'Pág.';
+    final unit = item.book.format == BookFormat.epub
+        ? context.l10n.chapterShort
+        : context.l10n.pageShort;
 
     return Pressable(
       scale: 0.98,

@@ -7,6 +7,7 @@ import 'package:lanna/data/local/app_database.dart';
 import 'package:lanna/data/local/database_provider.dart';
 import 'package:lanna/data/models/book_format.dart';
 import 'package:lanna/features/stats/stats_screen.dart';
+import 'package:lanna/l10n/app_localizations.dart';
 
 void main() {
   Future<AppDatabase> seeded() async {
@@ -34,7 +35,12 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [appDatabaseProvider.overrideWithValue(db)],
-        child: const MaterialApp(home: Scaffold(body: StatsScreen())),
+        child: MaterialApp(
+          locale: const Locale('es'),
+          supportedLocales: AppLocalizations.supportedLocales,
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          home: Scaffold(body: StatsScreen()),
+        ),
       ),
     );
     await tester.pumpAndSettle();

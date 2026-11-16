@@ -11,13 +11,15 @@ const progressFileKind = 'lanna-progress';
 const progressFileVersion = 1;
 const maxProgressFileBytes = 32 * 1024 * 1024;
 
-class ProgressFileException implements Exception {
-  const ProgressFileException(this.message);
+enum ProgressFileError { tooLarge, invalid, notLanna, noBooks }
 
-  final String message;
+class ProgressFileException implements Exception {
+  const ProgressFileException(this.kind);
+
+  final ProgressFileError kind;
 
   @override
-  String toString() => message;
+  String toString() => kind.name;
 }
 
 class ProgressImportReport {
@@ -232,22 +234,20 @@ class ProgressTransfer {
 
 List<Object?> decodeProgressFile(Uint8List bytes) {
   if (bytes.length > maxProgressFileBytes) {
-    throw const ProgressFileException('El archivo es demasiado grande');
+    throw const ProgressFileException(ProgressFileError.tooLarge);
   }
   final Object? document;
   try {
     document = jsonDecode(utf8.decode(bytes));
   } on FormatException {
-    throw const ProgressFileException('El archivo no es un respaldo válido');
+    throw const ProgressFileException(ProgressFileError.invalid);
   }
   if (document is! Map || document['kind'] != progressFileKind) {
-    throw const ProgressFileException(
-      'El archivo no es un respaldo de progreso de Lanna',
-    );
+    throw const ProgressFileException(ProgressFileError.notLanna);
   }
   final books = document['books'];
   if (books is! List) {
-    throw const ProgressFileException('El respaldo no contiene libros');
+    throw const ProgressFileException(ProgressFileError.noBooks);
   }
   return books;
 }

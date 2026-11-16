@@ -1,27 +1,36 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 import '../../data/local/app_database.dart';
 import '../../data/models/book_format.dart';
+import '../../l10n/l10n.dart';
 
 const finishedThreshold = 0.99;
 
 enum FormatFilter {
-  all('Todos'),
-  epub('EPUB'),
-  pdf('PDF'),
-  comic('Cómics');
+  all,
+  epub,
+  pdf,
+  comic;
 
-  const FormatFilter(this.label);
-  final String label;
+  String label(AppLocalizations l10n) => switch (this) {
+    all => l10n.filterAll,
+    epub => 'EPUB',
+    pdf => 'PDF',
+    comic => l10n.filterComics,
+  };
 }
 
 enum ReadFilter {
-  all('Todos'),
-  unread('Sin empezar'),
-  reading('Leyendo'),
-  finished('Terminados');
+  all,
+  unread,
+  reading,
+  finished;
 
-  const ReadFilter(this.label);
-  final String label;
+  String label(AppLocalizations l10n) => switch (this) {
+    all => l10n.filterAll,
+    unread => l10n.filterUnread,
+    reading => l10n.filterReading,
+    finished => l10n.filterFinished,
+  };
 }
 
 class LibraryFilters {

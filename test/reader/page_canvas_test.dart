@@ -11,6 +11,7 @@ import 'package:lanna/data/epub/epub_styles.dart';
 import 'package:lanna/features/reader/native/book_source.dart';
 import 'package:lanna/features/reader/native/page_canvas.dart';
 import 'package:lanna/features/reader/native/paginator.dart';
+import 'package:lanna/l10n/app_localizations.dart';
 
 void main() {
   testWidgets('cada fragmento pintado cabe en el alto que midió el paginador', (
@@ -43,6 +44,10 @@ void main() {
     for (final page in pagination.pages) {
       await tester.pumpWidget(
         MaterialApp(
+          locale: const Locale('es'),
+          supportedLocales: AppLocalizations.supportedLocales,
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+
           theme: AppTheme.dark(),
           home: Scaffold(
             body: Center(

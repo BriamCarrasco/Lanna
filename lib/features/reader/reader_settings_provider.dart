@@ -52,6 +52,9 @@ class ReaderSettingsController {
 
   Future<void> setDailyGoal(int minutes) =>
       _save(_current.copyWith(dailyGoalMinutes: minutes));
+
+  Future<void> setLanguage(String code) =>
+      _save(_current.copyWith(language: code));
 }
 
 final readerSettingsControllerProvider = Provider(ReaderSettingsController.new);

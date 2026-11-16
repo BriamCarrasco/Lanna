@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/tokens.dart';
+import '../../../l10n/l10n.dart';
 import '../reader_engine.dart';
 import '../reader_theme.dart';
 import 'reader_panel_frame.dart';
@@ -72,7 +73,7 @@ class _SearchPanelState extends State<SearchPanel> {
           child: Row(
             children: [
               Text(
-                'Buscar en el libro',
+                context.l10n.searchInBook,
                 style: LannaType.lg.copyWith(
                   fontFamily: AppFonts.serif,
                   color: chrome.onBar,
@@ -119,7 +120,7 @@ class _SearchPanelState extends State<SearchPanel> {
                     decoration: InputDecoration(
                       isDense: true,
                       border: InputBorder.none,
-                      hintText: 'Palabra o frase',
+                      hintText: context.l10n.wordOrPhrase,
                       hintStyle: LannaType.md.copyWith(
                         color: chrome.onBarMuted,
                       ),
@@ -151,11 +152,11 @@ class _SearchPanelState extends State<SearchPanel> {
   }
 
   String _statusLine() {
-    if (widget.busy) return 'Buscando…';
-    if (widget.query.isEmpty) return 'Escribe y pulsa Enter';
+    if (widget.busy) return context.l10n.searching;
+    if (widget.query.isEmpty) return context.l10n.typeAndEnter;
     final n = widget.hits.length;
-    if (n == 0) return 'Sin coincidencias';
-    return n == 1 ? '1 coincidencia' : '$n coincidencias';
+    if (n == 0) return context.l10n.noMatches;
+    return context.l10n.matchesCount(n);
   }
 
   Widget _results(ReaderChrome chrome) {

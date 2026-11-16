@@ -28,7 +28,7 @@ class FolderWriteDenied implements Exception {
   final String location;
 
   @override
-  String toString() => 'Sin permiso para borrar $location';
+  String toString() => 'No permission to delete $location';
 }
 
 class OpenedFile {
@@ -46,7 +46,7 @@ class OpenedFile {
 }
 
 abstract class FolderAccess {
-  Future<({String location, String name})?> pick();
+  Future<({String location, String name})?> pick({String? dialogTitle});
 
   Future<List<FolderEntry>> list(String location);
 
@@ -61,10 +61,8 @@ class DirectoryFolderAccess implements FolderAccess {
   const DirectoryFolderAccess();
 
   @override
-  Future<({String location, String name})?> pick() async {
-    final path = await FilePicker.getDirectoryPath(
-      dialogTitle: 'Elegir carpeta de libros',
-    );
+  Future<({String location, String name})?> pick({String? dialogTitle}) async {
+    final path = await FilePicker.getDirectoryPath(dialogTitle: dialogTitle);
     if (path == null) return null;
     return (location: path, name: p.basename(path));
   }
@@ -73,7 +71,7 @@ class DirectoryFolderAccess implements FolderAccess {
   Future<List<FolderEntry>> list(String location) async {
     final root = Directory(location);
     if (!root.existsSync()) {
-      throw FileSystemException('La carpeta ya no existe', location);
+      throw FileSystemException('The folder no longer exists', location);
     }
     final entries = <FolderEntry>[];
     await for (final entity in root.list(recursive: true, followLinks: false)) {
@@ -99,7 +97,7 @@ class DirectoryFolderAccess implements FolderAccess {
   @override
   Future<OpenedFile> open(String location) async {
     if (!File(location).existsSync()) {
-      throw FileSystemException('El archivo ya no existe', location);
+      throw FileSystemException('The file no longer exists', location);
     }
     return OpenedFile(pathSpec(location));
   }
@@ -125,7 +123,7 @@ class SafFolderAccess implements FolderAccess {
   static const _channel = MethodChannel('lanna/saf');
 
   @override
-  Future<({String location, String name})?> pick() async {
+  Future<({String location, String name})?> pick({String? dialogTitle}) async {
     final picked = await _channel.invokeMapMethod<String, String>('pickTree');
     if (picked == null) return null;
     return (location: picked['uri']!, name: picked['name']!);
@@ -156,7 +154,7 @@ class SafFolderAccess implements FolderAccess {
     }
     final fd = await _channel.invokeMethod<int>('openFd', location);
     if (fd == null) {
-      throw FileSystemException('No se pudo abrir el archivo', location);
+      throw FileSystemException('Could not open the file', location);
     }
     return OpenedFile((path: null, fd: fd), () => FdSource.release(fd));
   }

@@ -1,0 +1,782 @@
+{
+  "@@locale": "es",
+  "cancel": "Cancelar",
+  "save": "Guardar",
+  "done": "Listo",
+  "close": "Cerrar",
+  "undo": "Deshacer",
+  "open": "Abrir",
+  "delete": "Eliminar",
+  "archive": "Archivar",
+  "back": "Volver",
+  "rename": "Renombrar",
+  "remove": "Quitar",
+  "move": "Mover",
+  "name": "Nombre",
+  "search": "Buscar",
+  "refresh": "Actualizar",
+  "library": "Biblioteca",
+  "favorites": "Favoritos",
+  "folders": "Carpetas",
+  "collections": "Colecciones",
+  "authors": "Autores",
+  "stats": "Estadísticas",
+  "settings": "Ajustes",
+  "noAuthor": "Sin autor",
+  "noBooksInLibrary": "No hay libros en la biblioteca",
+  "newCollection": "Nueva colección",
+  "createCollectionHint": "Crea una colección para agrupar tus libros",
+  "noCollectionMatches": "Ninguna colección coincide con la búsqueda",
+  "collection": "Colección",
+  "addBooks": "Añadir libros",
+  "renameCollection": "Renombrar colección",
+  "deleteCollection": "Eliminar colección",
+  "emptyCollection": "Esta colección está vacía",
+  "booksInCollection": "Libros en la colección",
+  "libraryEmpty": "La biblioteca está vacía",
+  "noFavoritesHint": "Todavía no tienes favoritos. Abre el menú de un libro (clic derecho o mantener presionado) y elige «Añadir a favoritos».",
+  "noFavoritesResults": "Sin resultados en tus favoritos",
+  "noFoldersChosen": "Todavía no elegiste ninguna carpeta",
+  "chooseFolder": "Elegir carpeta",
+  "chooseBooksFolder": "Elegir carpeta de libros",
+  "folderNoBooks": "Esta carpeta no tiene libros",
+  "noFolderResults": "Sin resultados en esta carpeta",
+  "filterAll": "Todos",
+  "filterComics": "Cómics",
+  "filterUnread": "Sin empezar",
+  "filterReading": "Leyendo",
+  "filterFinished": "Terminados",
+  "libraryUpToDate": "La biblioteca está al día",
+  "sortRecent": "Recientes",
+  "sortTitle": "Título",
+  "sortAuthor": "Autor",
+  "selectVolumes": "Selecciona tomos",
+  "clearSelection": "Quitar selección",
+  "selectAll": "Seleccionar todo",
+  "moveToSeries": "Mover a serie",
+  "selectVolumesTooltip": "Seleccionar tomos",
+  "sort": "Ordenar",
+  "addFolder": "Añadir carpeta",
+  "refreshLibrary": "Actualizar biblioteca",
+  "scanning": "Revisando tus carpetas…",
+  "continueReading": "Seguir leyendo",
+  "results": "Resultados",
+  "allBooks": "Todos los libros",
+  "noFilterMatches": "Ningún libro coincide con los filtros",
+  "clearFilters": "Quitar filtros",
+  "details": "Detalles",
+  "removeFavorite": "Quitar de favoritos",
+  "addFavorite": "Añadir a favoritos",
+  "markUnfinished": "Marcar como no terminado",
+  "markFinished": "Marcar como terminado",
+  "addToCollection": "Añadir a colección",
+  "seriesEllipsis": "Serie…",
+  "select": "Seleccionar",
+  "noCollectionsYet": "Todavía no tienes colecciones",
+  "archiveBookBody": "Dejará de aparecer en la biblioteca, pero conserva su progreso, marcadores y subrayados. El archivo se queda en su carpeta. Puedes recuperarlo desde Ajustes → Libros archivados.",
+  "deleteBookBody": "Se quitará de la biblioteca y se borrará el archivo importado, junto con su progreso y marcadores. No se puede deshacer.",
+  "notStarted": "Sin empezar",
+  "read": "Leer",
+  "unavailable": "No disponible",
+  "chapterShort": "Cap.",
+  "pageShort": "Pág.",
+  "noBooksInFolders": "No encontramos libros en tus carpetas",
+  "yourLibraryEmpty": "Tu biblioteca está vacía",
+  "emptyLibraryHintFolders": "Lanna lee EPUB, PDF, CBZ y CBR. Copia tus libros a la carpeta y actualiza la biblioteca.",
+  "emptyLibraryHint": "Elige la carpeta donde guardas tus libros. Lanna los lee desde ahí, sin copiarlos.",
+  "closeFilters": "Cerrar filtros",
+  "filters": "Filtros",
+  "format": "Formato",
+  "status": "Estado",
+  "searchLibrary": "Buscar en la biblioteca",
+  "driveDisconnected": "Google Drive · Sin conectar",
+  "renameSeries": "Renombrar serie",
+  "moveToASeries": "Mover a una serie",
+  "seriesName": "Nombre de la serie",
+  "removeFromSeries": "Quitar de la serie",
+  "split": "Separar",
+  "seriesOptions": "Opciones de la serie",
+  "splitVolumes": "Separar tomos",
+  "archiveSeries": "Archivar serie",
+  "seriesEmpty": "Esta serie ya no tiene tomos",
+  "bookNotInLibrary": "El libro no está en la biblioteca",
+  "bookFileNotFound": "No se encontró el archivo del libro",
+  "bookStructureError": "No se pudo leer la estructura del libro",
+  "pdfPasswordProtected": "PDF protegido con contraseña",
+  "pdfOpenError": "No se pudo abrir el PDF",
+  "pdfProtected": "PDF protegido",
+  "password": "Contraseña",
+  "bookmarkRemoved": "Marcador quitado",
+  "bookmarkAdded": "Marcador añadido",
+  "editNote": "Editar nota",
+  "addNote": "Añadir nota",
+  "note": "Nota",
+  "writeNote": "Escribe una nota",
+  "textCopied": "Texto copiado",
+  "tableOfContents": "Índice",
+  "appearance": "Apariencia",
+  "bookmark": "Marcador",
+  "bookNoPages": "El libro no tiene páginas",
+  "bookNoChapters": "El libro no tiene capítulos legibles",
+  "theme": "Tema",
+  "font": "Fuente",
+  "fontBook": "Libro",
+  "woff2Unsupported": "Este libro trae su fuente en un formato que Lanna todavía no puede abrir (WOFF2).",
+  "size": "Tamaño",
+  "lineSpacing": "Interlínea",
+  "pages": "Páginas",
+  "columnsAuto": "Auto",
+  "pageNumbers": "N.º pág.",
+  "show": "Mostrar",
+  "hide": "Ocultar",
+  "reading": "Lectura",
+  "leftToRight": "Izq → Der",
+  "rightToLeft": "Der → Izq",
+  "searchInBook": "Buscar en el libro",
+  "wordOrPhrase": "Palabra o frase",
+  "searching": "Buscando…",
+  "typeAndEnter": "Escribe y pulsa Enter",
+  "noMatches": "Sin coincidencias",
+  "noToc": "Este libro no trae índice",
+  "noBookmarks": "Sin marcadores todavía",
+  "noNotes": "Sin notas todavía",
+  "chapters": "Capítulos",
+  "bookmarks": "Marcadores",
+  "notes": "Notas",
+  "archivedBooks": "Libros archivados",
+  "archivedBooksHint": "No aparecen en la biblioteca. Al restaurarlos vuelven con su progreso, marcadores y subrayados. También puedes eliminarlos del dispositivo.",
+  "noArchivedBooks": "No hay libros archivados",
+  "restore": "Restaurar",
+  "deleteFromDevice": "Eliminar del dispositivo",
+  "exportProgressTitle": "Exportar progreso de lectura",
+  "progressExported": "Progreso de lectura exportado",
+  "exportFailed": "No se pudo exportar el progreso. Inténtalo de nuevo.",
+  "importProgressTitle": "Importar progreso de lectura",
+  "importFailed": "No se pudo importar el progreso. Inténtalo de nuevo.",
+  "backupNoProgress": "El respaldo no tiene progreso para importar",
+  "noNewProgress": "No había progreso nuevo que importar",
+  "backupTooLarge": "El archivo es demasiado grande",
+  "backupInvalid": "El archivo no es un respaldo válido",
+  "backupNotLanna": "El archivo no es un respaldo de progreso de Lanna",
+  "backupNoBooks": "El respaldo no contiene libros",
+  "linkOpenFailed": "No se pudo abrir el enlace",
+  "pageAnimation": "Animación de paso de página",
+  "pageAnimationHint": "Efecto al avanzar entre páginas",
+  "animationCurl": "Pasar hoja",
+  "animationSlide": "Deslizar",
+  "animationFade": "Desvanecer",
+  "animationNone": "Ninguna",
+  "edgeTaps": "Tocar los bordes para pasar página",
+  "keepAwake": "Mantener la pantalla encendida al leer",
+  "dailyGoalSetting": "Meta diaria de lectura",
+  "dailyGoalHint": "La racha cuenta los días en que la cumples",
+  "syncDrive": "Sincronización · Google Drive",
+  "notConnected": "Sin conectar",
+  "driveSoon": "Sincronización con Drive: próximamente",
+  "connect": "Conectar",
+  "readingProgress": "Progreso de lectura",
+  "exportProgress": "Exportar progreso",
+  "exportProgressHint": "Guarda un respaldo para llevarlo a otro dispositivo",
+  "export": "Exportar",
+  "importProgress": "Importar progreso",
+  "importProgressHint": "Los libros se reconocen por su contenido; se conserva siempre la lectura más reciente",
+  "import": "Importar",
+  "libraryFolders": "Carpetas de la biblioteca",
+  "about": "Acerca de",
+  "removeFolderBody": "Sus libros dejarán de aparecer en la biblioteca, junto con su progreso, marcadores y subrayados. Los archivos no se tocan.",
+  "noFolderHint": "Todavía no elegiste ninguna carpeta. Lanna lee los libros desde ahí, sin copiarlos.",
+  "foldersHint": "Lanna lee los libros desde estas carpetas, sin copiarlos.",
+  "removeFolder": "Quitar carpeta",
+  "sourceCode": "Código fuente",
+  "checkUpdates": "Buscar actualizaciones",
+  "language": "Idioma",
+  "appLanguage": "Idioma de la aplicación",
+  "languageSystem": "Sistema",
+  "today": "Hoy",
+  "dailyGoal": "Meta diaria",
+  "statsEmptyHint": "Lanna empieza a medir desde ahora. Cada vez que leas se suma el tiempo, y deja de contar tras 5 minutos sin pasar página ni tocar la pantalla.",
+  "goalMet": "Meta cumplida",
+  "streak": "Racha",
+  "noStreak": "Sin racha",
+  "streakHint": "Cumple la meta para empezar una",
+  "thisWeek": "Esta semana",
+  "sinceMonday": "Desde el lunes",
+  "thisYear": "Este año",
+  "last12Months": "ÚLTIMOS 12 MESES",
+  "noReading": "Sin lectura",
+  "less": "Menos",
+  "more": "Más",
+  "comicCbrFromFolder": "Este dispositivo no puede leer CBR desde una carpeta",
+  "comicInvalid": "El archivo no es un CBZ ni un CBR válido",
+  "comicStopped": "El lector de cómics se detuvo",
+  "comicNoPages": "El cómic no tiene páginas",
+  "comicClosed": "El cómic está cerrado",
+  "comicDamaged": "El CBZ está dañado",
+  "dateShortPattern": "dd/MM/yyyy",
+  "dayPattern": "EEEE d 'de' MMMM",
+  "authorsCount": "{count, plural, =1{1 autor} other{{count} autores}}",
+  "@authorsCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "booksCount": "{count, plural, =1{1 libro} other{{count} libros}}",
+  "@booksCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "volumesCount": "{count, plural, =1{1 tomo} other{{count} tomos}}",
+  "@volumesCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "collectionsCount": "{count, plural, =1{1 colección} other{{count} colecciones}}",
+  "@collectionsCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "foldersCount": "{count, plural, =1{1 carpeta} other{{count} carpetas}}",
+  "@foldersCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "selectedCount": "{count, plural, =1{1 seleccionado} other{{count} seleccionados}}",
+  "@selectedCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "scanNewBooks": "{count, plural, =1{1 libro nuevo} other{{count} libros nuevos}}",
+  "@scanNewBooks": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "scanMoved": "{count, plural, =1{1 movido} other{{count} movidos}}",
+  "@scanMoved": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "scanMissing": "{count, plural, =1{1 no encontrado} other{{count} no encontrados}}",
+  "@scanMissing": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "scanFailed": "{count, plural, =1{1 no se pudo leer} other{{count} no se pudieron leer}}",
+  "@scanFailed": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "matchesCount": "{count, plural, =1{1 coincidencia} other{{count} coincidencias}}",
+  "@matchesCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "daysCount": "{count, plural, =1{1 día} other{{count} días}}",
+  "@daysCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "finishedBooksCount": "{count, plural, =1{1 libro terminado} other{{count} libros terminados}}",
+  "@finishedBooksCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "backupUpToDate": "{count, plural, =1{1 libro ya al día} other{{count} libros ya al día}}",
+  "@backupUpToDate": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "backupUnmatched": "{count, plural, =1{1 libro no está en esta biblioteca} other{{count} libros no están en esta biblioteca}}",
+  "@backupUnmatched": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "backupInvalidEntries": "{count, plural, =1{1 entrada no válida} other{{count} entradas no válidas}}",
+  "@backupInvalidEntries": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "progressImportedIn": "{count, plural, =1{Progreso importado en 1 libro} other{Progreso importado en {count} libros}}",
+  "@progressImportedIn": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "chaptersCount": "{count, plural, =1{1 capítulo} other{{count} capítulos}}",
+  "@chaptersCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "pagesCount": "{count, plural, =1{1 página} other{{count} páginas}}",
+  "@pagesCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "seriesReadCount": "{count, plural, =1{1 leído} other{{count} leídos}}",
+  "@seriesReadCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "scanNoAccess": "sin acceso a «{name}»",
+  "@scanNoAccess": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "scanFolderFailed": "No se pudo revisar la carpeta: {error}",
+  "@scanFolderFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "volumesOutOfSeries": "{volumes} fuera de su serie",
+  "@volumesOutOfSeries": {
+    "placeholders": {
+      "volumes": {
+        "type": "String"
+      }
+    }
+  },
+  "volumesInSeries": "{volumes} en «{name}»",
+  "@volumesInSeries": {
+    "placeholders": {
+      "volumes": {
+        "type": "String"
+      },
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "scanningProgress": "Revisando tus carpetas… {count} de {total}",
+  "@scanningProgress": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "errorDetail": "Error: {error}",
+  "@errorDetail": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "noResultsFor": "Sin resultados para «{query}»",
+  "@noResultsFor": {
+    "placeholders": {
+      "query": {
+        "type": "String"
+      }
+    }
+  },
+  "bookMissingInFolder": "No se encuentra «{title}» en su carpeta. Revisa la carpeta y actualiza la biblioteca.",
+  "@bookMissingInFolder": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "bookArchived": "«{title}» archivado",
+  "@bookArchived": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "bookDeleted": "«{title}» eliminado",
+  "@bookDeleted": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "archiveBookTitle": "¿Archivar «{title}»?",
+  "@archiveBookTitle": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "deleteBookTitle": "¿Eliminar «{title}»?",
+  "@deleteBookTitle": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "addedOn": "Añadido {date}",
+  "@addedOn": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "finishedOn": "Terminado {date}",
+  "@finishedOn": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "readingProgressPercent": "Progreso de lectura: {percent} %",
+  "@readingProgressPercent": {
+    "placeholders": {
+      "percent": {
+        "type": "int"
+      }
+    }
+  },
+  "timeRead": "Tiempo leído: {time}",
+  "@timeRead": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "timeReadRemaining": "{read} · faltan ~{time}",
+  "@timeReadRemaining": {
+    "placeholders": {
+      "read": {
+        "type": "String"
+      },
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "seriesOf": "Serie de «{title}»",
+  "@seriesOf": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "moveVolumesToSeries": "Mover {count} tomos a una serie",
+  "@moveVolumesToSeries": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "archiveSeriesTitle": "¿Archivar «{name}»?",
+  "@archiveSeriesTitle": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "archiveSeriesBody": "Los {count} tomos dejarán de aparecer en la biblioteca, pero conservan su progreso, marcadores y subrayados. Los archivos se quedan en su carpeta. Puedes recuperarlos desde Ajustes → Libros archivados.",
+  "@archiveSeriesBody": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "splitSeriesTitle": "¿Separar «{name}»?",
+  "@splitSeriesTitle": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "splitSeriesBody": "Los {count} tomos volverán a aparecer como libros sueltos en la biblioteca. No se borra ningún archivo ni progreso de lectura.",
+  "@splitSeriesBody": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "seriesSplit": "«{name}» separada en {count} tomos",
+  "@seriesSplit": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "seriesArchived": "«{name}» archivada · {count} tomos",
+  "@seriesArchived": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "bookOpenError": "No se pudo abrir el libro\n{error}",
+  "@bookOpenError": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "pageRange": "Páginas {first}–{last} de {total}",
+  "@pageRange": {
+    "placeholders": {
+      "first": {
+        "type": "int"
+      },
+      "last": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "pageOf": "Página {page} de {total}",
+  "@pageOf": {
+    "placeholders": {
+      "page": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "pageShortOf": "Pág. {page} de {total}",
+  "@pageShortOf": {
+    "placeholders": {
+      "page": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "chapterReadError": "No se pudo leer el capítulo {chapter}",
+  "@chapterReadError": {
+    "placeholders": {
+      "chapter": {
+        "type": "int"
+      }
+    }
+  },
+  "chapterOf": "Capítulo {chapter} de {total}",
+  "@chapterOf": {
+    "placeholders": {
+      "chapter": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "minutesLeft": "quedan ~{mins} min",
+  "@minutesLeft": {
+    "placeholders": {
+      "mins": {
+        "type": "int"
+      }
+    }
+  },
+  "bookDeletedFromDevice": "«{title}» eliminado del dispositivo",
+  "@bookDeletedFromDevice": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "deleteDeniedFolder": "Lanna no tiene permiso para borrar en «{folder}». Vuelve a añadir la carpeta desde la Biblioteca para concederlo.",
+  "@deleteDeniedFolder": {
+    "placeholders": {
+      "folder": {
+        "type": "String"
+      }
+    }
+  },
+  "deleteDenied": "Lanna no tiene permiso para borrar en esa carpeta. Vuelve a añadir la carpeta desde la Biblioteca para concederlo.",
+  "deleteFailed": "No se pudo eliminar «{title}». Inténtalo de nuevo.",
+  "@deleteFailed": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "deleteFromDeviceTitle": "¿Eliminar «{title}» del dispositivo?",
+  "@deleteFromDeviceTitle": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "deleteFromDeviceBody": "Se borrará el archivo «{file}» y se quitará de Lanna junto con su progreso, marcadores, subrayados y tiempo de lectura. No se puede deshacer.",
+  "@deleteFromDeviceBody": {
+    "placeholders": {
+      "file": {
+        "type": "String"
+      }
+    }
+  },
+  "deleteFromFolderBody": "Se borrará el archivo «{file}» de la carpeta «{folder}» y se quitará de Lanna junto con su progreso, marcadores, subrayados y tiempo de lectura. No se puede deshacer.",
+  "@deleteFromFolderBody": {
+    "placeholders": {
+      "file": {
+        "type": "String"
+      },
+      "folder": {
+        "type": "String"
+      }
+    }
+  },
+  "removeFolderTitle": "¿Quitar «{name}»?",
+  "@removeFolderTitle": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "archivedBooksCount": "Libros archivados · {count}",
+  "@archivedBooksCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "minutesPerDay": "{minutes} min al día",
+  "@minutesPerDay": {
+    "placeholders": {
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
+  "goalMinutes": "Meta: {goal} min",
+  "@goalMinutes": {
+    "placeholders": {
+      "goal": {
+        "type": "int"
+      }
+    }
+  },
+  "timeMissing": "Faltan {time}",
+  "@timeMissing": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "bestStreak": "Mejor: {days}",
+  "@bestStreak": {
+    "placeholders": {
+      "days": {
+        "type": "String"
+      }
+    }
+  },
+  "comicExtractFailed": "No se pudo extraer el CBR: {detail}",
+  "@comicExtractFailed": {
+    "placeholders": {
+      "detail": {
+        "type": "String"
+      }
+    }
+  },
+  "comicReadFailed": "No se pudo leer el cómic: {detail}",
+  "@comicReadFailed": {
+    "placeholders": {
+      "detail": {
+        "type": "String"
+      }
+    }
+  },
+  "weekdayFirst": "L",
+  "weekdayThird": "X",
+  "weekdayFifth": "V"
+}

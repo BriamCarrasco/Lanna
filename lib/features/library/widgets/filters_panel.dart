@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/tokens.dart';
+import '../../../l10n/l10n.dart';
 import '../library_filters.dart';
 
 const _panelWidth = 340.0;
@@ -18,7 +19,7 @@ Future<void> showFiltersPanel(
   return showGeneralDialog<void>(
     context: anchor,
     barrierDismissible: true,
-    barrierLabel: 'Cerrar filtros',
+    barrierLabel: anchor.l10n.closeFilters,
     barrierColor: Colors.black.withValues(alpha: 0.35),
     transitionDuration: LannaMotion.fast,
     pageBuilder: (context, _, _) => _AdaptivePanel(
@@ -191,7 +192,7 @@ class _FiltersPanelState extends State<FiltersPanel> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Text(
-            'Filtros',
+            context.l10n.filters,
             style: LannaType.base.copyWith(
               fontFamily: AppFonts.serif,
               fontWeight: FontWeight.w600,
@@ -200,11 +201,11 @@ class _FiltersPanelState extends State<FiltersPanel> {
           ),
           const SizedBox(height: LannaSpacing.s4),
           _Group(
-            label: 'Formato',
+            label: context.l10n.format,
             children: [
               for (final f in FormatFilter.values)
                 FilterPill(
-                  label: f.label,
+                  label: f.label(context.l10n),
                   selected: _filters.format == f,
                   onTap: () => _set(_filters.copyWith(format: f)),
                 ),
@@ -212,11 +213,11 @@ class _FiltersPanelState extends State<FiltersPanel> {
           ),
           const SizedBox(height: LannaSpacing.s4),
           _Group(
-            label: 'Estado',
+            label: context.l10n.status,
             children: [
               for (final f in ReadFilter.values)
                 FilterPill(
-                  label: f.label,
+                  label: f.label(context.l10n),
                   selected: _filters.read == f,
                   onTap: () => _set(_filters.copyWith(read: f)),
                 ),
@@ -234,11 +235,11 @@ class _FiltersPanelState extends State<FiltersPanel> {
                 onPressed: _filters.active
                     ? () => _set(const LibraryFilters())
                     : null,
-                child: const Text('Quitar filtros'),
+                child: Text(context.l10n.clearFilters),
               ),
               FilledButton(
                 onPressed: () => Navigator.of(context).pop(),
-                child: const Text('Listo'),
+                child: Text(context.l10n.done),
               ),
             ],
           ),
@@ -349,7 +350,7 @@ class _FiltersButtonState extends State<FiltersButton> {
     final active = count > 0;
     final tint = active ? LannaColors.accentStrong : LannaColors.textMuted;
     return Tooltip(
-      message: 'Filtros',
+      message: context.l10n.filters,
       child: InkWell(
         borderRadius: LannaRadii.brPill,
         onTap: () => showFiltersPanel(
@@ -375,7 +376,7 @@ class _FiltersButtonState extends State<FiltersButton> {
               Icon(Icons.tune, size: 14, color: tint),
               const SizedBox(width: LannaSpacing.s1 + 2),
               Text(
-                'Filtros',
+                context.l10n.filters,
                 style: LannaType.sm.copyWith(
                   color: active ? LannaColors.accentStrong : LannaColors.text,
                 ),

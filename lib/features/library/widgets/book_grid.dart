@@ -5,6 +5,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/tokens.dart';
 import '../../../core/widgets/pressable.dart';
 import '../../../data/local/app_database.dart';
+import '../../../l10n/l10n.dart';
 import '../series_group.dart';
 import 'book_actions.dart';
 import 'book_cover.dart';
@@ -236,7 +237,7 @@ class SeriesGridTile extends StatelessWidget {
             ),
           ),
           Text(
-            '$count ${count == 1 ? 'tomo' : 'tomos'}',
+            context.l10n.volumesCount(count),
             maxLines: 1,
             style: LannaType.micro.copyWith(color: LannaColors.textMuted),
           ),
@@ -356,7 +357,7 @@ class BookGridTile extends StatelessWidget {
           ),
           if (!book.available)
             Text(
-              'No disponible',
+              context.l10n.unavailable,
               style: LannaType.micro.copyWith(color: LannaColors.danger),
             )
           else if (book.author != null)

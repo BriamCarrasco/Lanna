@@ -172,6 +172,8 @@ class ReaderPrefs extends Table {
 
   IntColumn get dailyGoalMinutes => integer().withDefault(const Constant(20))();
 
+  TextColumn get language => text().withDefault(const Constant('system'))();
+
   @override
   Set<Column<Object>> get primaryKey => {id};
 }

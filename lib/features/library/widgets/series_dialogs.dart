@@ -8,6 +8,7 @@ import '../../../core/theme/tokens.dart';
 import '../../../data/book_repository.dart';
 import '../../../data/comic/comic_book.dart';
 import '../../../data/local/app_database.dart';
+import '../../../l10n/l10n.dart';
 import '../series_group.dart';
 
 List<String> seriesNames(List<Book> books) {
@@ -49,8 +50,8 @@ Future<void> editBookSeries(
   final current = seriesKeyOf(book) == null ? '' : book.series!.trim();
   final result = await askSeriesName(
     context,
-    title: 'Serie de «${book.title}»',
-    confirm: 'Guardar',
+    title: context.l10n.seriesOf(book.title),
+    confirm: context.l10n.save,
     suggestions: seriesNames(library),
     initial: current,
     allowRemove: current.isNotEmpty,
@@ -67,8 +68,8 @@ Future<String?> renameSeries(
   final library = ref.read(libraryProvider).valueOrNull ?? const <Book>[];
   final name = await askSeriesName(
     context,
-    title: 'Renombrar serie',
-    confirm: 'Renombrar',
+    title: context.l10n.renameSeries,
+    confirm: context.l10n.rename,
     suggestions: [
       for (final n in seriesNames(library))
         if (foldForSearch(n) != series.key) n,
@@ -96,9 +97,9 @@ Future<SeriesMove?> moveBooksToSeries(
   final name = await askSeriesName(
     context,
     title: books.length == 1
-        ? 'Mover a una serie'
-        : 'Mover ${books.length} tomos a una serie',
-    confirm: 'Mover',
+        ? context.l10n.moveToASeries
+        : context.l10n.moveVolumesToSeries(books.length),
+    confirm: context.l10n.move,
     suggestions: seriesNames(library),
     initial: shared ? books.first.series!.trim() : '',
     allowRemove: keys.any((k) => k != null),
@@ -120,21 +121,16 @@ Future<bool> confirmArchiveSeries(
     context: context,
     builder: (context) => AlertDialog(
       backgroundColor: LannaColors.surfaceHigh,
-      title: Text('¿Archivar «$name»?'),
-      content: Text(
-        'Los $volumes tomos dejarán de aparecer en la biblioteca, pero '
-        'conservan su progreso, marcadores y subrayados. Los archivos se '
-        'quedan en su carpeta. Puedes recuperarlos desde Ajustes → Libros '
-        'archivados.',
-      ),
+      title: Text(context.l10n.archiveSeriesTitle(name)),
+      content: Text(context.l10n.archiveSeriesBody(volumes)),
       actions: [
         TextButton(
           onPressed: () => Navigator.of(context).pop(false),
-          child: const Text('Cancelar'),
+          child: Text(context.l10n.cancel),
         ),
         FilledButton(
           onPressed: () => Navigator.of(context).pop(true),
-          child: const Text('Archivar'),
+          child: Text(context.l10n.archive),
         ),
       ],
     ),
@@ -151,19 +147,16 @@ Future<bool> confirmSplitSeries(
     context: context,
     builder: (context) => AlertDialog(
       backgroundColor: LannaColors.surfaceHigh,
-      title: Text('¿Separar «$name»?'),
-      content: Text(
-        'Los $volumes tomos volverán a aparecer como libros sueltos en la '
-        'biblioteca. No se borra ningún archivo ni progreso de lectura.',
-      ),
+      title: Text(context.l10n.splitSeriesTitle(name)),
+      content: Text(context.l10n.splitSeriesBody(volumes)),
       actions: [
         TextButton(
           onPressed: () => Navigator.of(context).pop(false),
-          child: const Text('Cancelar'),
+          child: Text(context.l10n.cancel),
         ),
         FilledButton(
           onPressed: () => Navigator.of(context).pop(true),
-          child: const Text('Separar'),
+          child: Text(context.l10n.split),
         ),
       ],
     ),
@@ -237,7 +230,7 @@ class _SeriesNameDialogState extends State<_SeriesNameDialog> {
             controller: controller,
             focusNode: focus,
             autofocus: true,
-            decoration: const InputDecoration(hintText: 'Nombre de la serie'),
+            decoration: InputDecoration(hintText: context.l10n.seriesName),
             onSubmitted: (_) => _submit(),
           ),
           optionsViewBuilder: (context, onSelected, options) => Align(
@@ -287,11 +280,11 @@ class _SeriesNameDialogState extends State<_SeriesNameDialog> {
         if (widget.allowRemove)
           TextButton(
             onPressed: () => Navigator.of(context).pop(''),
-            child: const Text('Quitar de la serie'),
+            child: Text(context.l10n.removeFromSeries),
           ),
         TextButton(
           onPressed: () => Navigator.of(context).pop(),
-          child: const Text('Cancelar'),
+          child: Text(context.l10n.cancel),
         ),
         ValueListenableBuilder<TextEditingValue>(
           valueListenable: _controller,

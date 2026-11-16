@@ -3,47 +3,22 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart' show DateFormat;
 
 import '../../core/theme/app_theme.dart';
 import '../../core/theme/tokens.dart';
 import '../../core/widgets/lanna_menu.dart';
+import '../../l10n/l10n.dart';
 import '../library/widgets/section_scaffold.dart';
 import '../reader/reader_settings_provider.dart';
 import '../reader/reader_theme.dart';
 import 'reading_stats.dart';
 import 'stats_providers.dart';
 
-const _months = [
-  'enero',
-  'febrero',
-  'marzo',
-  'abril',
-  'mayo',
-  'junio',
-  'julio',
-  'agosto',
-  'septiembre',
-  'octubre',
-  'noviembre',
-  'diciembre',
-];
-
-const _weekdays = [
-  'lunes',
-  'martes',
-  'miércoles',
-  'jueves',
-  'viernes',
-  'sábado',
-  'domingo',
-];
-
-String _dayLabel(DateTime day, DateTime today) {
-  if (day == today) return 'Hoy';
-  return '${_weekdays[day.weekday - 1]} ${day.day} de ${_months[day.month - 1]}';
+String _dayLabel(DateTime day, DateTime today, AppLocalizations l10n) {
+  if (day == today) return l10n.today;
+  return DateFormat(l10n.dayPattern, l10n.localeName).format(day);
 }
-
-String _plural(int n, String one, String many) => n == 1 ? one : many;
 
 class StatsScreen extends ConsumerWidget {
   const StatsScreen({super.key});
@@ -55,7 +30,7 @@ class StatsScreen extends ConsumerWidget {
     final empty = ref.watch(readingSessionsProvider).valueOrNull?.isEmpty;
 
     return SectionScaffold(
-      title: 'Estadísticas',
+      title: context.l10n.stats,
       actions: const [_GoalButton()],
       child: stats == null
           ? const SizedBox.shrink()
@@ -99,14 +74,14 @@ class _GoalButton extends ConsumerWidget {
         ref.watch(readerSettingsProvider).valueOrNull?.dailyGoalMinutes ?? 20;
     return PopupMenuButton<int>(
       initialValue: goal,
-      tooltip: 'Meta diaria',
+      tooltip: context.l10n.dailyGoal,
       position: PopupMenuPosition.under,
       onSelected: ref.read(readerSettingsControllerProvider).setDailyGoal,
       itemBuilder: (_) => [
         for (final minutes in ReaderSettings.dailyGoals)
           lannaChoiceItem(
             value: minutes,
-            label: '$minutes min al día',
+            label: context.l10n.minutesPerDay(minutes),
             selected: minutes == goal,
           ),
       ],
@@ -125,7 +100,7 @@ class _GoalButton extends ConsumerWidget {
             ),
             const SizedBox(width: LannaSpacing.s2),
             Text(
-              'Meta: $goal min',
+              context.l10n.goalMinutes(goal),
               style: LannaType.sm.copyWith(color: LannaColors.text),
             ),
           ],
@@ -153,9 +128,7 @@ class _StartHint extends StatelessWidget {
           const SizedBox(width: LannaSpacing.s3),
           Expanded(
             child: Text(
-              'Lanna empieza a medir desde ahora. Cada vez que leas se suma '
-              'el tiempo, y deja de contar tras 5 minutos sin pasar página '
-              'ni tocar la pantalla.',
+              context.l10n.statsEmptyHint,
               style: LannaType.sm.copyWith(color: LannaColors.text),
             ),
           ),
@@ -183,7 +156,7 @@ class _SummaryGrid extends StatelessWidget {
           spacing: gap,
           runSpacing: gap,
           children: [
-            for (final card in _cards())
+            for (final card in _cards(context))
               SizedBox(width: cardWidth, child: card),
           ],
         );
@@ -191,27 +164,26 @@ class _SummaryGrid extends StatelessWidget {
     );
   }
 
-  List<Widget> _cards() {
+  List<Widget> _cards(BuildContext context) {
     final missing = math.max(0, stats.goalSeconds - stats.todaySeconds);
     final streak = stats.currentStreak;
     return [
       _StatCard(
-        label: 'Hoy',
+        label: context.l10n.today,
         value: formatReadingTime(stats.todaySeconds),
         detail: missing == 0
-            ? 'Meta cumplida'
-            : 'Faltan ${formatReadingTime(missing)}',
+            ? context.l10n.goalMet
+            : context.l10n.timeMissing(formatReadingTime(missing)),
         leading: _GoalRing(progress: stats.todayProgress),
       ),
       _StatCard(
-        label: 'Racha',
+        label: context.l10n.streak,
         value: streak == 0
-            ? 'Sin racha'
-            : '$streak ${_plural(streak, 'día', 'días')}',
+            ? context.l10n.noStreak
+            : context.l10n.daysCount(streak),
         detail: stats.bestStreak > 0
-            ? 'Mejor: ${stats.bestStreak} '
-                  '${_plural(stats.bestStreak, 'día', 'días')}'
-            : 'Cumple la meta para empezar una',
+            ? context.l10n.bestStreak(context.l10n.daysCount(stats.bestStreak))
+            : context.l10n.streakHint,
         leading: Icon(
           Icons.local_fire_department_outlined,
           size: 26,
@@ -221,15 +193,14 @@ class _SummaryGrid extends StatelessWidget {
         ),
       ),
       _StatCard(
-        label: 'Esta semana',
+        label: context.l10n.thisWeek,
         value: formatReadingTime(stats.weekSeconds),
-        detail: 'Desde el lunes',
+        detail: context.l10n.sinceMonday,
       ),
       _StatCard(
-        label: 'Este año',
+        label: context.l10n.thisYear,
         value: formatReadingTime(stats.yearSeconds),
-        detail:
-            '$finished ${_plural(finished, 'libro terminado', 'libros terminados')}',
+        detail: context.l10n.finishedBooksCount(finished),
       ),
     ];
   }
@@ -384,7 +355,7 @@ class _YearCardState extends State<_YearCard> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Text(
-            'ÚLTIMOS 12 MESES',
+            context.l10n.last12Months,
             style: LannaType.xs.copyWith(color: LannaColors.textMuted),
           ),
           const SizedBox(height: LannaSpacing.s3),
@@ -400,8 +371,8 @@ class _YearCardState extends State<_YearCard> {
             runSpacing: LannaSpacing.s2,
             children: [
               Text(
-                '${_dayLabel(day, stats.today)} · '
-                '${seconds == 0 ? 'Sin lectura' : formatReadingTime(seconds)}',
+                '${_dayLabel(day, stats.today, context.l10n)} · '
+                '${seconds == 0 ? context.l10n.noReading : formatReadingTime(seconds)}',
                 style: LannaType.sm.copyWith(color: LannaColors.text),
               ),
               const _Legend(),
@@ -422,7 +393,7 @@ class _Legend extends StatelessWidget {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Text('Menos', style: muted),
+        Text(context.l10n.less, style: muted),
         const SizedBox(width: LannaSpacing.s1 + 2),
         for (var level = 0; level <= 4; level++)
           Container(
@@ -435,7 +406,7 @@ class _Legend extends StatelessWidget {
             ),
           ),
         const SizedBox(width: LannaSpacing.s1 + 2),
-        Text('Más', style: muted),
+        Text(context.l10n.more, style: muted),
       ],
     );
   }
@@ -483,6 +454,7 @@ class _YearCalendar extends StatelessWidget {
                 stats: stats,
                 layout: layout,
                 selected: selected,
+                locale: context.l10n.localeName,
               ),
             ),
           ),
@@ -528,7 +500,11 @@ class _WeekdayLabels extends StatelessWidget {
       height: layout.size.height,
       child: Stack(
         children: [
-          for (final (row, text) in const [(0, 'L'), (2, 'X'), (4, 'V')])
+          for (final (row, text) in [
+            (0, context.l10n.weekdayFirst),
+            (2, context.l10n.weekdayThird),
+            (4, context.l10n.weekdayFifth),
+          ])
             Positioned(
               left: 0,
               top: layout.cellRect(0, row).top,
@@ -586,26 +562,13 @@ class _CalendarPainter extends CustomPainter {
     required this.stats,
     required this.layout,
     required this.selected,
+    required this.locale,
   });
 
+  final String locale;
   final ReadingStats stats;
   final _CalendarLayout layout;
   final DateTime? selected;
-
-  static const _shortMonths = [
-    'ene',
-    'feb',
-    'mar',
-    'abr',
-    'may',
-    'jun',
-    'jul',
-    'ago',
-    'sep',
-    'oct',
-    'nov',
-    'dic',
-  ];
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -644,7 +607,9 @@ class _CalendarPainter extends CustomPainter {
           _monthStartingIn(layout.weeks[w]) ??
           (w == 0 ? layout.weeks[w].month : null);
       if (month == null) continue;
-      final painter = _label(_shortMonths[month - 1]);
+      final painter = _label(
+        DateFormat.MMM(locale).format(DateTime(2000, month)),
+      );
       final x = math.min(
         layout.labelWidth + w * layout.step,
         layout.size.width - painter.width,

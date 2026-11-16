@@ -31,6 +31,9 @@ dependencies:
   crypto: ^3.0.7
   rar: ^0.3.0
   ffi: ^2.2.0
+  flutter_localizations:
+    sdk: flutter
+  intl: any
 dev_dependencies:
   flutter_test:
     sdk: flutter
@@ -49,6 +52,7 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+  generate: true
 
   assets:
     - assets/logo/
