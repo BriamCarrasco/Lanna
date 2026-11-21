@@ -48,8 +48,10 @@ const Key readerIncomingKey = ValueKey('reader-incoming');
 int foldFor(int logical, {required bool rtl}) => rtl ? -logical : logical;
 
 @visibleForTesting
-int turnForTravel(double travel, {required bool rtl}) =>
-    (rtl ? travel > 0 : travel < 0) ? 1 : -1;
+int turnForTravel(double travel, {required bool rtl}) {
+  final forward = rtl ? travel > 0 : travel < 0;
+  return forward ? 1 : -1;
+}
 
 @visibleForTesting
 int turnForEdge({required bool leading, required bool rtl}) =>
@@ -959,51 +961,45 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
 
     return Scaffold(
       backgroundColor: settings.preset.background,
-      body: _error != null
-          ? _ErrorView(message: _error!)
-          : _engine == null
-          ? const Center(child: CircularProgressIndicator())
-          : Focus(
-              focusNode: _focusNode,
-              autofocus: true,
-              onKeyEvent: _onKey,
-              child: Stack(
-                children: [
-                  _engineLayer(settings),
-                  _gestureLayer(),
-                  ?_curl.overlay(),
-                  ?_selectionToolbar(),
-                  ReaderBar(
-                    visible: barsVisible,
-                    fromTop: true,
-                    child: _topBar(),
-                  ),
-                  ReaderBar(
-                    visible: barsVisible,
-                    fromTop: false,
-                    child: _bottomBar(),
-                  ),
-                  ReaderCornerPanel(
-                    open: _showAppearance,
-                    right: 26,
-                    bottom: 58,
-                    child: _showAppearance
-                        ? _appearancePanel(settings)
-                        : const SizedBox.shrink(),
-                  ),
-                  ReaderSidePanel(
-                    open: _showToc,
-                    child: _showToc ? _tocPanel() : const SizedBox.shrink(),
-                  ),
-                  ReaderSidePanel(
-                    open: _showSearch,
-                    child: _showSearch
-                        ? _searchPanel()
-                        : const SizedBox.shrink(),
-                  ),
-                ],
+      body: switch ((_error, _engine)) {
+        (final String error, _) => _ErrorView(message: error),
+        (_, null) => const Center(child: CircularProgressIndicator()),
+        _ => Focus(
+          focusNode: _focusNode,
+          autofocus: true,
+          onKeyEvent: _onKey,
+          child: Stack(
+            children: [
+              _engineLayer(settings),
+              _gestureLayer(),
+              ?_curl.overlay(),
+              ?_selectionToolbar(),
+              ReaderBar(visible: barsVisible, fromTop: true, child: _topBar()),
+              ReaderBar(
+                visible: barsVisible,
+                fromTop: false,
+                child: _bottomBar(),
               ),
-            ),
+              ReaderCornerPanel(
+                open: _showAppearance,
+                right: 26,
+                bottom: 58,
+                child: _showAppearance
+                    ? _appearancePanel(settings)
+                    : const SizedBox.shrink(),
+              ),
+              ReaderSidePanel(
+                open: _showToc,
+                child: _showToc ? _tocPanel() : const SizedBox.shrink(),
+              ),
+              ReaderSidePanel(
+                open: _showSearch,
+                child: _showSearch ? _searchPanel() : const SizedBox.shrink(),
+              ),
+            ],
+          ),
+        ),
+      },
     );
   }
 

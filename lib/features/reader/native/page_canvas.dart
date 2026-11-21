@@ -111,9 +111,9 @@ class _NativePageState extends State<NativePage> {
 
   void _buildNotifiers() {
     for (var i = 0; i < widget.page.fragments.length; i++) {
-      final notifier = SelectionListenerNotifier();
-      notifier.addListener(_onSelectionChanged);
-      _notifiers.add(notifier);
+      _notifiers.add(
+        SelectionListenerNotifier()..addListener(_onSelectionChanged),
+      );
       _keys.add(GlobalKey());
     }
   }
@@ -354,9 +354,11 @@ class _NativePageState extends State<NativePage> {
       style: widget.style
           .styleForRun(fragment.block, run)
           .copyWith(
-            color: tint != null
-                ? highlightInk
-                : (run.href == null ? widget.foreground : widget.linkColor),
+            color: switch ((tint, run.href)) {
+              (Color(), _) => highlightInk,
+              (_, null) => widget.foreground,
+              _ => widget.linkColor,
+            },
             backgroundColor: tint,
           ),
     );

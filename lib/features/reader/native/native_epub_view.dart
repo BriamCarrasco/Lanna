@@ -89,11 +89,14 @@ class _NativeEpubViewState extends State<NativeEpubView>
     final percent = widget.initialPercent ?? 0;
     final resuming = locator != null || percent > 0.001;
 
-    var opened = locator != null
-        ? await _openChapter(locator.chapter, offset: locator.offset)
-        : resuming
-        ? await _goToPercentage(percent)
-        : await _openChapter(0);
+    var opened = switch ((locator, resuming)) {
+      (final ReaderLocator l, _) => await _openChapter(
+        l.chapter,
+        offset: l.offset,
+      ),
+      (_, true) => await _goToPercentage(percent),
+      _ => await _openChapter(0),
+    };
     if (!mounted) return;
     if (!opened && resuming) opened = await _openChapter(0);
     if (!mounted) return;
@@ -225,7 +228,7 @@ class _NativeEpubViewState extends State<NativeEpubView>
               return pages.isNotEmpty && pages.last.end > offset;
             },
     );
-    if (!reached) return false;
+    if (!reached || !mounted) return false;
 
     final page = last
         ? job.pageCount - 1
@@ -437,14 +440,14 @@ class _NativeEpubViewState extends State<NativeEpubView>
         }
         pages = job.pageCount;
       } catch (_) {}
-      if (!live()) return;
+      if (!mounted || round != _countRound) return;
 
       _counts.record(chapter, pages);
       if ((chapter - _chapter).abs() > 2) widget.source.release(chapter);
       if (ready != _numberReady) setState(() {});
     }
 
-    if (!live()) return;
+    if (!mounted || round != _countRound) return;
     setState(() {});
     final counts = _counts.toList();
     if (counts != null && !_countsStored) {
@@ -464,9 +467,12 @@ class _NativeEpubViewState extends State<NativeEpubView>
     if (job == null) return;
     final token = _navToken;
     final target = _page + 1;
-    if (!await _paginate(job, token, until: () => job.pageCount > target)) {
-      return;
-    }
+    final reached = await _paginate(
+      job,
+      token,
+      until: () => job.pageCount > target,
+    );
+    if (!reached || !mounted) return;
     if (_page + 1 < job.pageCount) {
       _target = null;
       setState(() => _page++);

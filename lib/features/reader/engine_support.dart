@@ -33,8 +33,9 @@ Future<ui.Image?> captureBoundary(
 mixin EngineHighlights<T extends StatefulWidget> on State<T> {
   List<HighlightSpec> highlights = const [];
 
-  Future<void> applyHighlights(List<HighlightSpec> value) async {
+  Future<void> applyHighlights(List<HighlightSpec> value) {
     if (mounted) setState(() => highlights = value);
+    return Future.value();
   }
 
   Future<void> addHighlight(String cfi, String color) async {

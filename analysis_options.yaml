@@ -57,5 +57,41 @@ linter:
     avoid_void_async: true
     avoid_slow_async_io: true
 
+dcm:
+  exclude:
+    metrics:
+      - test/**
+  metrics:
+    cyclomatic-complexity:
+      threshold: 20
+    maximum-nesting-level:
+      threshold: 5
+    number-of-parameters:
+      threshold: 5
+    source-lines-of-code:
+      threshold: 80
+  rules:
+    - avoid-unused-parameters
+    - avoid-redundant-async
+    - avoid-redundant-else
+    - avoid-collapsible-if
+    - avoid-self-assignment
+    - avoid-self-compare
+    - avoid-duplicate-collection-elements
+    - avoid-unnecessary-type-casts
+    - avoid-unnecessary-type-assertions
+    - avoid-nested-conditional-expressions
+    - no-equal-then-else
+    - no-equal-arguments
+    - no-boolean-literal-compare
+    - prefer-early-return
+    - avoid-unnecessary-setstate
+    - avoid-unnecessary-stateful-widgets
+    - always-remove-listener
+    - dispose-fields
+    - use-setstate-synchronously
+    - avoid-ref-read-inside-build
+    - avoid-ref-watch-outside-build
+
 # Additional information about this file can be found at
 # https://dart.dev/guides/language/analysis-options

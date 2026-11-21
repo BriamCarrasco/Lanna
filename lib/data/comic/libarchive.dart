@@ -98,15 +98,13 @@ final class LibArchive {
   static final LibArchive? instance = _load();
 
   static LibArchive? _load() {
-    final name = Platform.isWindows
-        ? 'archiveint.dll'
-        : Platform.isMacOS
-        ? '/usr/lib/libarchive.2.dylib'
-        : Platform.isLinux
-        ? 'libarchive.so.13'
-        : Platform.isAndroid
-        ? 'librar_native.so'
-        : null;
+    final name = switch (Platform.operatingSystem) {
+      'windows' => 'archiveint.dll',
+      'macos' => '/usr/lib/libarchive.2.dylib',
+      'linux' => 'libarchive.so.13',
+      'android' => 'librar_native.so',
+      _ => null,
+    };
     if (name == null) return null;
     try {
       return LibArchive._(DynamicLibrary.open(name));

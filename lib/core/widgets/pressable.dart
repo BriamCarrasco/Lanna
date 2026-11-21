@@ -38,13 +38,12 @@ class _PressableState extends State<Pressable> {
   @override
   Widget build(BuildContext context) {
     final reduce = MediaQuery.maybeDisableAnimationsOf(context) ?? false;
-    final scale = reduce
-        ? 1.0
-        : _down
-        ? widget.scale
-        : _hover
-        ? 1.012
-        : 1.0;
+    final scale = switch ((reduce, _down, _hover)) {
+      (true, _, _) => 1.0,
+      (_, true, _) => widget.scale,
+      (_, _, true) => 1.012,
+      _ => 1.0,
+    };
     return MouseRegion(
       onEnter: (_) => _setHover(true),
       onExit: (_) => _setHover(false),

@@ -34,7 +34,7 @@ class EpubArchive {
 
   Uint8List? bytes(String path) {
     final f = _file(path);
-    return f == null ? null : Uint8List.fromList(f.content as List<int>);
+    return f == null ? null : Uint8List.fromList(f.content);
   }
 
   String? string(String path) {
@@ -88,7 +88,7 @@ class EpubArchive {
       throw const FormatException('EPUB sin META-INF/container.xml');
     }
     final doc = XmlDocument.parse(
-      utf8.decode(container.content as List<int>, allowMalformed: true),
+      utf8.decode(container.content, allowMalformed: true),
     );
     final rootfile = doc.findAllElements('rootfile').firstOrNull;
     final fullPath = rootfile?.getAttribute('full-path');

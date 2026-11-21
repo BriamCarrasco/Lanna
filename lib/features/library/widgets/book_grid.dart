@@ -159,11 +159,11 @@ class SelectionIcon extends StatelessWidget {
       child: Icon(
         selected ? Icons.check_circle : Icons.radio_button_unchecked,
         size: 22,
-        color: selected
-            ? LannaColors.accent
-            : onCover
-            ? const Color(0xFFF0E6DF)
-            : LannaColors.textMuted,
+        color: switch ((selected, onCover)) {
+          (true, _) => LannaColors.accent,
+          (_, true) => const Color(0xFFF0E6DF),
+          _ => LannaColors.textMuted,
+        },
       ),
     );
   }

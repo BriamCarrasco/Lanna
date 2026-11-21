@@ -149,7 +149,11 @@ class _SummaryGrid extends StatelessWidget {
     return LayoutBuilder(
       builder: (context, constraints) {
         final width = constraints.maxWidth;
-        final columns = width >= 880 ? 4 : (width >= 330 ? 2 : 1);
+        final columns = switch (width) {
+          >= 880 => 4,
+          >= 330 => 2,
+          _ => 1,
+        };
         const gap = LannaSpacing.s3;
         final cardWidth = (width - gap * (columns - 1)) / columns;
         return Wrap(

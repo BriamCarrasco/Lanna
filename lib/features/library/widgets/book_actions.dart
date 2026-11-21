@@ -116,7 +116,7 @@ Future<void> showBookMenu(
             .setFinished(book.id, finished: book.finishedAt == null),
       );
     case 'collection':
-      unawaited(showCollectionPicker(context, ref, book));
+      unawaited(showCollectionPicker(context, book));
     case 'series':
       unawaited(editBookSeries(context, ref, book));
     case 'select':
@@ -147,11 +147,7 @@ Future<void> showBookMenu(
   }
 }
 
-Future<void> showCollectionPicker(
-  BuildContext context,
-  WidgetRef ref,
-  Book book,
-) {
+Future<void> showCollectionPicker(BuildContext context, Book book) {
   return showDialog(
     context: context,
     builder: (_) => _CollectionPicker(book: book),

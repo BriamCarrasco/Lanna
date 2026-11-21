@@ -180,33 +180,34 @@ class LibrarySearchField extends StatelessWidget {
           ),
           ValueListenableBuilder<TextEditingValue>(
             valueListenable: controller,
-            builder: (context, value, _) => value.text.isEmpty
-                ? (_desktop
-                      ? Padding(
-                          padding: const EdgeInsets.only(right: 6),
-                          child: Text(
-                            Platform.isMacOS ? '⌘F' : 'Ctrl F',
-                            style: LannaType.micro.copyWith(
-                              color: LannaColors.textMuted,
-                            ),
-                          ),
-                        )
-                      : const SizedBox(width: 4))
-                : InkWell(
-                    onTap: () {
-                      controller.clear();
-                      onChanged('');
-                    },
-                    borderRadius: LannaRadii.brPill,
-                    child: const Padding(
-                      padding: EdgeInsets.all(LannaSpacing.s1 + 2),
-                      child: Icon(
-                        Icons.close,
-                        size: 14,
-                        color: LannaColors.textMuted,
-                      ),
-                    ),
+            builder: (context, value, _) => switch ((
+              value.text.isEmpty,
+              _desktop,
+            )) {
+              (true, true) => Padding(
+                padding: const EdgeInsets.only(right: 6),
+                child: Text(
+                  Platform.isMacOS ? '⌘F' : 'Ctrl F',
+                  style: LannaType.micro.copyWith(color: LannaColors.textMuted),
+                ),
+              ),
+              (true, false) => const SizedBox(width: 4),
+              _ => InkWell(
+                onTap: () {
+                  controller.clear();
+                  onChanged('');
+                },
+                borderRadius: LannaRadii.brPill,
+                child: const Padding(
+                  padding: EdgeInsets.all(LannaSpacing.s1 + 2),
+                  child: Icon(
+                    Icons.close,
+                    size: 14,
+                    color: LannaColors.textMuted,
                   ),
+                ),
+              ),
+            },
           ),
         ],
       ),

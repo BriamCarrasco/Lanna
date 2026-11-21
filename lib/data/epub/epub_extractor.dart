@@ -23,7 +23,7 @@ abstract final class EpubExtractor {
 
       final out = File(target);
       out.parent.createSync(recursive: true);
-      out.writeAsBytesSync(file.content as List<int>);
+      out.writeAsBytesSync(file.content);
     }
 
     marker.writeAsStringSync('');

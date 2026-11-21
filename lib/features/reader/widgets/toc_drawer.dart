@@ -167,9 +167,11 @@ class _TocDrawerState extends State<TocDrawer> {
             child: Text(
               row.entry.label,
               style: LannaType.sm.copyWith(
-                fontWeight: active
-                    ? FontWeight.w600
-                    : (row.depth == 0 ? FontWeight.w500 : FontWeight.w400),
+                fontWeight: switch ((active, row.depth)) {
+                  (true, _) => FontWeight.w600,
+                  (_, 0) => FontWeight.w500,
+                  _ => FontWeight.w400,
+                },
                 color: active ? chrome.onBar : chrome.onBarMuted,
               ),
             ),

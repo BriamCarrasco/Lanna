@@ -47,11 +47,11 @@ class ComicInfo {
 
     String? title;
     if (series != null) {
-      title = number != null
-          ? '$series #$number'
-          : volume != null
-          ? '$series Vol. $volume'
-          : series;
+      title = switch ((number, volume)) {
+        (final String n, _) => '$series #$n',
+        (_, final String v) => '$series Vol. $v',
+        _ => series,
+      };
       if (plain != null && number == null && volume == null) {
         title = '$series: $plain';
       }
@@ -79,9 +79,11 @@ int compareNatural(String a, String b) {
     final y = cb[i];
     final nx = int.tryParse(x);
     final ny = int.tryParse(y);
-    final c = nx != null && ny != null
-        ? (nx != ny ? nx.compareTo(ny) : x.length.compareTo(y.length))
-        : x.compareTo(y);
+    final c = switch ((nx, ny)) {
+      (final int a, final int b) when a != b => a.compareTo(b),
+      (int(), int()) => x.length.compareTo(y.length),
+      _ => x.compareTo(y),
+    };
     if (c != 0) return c;
   }
   return ca.length.compareTo(cb.length);

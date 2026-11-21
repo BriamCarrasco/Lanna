@@ -9,5 +9,5 @@ extension L10nContext on BuildContext {
   AppLocalizations get l10n => AppLocalizations.of(this);
 }
 
-Locale resolveAppLocale(Locale? device, Iterable<Locale> supported) =>
+Locale resolveAppLocale(Locale? device, Iterable<Locale> _) =>
     device?.languageCode == 'es' ? const Locale('es') : const Locale('en');

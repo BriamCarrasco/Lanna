@@ -326,7 +326,7 @@ class FilterPill extends StatelessWidget {
   }
 }
 
-class FiltersButton extends StatefulWidget {
+class FiltersButton extends StatelessWidget {
   const FiltersButton({
     super.key,
     required this.filters,
@@ -337,13 +337,7 @@ class FiltersButton extends StatefulWidget {
   final ValueChanged<LibraryFilters> onChanged;
 
   @override
-  State<FiltersButton> createState() => _FiltersButtonState();
-}
-
-class _FiltersButtonState extends State<FiltersButton> {
-  @override
   Widget build(BuildContext context) {
-    final filters = widget.filters;
     final count =
         (filters.format != FormatFilter.all ? 1 : 0) +
         (filters.read != ReadFilter.all ? 1 : 0);
@@ -353,11 +347,8 @@ class _FiltersButtonState extends State<FiltersButton> {
       message: context.l10n.filters,
       child: InkWell(
         borderRadius: LannaRadii.brPill,
-        onTap: () => showFiltersPanel(
-          context,
-          filters: filters,
-          onChanged: widget.onChanged,
-        ),
+        onTap: () =>
+            showFiltersPanel(context, filters: filters, onChanged: onChanged),
         child: Container(
           padding: const EdgeInsets.symmetric(
             horizontal: LannaSpacing.s3,

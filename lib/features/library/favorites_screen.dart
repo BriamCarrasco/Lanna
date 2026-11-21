@@ -32,32 +32,28 @@ class FavoritesScreen extends ConsumerWidget {
     return SectionScaffold(
       title: context.l10n.favorites,
       subtitle: context.l10n.booksCount(favorites.length),
-      child: favorites.isEmpty
-          ? SectionEmpty(
-              icon: Icons.favorite_border,
-              message: context.l10n.noFavoritesHint,
-            )
-          : shown.isEmpty
-          ? SectionEmpty(
-              icon: Icons.search_off,
-              message: context.l10n.noFavoritesResults,
-            )
-          : CustomScrollView(
-              scrollCacheExtent: const ScrollCacheExtent.viewport(1),
-              slivers: [
-                const SliverToBoxAdapter(
-                  child: SizedBox(height: LannaSpacing.s5),
-                ),
-                BookGridSliver(
-                  books: shown,
-                  onMenu: (book, pos) =>
-                      unawaited(showBookMenu(context, ref, book, pos)),
-                ),
-                const SliverToBoxAdapter(
-                  child: SizedBox(height: LannaSpacing.s6),
-                ),
-              ],
+      child: switch ((favorites.isEmpty, shown.isEmpty)) {
+        (true, _) => SectionEmpty(
+          icon: Icons.favorite_border,
+          message: context.l10n.noFavoritesHint,
+        ),
+        (_, true) => SectionEmpty(
+          icon: Icons.search_off,
+          message: context.l10n.noFavoritesResults,
+        ),
+        _ => CustomScrollView(
+          scrollCacheExtent: const ScrollCacheExtent.viewport(1),
+          slivers: [
+            const SliverToBoxAdapter(child: SizedBox(height: LannaSpacing.s5)),
+            BookGridSliver(
+              books: shown,
+              onMenu: (book, pos) =>
+                  unawaited(showBookMenu(context, ref, book, pos)),
             ),
+            const SliverToBoxAdapter(child: SizedBox(height: LannaSpacing.s6)),
+          ],
+        ),
+      },
     );
   }
 }
