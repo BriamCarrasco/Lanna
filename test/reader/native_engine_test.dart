@@ -1388,6 +1388,36 @@ void main() {
       expect(during.difference({'${expected.$1}'}), isEmpty);
     });
 
+    testWidgets('la página actual sale sin esperar a contar el resto', (
+      tester,
+    ) async {
+      await mount(
+        tester,
+        sourceWith([
+          '<p>${'palabra ' * 100}</p>',
+          '<p>${'palabra ' * 100}</p>',
+          '<p>${'palabra ' * 6000}</p>',
+          '<p>${'palabra ' * 6000}</p>',
+        ]),
+        locator: 'spine:1#0',
+      );
+      final alone = RegExp(r'^\d+$');
+      var early = false;
+      for (var i = 0; i < 400 && footer(exact).evaluate().isEmpty; i++) {
+        if (footer(alone).evaluate().isNotEmpty) early = true;
+        await tester.runAsync(
+          () => Future<void>.delayed(const Duration(milliseconds: 2)),
+        );
+        await tester.pump(const Duration(milliseconds: 16));
+      }
+      expect(
+        early,
+        isTrue,
+        reason: 'el número esperó a que se contara el libro entero',
+      );
+      await counted(tester);
+    });
+
     testWidgets('se puede ocultar desde la presentación', (tester) async {
       final source = sourceWith(['<p>${'palabra ' * 500}</p>']);
       final controller = await mount(tester, source);

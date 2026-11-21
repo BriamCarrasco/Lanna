@@ -413,11 +413,18 @@ class _NativeEpubViewState extends State<NativeEpubView>
     final key = _layoutKey;
     bool live() => mounted && round == _countRound;
 
+    var shown = false;
+    void reveal() {
+      if (shown || !_numberReady) return;
+      shown = true;
+      setState(() {});
+    }
+
     while (live()) {
       _harvestCounts();
+      reveal();
       final chapter = _counts.nextMissing(_chapter);
       if (chapter == null) break;
-      final ready = _numberReady;
 
       var pages = 1;
       try {
@@ -431,11 +438,14 @@ class _NativeEpubViewState extends State<NativeEpubView>
               images: widget.source.imageSize,
             ).jobFor(document);
         while (!job.isDone) {
-          if (!_animating) {
-            job.step(budget: const Duration(milliseconds: 4));
+          if (_animating) {
+            await SchedulerBinding.instance.endOfFrame;
+          } else {
+            await SchedulerBinding.instance.scheduleTask<void>(() {
+              final busy = SchedulerBinding.instance.transientCallbackCount > 0;
+              job.step(budget: Duration(milliseconds: busy ? 4 : 8));
+            }, Priority.animation);
           }
-          if (job.isDone) break;
-          await SchedulerBinding.instance.endOfFrame;
           if (!live()) return;
         }
         pages = job.pageCount;
@@ -444,7 +454,7 @@ class _NativeEpubViewState extends State<NativeEpubView>
 
       _counts.record(chapter, pages);
       if ((chapter - _chapter).abs() > 2) widget.source.release(chapter);
-      if (ready != _numberReady) setState(() {});
+      reveal();
     }
 
     if (!mounted || round != _countRound) return;

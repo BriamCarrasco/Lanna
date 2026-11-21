@@ -32,6 +32,20 @@ void main() {
     chunkChars: chunkChars,
   ).paginate(document);
 
+  test('la clave de disposición incluye los márgenes por valor', () {
+    const base = PaginationMetrics(
+      size: Size(400, 600),
+      padding: EdgeInsets.fromLTRB(24, 16, 24, 16),
+    );
+    const otra = PaginationMetrics(
+      size: Size(400, 600),
+      padding: EdgeInsets.fromLTRB(24, 68, 24, 64),
+    );
+    expect(base.key, isNot(otra.key));
+    expect(base.key, contains('24.0,16.0,24.0,16.0'));
+    expect(base.key, isNot(contains('EdgeInsets')));
+  });
+
   void expectContiguous(EpubDocument document, DocumentPagination result) {
     expect(result.pages, isNotEmpty);
     expect(result.pages.first.start, 0);

@@ -171,7 +171,10 @@ class PaginationMetrics {
     return (usable - columnGap * (columns - 1)) / columns;
   }
 
-  String get key => '${size.width}x${size.height}|$padding|$columns|$columnGap';
+  String get key =>
+      '${size.width}x${size.height}'
+      '|${padding.left},${padding.top},${padding.right},${padding.bottom}'
+      '|$columns|$columnGap';
 }
 
 class PageFragment {
@@ -652,28 +655,23 @@ class PaginationJob {
     )..layout(maxWidth: math.max(1, columnWidth - style.textIndent(block)));
 
     final metrics = painter.computeLineMetrics();
+    final starts = [
+      for (final line in metrics)
+        painter
+            .getPositionForOffset(
+              Offset(0, line.baseline - line.ascent + line.height / 2),
+            )
+            .offset,
+    ];
     final before = out.length;
     for (var i = 0; i < metrics.length; i++) {
-      final line = metrics[i];
-      final probe = line.baseline - line.ascent + line.height / 2;
-      final lineStart = painter.getPositionForOffset(Offset(0, probe)).offset;
-      final lineEnd = i + 1 < metrics.length
-          ? painter
-                .getPositionForOffset(
-                  Offset(
-                    0,
-                    metrics[i + 1].baseline -
-                        metrics[i + 1].ascent +
-                        metrics[i + 1].height / 2,
-                  ),
-                )
-                .offset
-          : end - start;
+      final lineStart = starts[i];
+      final lineEnd = i + 1 < metrics.length ? starts[i + 1] : end - start;
       out.add(
         _LineBox(
           start + lineStart,
           start + math.max(lineEnd, lineStart),
-          line.height,
+          metrics[i].height,
         ),
       );
     }

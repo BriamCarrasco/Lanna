@@ -74,7 +74,7 @@ class PageCounts {
 class PageCountStore {
   PageCountStore(this.file);
 
-  static const int version = 1;
+  static const int version = 2;
   static const int maxLayouts = 8;
 
   final File file;
