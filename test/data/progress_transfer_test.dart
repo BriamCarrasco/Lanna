@@ -326,14 +326,14 @@ void main() {
 
   test('las colecciones viajan con su id y reimportar no duplica', () async {
     await book(phone, 'p1', hash: _hashA);
-    await book(phone, 'p2', hash: _hashB, title: 'Berserk', author: 'Miura');
-    await phone.createCollection('col-manga', 'Manga');
+    await book(phone, 'p2', hash: _hashB, title: 'Libro B', author: 'Autora B');
+    await phone.createCollection('col-a', 'Colección A');
     await phone.createCollection('col-vacia', 'Pendientes');
     await phone
         .into(phone.collectionEntries)
         .insert(
           CollectionEntriesCompanion.insert(
-            collectionId: 'col-manga',
+            collectionId: 'col-a',
             bookId: 'p2',
             addedAt: Value(DateTime.utc(2026, 10, 5)),
           ),
@@ -343,18 +343,18 @@ void main() {
       desktop,
       'd2',
       hash: 'c' * 64,
-      title: 'Berserk',
-      author: 'Miura',
+      title: 'Libro B',
+      author: 'Autora B',
     );
 
     final bytes = await transfer(phone).export();
     final report = await transfer(desktop).import(bytes);
 
     expect(report.collections, 2);
-    final manga = await desktop.findCollection('col-manga');
-    expect(manga?.name, 'Manga');
+    final collection = await desktop.findCollection('col-a');
+    expect(collection?.name, 'Colección A');
     expect(await desktop.findCollection('col-vacia'), isNotNull);
-    expect(await members(desktop, 'col-manga'), {'d2'});
+    expect(await members(desktop, 'col-a'), {'d2'});
     final entry = await (desktop.select(
       desktop.collectionEntries,
     )..where((e) => e.bookId.equals('d2'))).getSingle();
@@ -363,15 +363,15 @@ void main() {
     final again = await transfer(desktop).import(bytes);
     expect(again.collections, 0);
     expect(await desktop.select(desktop.collections).get(), hasLength(2));
-    expect(await members(desktop, 'col-manga'), {'d2'});
+    expect(await members(desktop, 'col-a'), {'d2'});
   });
 
   test(
     'una colección con el mismo nombre se une sin borrar lo local',
     () async {
       await book(phone, 'p1', hash: _hashA);
-      await book(phone, 'p2', hash: _hashB, title: 'Berserk');
-      await phone.createCollection('id-telefono', 'Mangas Favoritos');
+      await book(phone, 'p2', hash: _hashB, title: 'Libro B');
+      await phone.createCollection('id-telefono', 'Pendientes de Leer');
       for (final id in ['p1', 'p2']) {
         await phone
             .into(phone.collectionEntries)
@@ -383,9 +383,9 @@ void main() {
             );
       }
       await book(desktop, 'd1', hash: _hashA);
-      await book(desktop, 'd2', hash: _hashB, title: 'Berserk');
-      await book(desktop, 'd3', hash: 'c' * 64, title: 'Akira');
-      await desktop.createCollection('id-pc', 'mangas favoritos');
+      await book(desktop, 'd2', hash: _hashB, title: 'Libro B');
+      await book(desktop, 'd3', hash: 'c' * 64, title: 'Libro C');
+      await desktop.createCollection('id-pc', 'pendientes de leer');
       await desktop
           .into(desktop.collectionEntries)
           .insert(
@@ -461,7 +461,7 @@ void main() {
       id: id,
       bookId: bookId,
       cfi: cfi,
-      content: const Value('Pero aquí los hombres son tontos'),
+      content: const Value('Texto subrayado de prueba'),
       color: const Value('pink'),
       note: const Value('releer'),
     ),
@@ -470,24 +470,27 @@ void main() {
   test(
     'series, ocultos, favoritos, marcadores y subrayados viajan por la huella',
     () async {
-      await book(phone, 'p1', hash: _hashA, title: 'Naruto 1');
-      await book(phone, 'p2', hash: _hashB, title: 'Naruto 40');
-      await phone.setSeriesById({'p1': 'Naruto', 'p2': 'Naruto'});
+      await book(phone, 'p1', hash: _hashA, title: 'Serie A 1');
+      await book(phone, 'p2', hash: _hashB, title: 'Serie A 2');
+      await phone.setSeriesById({'p1': 'Serie A', 'p2': 'Serie A'});
       await phone.setHidden(['p2'], hidden: true);
       await phone.setFavorite('p1', true);
-      await mark(phone, 'bm-1', 'p1', 'spine:7#11620');
-      await highlight(phone, 'hl-1', 'p1', 'spine:7#11944-11976');
-      await book(desktop, 'd1', hash: _hashA, title: 'Naruto 1');
-      await book(desktop, 'd2', hash: _hashB, title: 'Naruto 40');
-      await desktop.setSeriesById({'d1': 'NARUTO 1-27', 'd2': 'NARUTO 28-72'});
+      await mark(phone, 'bm-1', 'p1', 'spine:2#100');
+      await highlight(phone, 'hl-1', 'p1', 'spine:2#200-240');
+      await book(desktop, 'd1', hash: _hashA, title: 'Serie A 1');
+      await book(desktop, 'd2', hash: _hashB, title: 'Serie A 2');
+      await desktop.setSeriesById({
+        'd1': 'Serie A (parte 1)',
+        'd2': 'Serie A (parte 2)',
+      });
       await book(
         desktop,
         'd3',
         hash: 'c' * 64,
-        title: 'Akira',
-        author: 'Otomo',
+        title: 'Libro C',
+        author: 'Autor C',
       );
-      await desktop.setSeriesById({'d3': 'Akira'});
+      await desktop.setSeriesById({'d3': 'Serie C'});
 
       final bytes = await transfer(phone).export();
       final report = await transfer(desktop).import(bytes);
@@ -495,23 +498,23 @@ void main() {
       expect(report.applied, 2);
       final d1 = await desktop.findBook('d1');
       final d2 = await desktop.findBook('d2');
-      expect(d1?.series, 'Naruto');
-      expect(d2?.series, 'Naruto');
+      expect(d1?.series, 'Serie A');
+      expect(d2?.series, 'Serie A');
       expect(d1?.hidden, isFalse);
       expect(d2?.hidden, isTrue);
       expect(d1?.favoritedAt, isNotNull);
-      expect((await desktop.findBook('d3'))?.series, 'Akira');
+      expect((await desktop.findBook('d3'))?.series, 'Serie C');
       final bookmark = (await desktop.select(desktop.bookmarks).get()).single;
       expect(bookmark.id, 'bm-1');
       expect(bookmark.bookId, 'd1');
-      expect(bookmark.cfi, 'spine:7#11620');
+      expect(bookmark.cfi, 'spine:2#100');
       expect(bookmark.label, 'Capítulo 2');
       expect(bookmark.createdAt.toUtc(), DateTime.utc(2026, 10, 3));
       final marked = (await desktop.select(desktop.highlights).get()).single;
       expect(marked.id, 'hl-1');
       expect(marked.color, 'pink');
       expect(marked.note, 'releer');
-      expect(marked.content, 'Pero aquí los hombres son tontos');
+      expect(marked.content, 'Texto subrayado de prueba');
 
       final again = await transfer(desktop).import(bytes);
       expect(again.applied, 0);
@@ -524,7 +527,7 @@ void main() {
     'sin huella exacta no se tocan series, ocultos ni anotaciones',
     () async {
       await book(phone, 'p', hash: _hashA);
-      await phone.setSeriesById({'p': 'Cortázar completo'});
+      await phone.setSeriesById({'p': 'Serie del teléfono'});
       await phone.setHidden(['p'], hidden: true);
       await mark(phone, 'bm-1', 'p', 'spine:3#10');
       await highlight(phone, 'hl-1', 'p', 'spine:3#10-20');
