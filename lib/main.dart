@@ -3,9 +3,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'app.dart';
+import 'core/bundled_licenses.dart';
 import 'perf_probe.dart';
 
 void main() {
+  registerBundledLicenses();
   if (perfProbeEnabled) {
     WidgetsFlutterBinding.ensureInitialized();
     startPerfProbe();

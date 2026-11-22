@@ -12,7 +12,7 @@ const progressFileVersion = 2;
 const maxProgressFileBytes = 32 * 1024 * 1024;
 const _maxSessionSeconds = 24 * 60 * 60;
 const _maxSessionPages = 100000;
-const _maxNoteLength = 10000;
+const _maxNoteLength = 100000;
 
 enum ProgressFileError { tooLarge, invalid, notLanna, noBooks }
 
@@ -302,11 +302,11 @@ class ProgressHighlight {
     return ProgressHighlight(
       id: id,
       cfi: cfi,
-      content: _text(json['content'], _maxNoteLength) ?? '',
+      content: _clipped(json['content'], _maxNoteLength) ?? '',
       color: color is String && _colorPattern.hasMatch(color)
           ? color
           : 'yellow',
-      note: _text(json['note'], _maxNoteLength),
+      note: _clipped(json['note'], _maxNoteLength),
       chapterIndex: _index(json['chapterIndex']),
       percent: _percent(json['percent']),
       createdAt: _date(json['createdAt']),
@@ -830,6 +830,17 @@ String? _text(Object? value, int max) {
   final text = value.trim();
   return text.isEmpty || text.length > max ? null : text;
 }
+
+String? _clipped(Object? value, int max) {
+  if (value is! String) return null;
+  final text = value.trim();
+  if (text.isEmpty) return null;
+  if (text.length <= max) return text;
+  final end = _isHighSurrogate(text.codeUnitAt(max - 1)) ? max - 1 : max;
+  return text.substring(0, end);
+}
+
+bool _isHighSurrogate(int unit) => unit >= 0xD800 && unit <= 0xDBFF;
 
 BookFormat? _format(Object? value) {
   for (final format in BookFormat.values) {

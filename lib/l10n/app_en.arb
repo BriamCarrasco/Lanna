@@ -188,6 +188,8 @@
   "removeFolder": "Remove folder",
   "sourceCode": "Source code",
   "checkUpdates": "Check for updates",
+  "licenses": "Licenses",
+  "legalNotice": "Copyright © 2026 Lanna contributors.\nFree software under the GPL-3.0-or-later license. Distributed WITHOUT ANY WARRANTY.",
   "language": "Language",
   "appLanguage": "App language",
   "languageSystem": "System",

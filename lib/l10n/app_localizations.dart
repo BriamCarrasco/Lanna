@@ -1226,6 +1226,18 @@ abstract class AppLocalizations {
   /// **'Buscar actualizaciones'**
   String get checkUpdates;
 
+  /// No description provided for @licenses.
+  ///
+  /// In es, this message translates to:
+  /// **'Licencias'**
+  String get licenses;
+
+  /// No description provided for @legalNotice.
+  ///
+  /// In es, this message translates to:
+  /// **'Copyright © 2026 Lanna contributors.\nSoftware libre bajo la licencia GPL-3.0-or-later. Se distribuye SIN NINGUNA GARANTÍA.'**
+  String get legalNotice;
+
   /// No description provided for @language.
   ///
   /// In es, this message translates to:

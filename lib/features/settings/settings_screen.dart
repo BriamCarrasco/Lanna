@@ -362,6 +362,24 @@ class _About extends StatelessWidget {
           context.l10n.checkUpdates,
           onTap: () => _openUrl(context, _releasesUrl),
         ),
+        const SizedBox(height: LannaSpacing.s2),
+        _LinkText(
+          context.l10n.licenses,
+          onTap: () => showLicensePage(
+            context: context,
+            applicationName: 'Lanna',
+            applicationVersion: '$_appVersion · $_license',
+            applicationIcon: Padding(
+              padding: const EdgeInsets.all(LannaSpacing.s3),
+              child: Image.asset(
+                'assets/logo/lanna.png',
+                width: 56,
+                height: 56,
+              ),
+            ),
+            applicationLegalese: context.l10n.legalNotice,
+          ),
+        ),
       ],
     );
   }

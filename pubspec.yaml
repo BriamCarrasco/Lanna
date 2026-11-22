@@ -56,7 +56,11 @@ flutter:
   generate: true
 
   assets:
-    - assets/logo/
+    - assets/logo/lanna.png
+    - assets/licenses/pdfium/
+    - assets/licenses/libarchive/
+    - assets/licenses/Manrope/
+    - assets/licenses/Newsreader/
 
   shaders:
     - shaders/page_curl.frag

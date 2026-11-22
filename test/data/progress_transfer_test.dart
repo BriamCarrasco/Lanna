@@ -586,6 +586,27 @@ void main() {
     expect(row?.hidden, isFalse);
   });
 
+  test('un subrayado o una nota muy largos se recortan sin perderse', () async {
+    await book(desktop, 'd', hash: _hashA);
+    final long = '${'a' * 99999}😀más';
+
+    await transfer(desktop).import(
+      file([
+        {
+          'hash': _hashA,
+          'format': 'epub',
+          'highlights': [
+            {'id': 'h', 'cfi': 'spine:2#4-8', 'content': long, 'note': long},
+          ],
+        },
+      ]),
+    );
+
+    final marked = (await desktop.select(desktop.highlights).get()).single;
+    expect(marked.content, 'a' * 99999);
+    expect(marked.note, 'a' * 99999);
+  });
+
   test('un respaldo de una versión futura importa lo que entiende', () async {
     await book(desktop, 'd', hash: _hashA);
 

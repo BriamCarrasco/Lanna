@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 param(
-    [switch]$SkipChecks
+    [switch]$SkipChecks,
+    [switch]$AllowDirty
 )
 
 $ErrorActionPreference = 'Stop'
@@ -40,6 +41,20 @@ $build = $Matches[2]
 $dist = Join-Path $root "dist\$version"
 $symbols = Join-Path $root "build\symbols\$version"
 
+$settings = Get-Content (Join-Path $root 'lib\features\settings\settings_screen.dart') -Raw
+if ($settings -notmatch "(?m)^const _appVersion = '([^']+)';") {
+    throw 'No se encontró _appVersion en settings_screen.dart'
+}
+if ($Matches[1] -ne $version) {
+    throw "La versión de Ajustes ($($Matches[1])) no coincide con pubspec.yaml ($version)"
+}
+
+$pending = git -C $root status --porcelain
+if ($LASTEXITCODE -ne 0) { throw 'No se pudo leer el estado de git' }
+if ($pending -and -not $AllowDirty) {
+    throw "Hay cambios sin commit: el release no correspondería a ningún commit. Usa -AllowDirty solo para builds de prueba.`n$($pending -join "`n")"
+}
+
 if (-not (Test-Path (Join-Path $root 'android\key.properties'))) {
     throw 'Falta android\key.properties: el APK saldría firmado con la clave de debug'
 }
@@ -57,6 +72,9 @@ $iscc = Find-Tool 'ISCC.exe' @(
 )
 
 Write-Host "Lanna $version (build $build)" -ForegroundColor Green
+if ($pending) {
+    Write-Host 'Build de prueba con cambios sin commit: no publicar' -ForegroundColor Yellow
+}
 
 if (-not $SkipChecks) {
     Step 'Análisis estático'

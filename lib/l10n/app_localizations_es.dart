@@ -591,6 +591,13 @@ class AppLocalizationsEs extends AppLocalizations {
   String get checkUpdates => 'Buscar actualizaciones';
 
   @override
+  String get licenses => 'Licencias';
+
+  @override
+  String get legalNotice =>
+      'Copyright © 2026 Lanna contributors.\nSoftware libre bajo la licencia GPL-3.0-or-later. Se distribuye SIN NINGUNA GARANTÍA.';
+
+  @override
   String get language => 'Idioma';
 
   @override
