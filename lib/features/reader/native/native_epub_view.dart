@@ -9,6 +9,7 @@ import 'package:flutter/scheduler.dart';
 import 'package:path/path.dart' as p;
 
 import '../../../core/theme/app_theme.dart';
+import '../../../data/epub/epub_book.dart';
 import '../../../data/epub/epub_document.dart';
 import '../../../l10n/l10n.dart';
 import '../engine_support.dart';
@@ -314,6 +315,12 @@ class _NativeEpubViewState extends State<NativeEpubView>
         job.isDone &&
         _page >= job.pageCount - 1;
     _schedulePrefetch();
+    final page = _current;
+    final section = _sectionAt(
+      _chapter,
+      page == null ? _offset : math.max(page.start, page.end - 1),
+      document,
+    );
     widget.callbacks.onLocationChanged?.call(
       ReaderLocation(
         cfi: ReaderLocator(chapter: _chapter, offset: _offset).toString(),
@@ -324,12 +331,59 @@ class _NativeEpubViewState extends State<NativeEpubView>
           document.length,
         ),
         chapterIndex: _chapter,
-        label: context.l10n.chapterOf(_chapter + 1, widget.source.chapterCount),
+        label: section?.label.trim(),
+        tocEntry: section,
         remainingMinutes: widget.source.remainingMinutes(_chapter, _offset),
         atStart: atStart,
         atEnd: atEnd,
       ),
     );
+  }
+
+  late final List<({EpubTocEntry entry, int chapter, String? anchor})>
+  _tocMarks = _markToc();
+
+  List<({EpubTocEntry entry, int chapter, String? anchor})> _markToc() {
+    final marks = <({EpubTocEntry entry, int chapter, String? anchor})>[];
+    void walk(List<EpubTocEntry> entries) {
+      for (final entry in entries) {
+        final chapter = entry.href.isEmpty
+            ? null
+            : widget.source.chapterForHref(entry.href);
+        if (chapter != null) {
+          final hash = entry.href.indexOf('#');
+          marks.add((
+            entry: entry,
+            chapter: chapter,
+            anchor: hash < 0 ? null : entry.href.substring(hash + 1),
+          ));
+        }
+        walk(entry.children);
+      }
+    }
+
+    walk(widget.source.book.toc);
+    return marks;
+  }
+
+  EpubTocEntry? _sectionAt(int chapter, int offset, EpubDocument document) {
+    EpubTocEntry? best;
+    var bestChapter = -1;
+    var bestOffset = -1;
+    for (final mark in _tocMarks) {
+      if (mark.chapter > chapter) continue;
+      final at = mark.chapter == chapter
+          ? document.offsetForAnchor(mark.anchor)
+          : 0;
+      if (mark.chapter == chapter && at > offset) continue;
+      if (mark.chapter > bestChapter ||
+          (mark.chapter == bestChapter && at >= bestOffset)) {
+        best = mark.entry;
+        bestChapter = mark.chapter;
+        bestOffset = at;
+      }
+    }
+    return best;
   }
 
   Timer? _prefetchTimer;

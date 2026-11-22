@@ -247,9 +247,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get unavailable => 'Unavailable';
 
   @override
-  String get chapterShort => 'Ch.';
-
-  @override
   String get pageShort => 'P.';
 
   @override
@@ -1045,11 +1042,6 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String chapterReadError(int chapter) {
     return 'Chapter $chapter couldn\'t be read';
-  }
-
-  @override
-  String chapterOf(int chapter, int total) {
-    return 'Chapter $chapter of $total';
   }
 
   @override

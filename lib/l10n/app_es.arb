@@ -78,7 +78,6 @@
   "notStarted": "Sin empezar",
   "read": "Leer",
   "unavailable": "No disponible",
-  "chapterShort": "Cap.",
   "pageShort": "Pág.",
   "noBooksInFolders": "No encontramos libros en tus carpetas",
   "yourLibraryEmpty": "Tu biblioteca está vacía",
@@ -646,17 +645,6 @@
   "@chapterReadError": {
     "placeholders": {
       "chapter": {
-        "type": "int"
-      }
-    }
-  },
-  "chapterOf": "Capítulo {chapter} de {total}",
-  "@chapterOf": {
-    "placeholders": {
-      "chapter": {
-        "type": "int"
-      },
-      "total": {
         "type": "int"
       }
     }

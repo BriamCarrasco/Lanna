@@ -566,12 +566,6 @@ abstract class AppLocalizations {
   /// **'No disponible'**
   String get unavailable;
 
-  /// No description provided for @chapterShort.
-  ///
-  /// In es, this message translates to:
-  /// **'Cap.'**
-  String get chapterShort;
-
   /// No description provided for @pageShort.
   ///
   /// In es, this message translates to:
@@ -1693,12 +1687,6 @@ abstract class AppLocalizations {
   /// In es, this message translates to:
   /// **'No se pudo leer el capítulo {chapter}'**
   String chapterReadError(int chapter);
-
-  /// No description provided for @chapterOf.
-  ///
-  /// In es, this message translates to:
-  /// **'Capítulo {chapter} de {total}'**
-  String chapterOf(int chapter, int total);
 
   /// No description provided for @minutesLeft.
   ///

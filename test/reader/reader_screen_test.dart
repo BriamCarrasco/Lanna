@@ -165,16 +165,17 @@ void main() {
   readerTest('al reabrir vuelve al capítulo guardado', (tester, h) async {
     await h.seedBook(
       chapters: [
-        '<p>${h.words(40)}</p>',
-        '<p>${h.words(40)}</p>',
-        '<p>${h.words(40)}</p>',
+        '<p>Primero ${h.words(40)}</p>',
+        '<p>Segundo ${h.words(40)}</p>',
+        '<p>Tercero ${h.words(40)}</p>',
       ],
       locator: 'spine:2#0',
       percent: 0.9,
     );
     await h.pumpReader(tester);
 
-    expect(find.text('Capítulo 3 de 3'), findsOneWidget);
+    expect(find.textContaining('Tercero', findRichText: true), findsWidgets);
+    expect(find.textContaining('Primero', findRichText: true), findsNothing);
   });
 
   readerTest('el marcador se pone y se quita', (tester, h) async {

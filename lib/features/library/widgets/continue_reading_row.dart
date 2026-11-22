@@ -56,10 +56,9 @@ class _Card extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final pct = item.progress.percent.clamp(0.0, 1.0);
-    final chapter = item.progress.chapterIndex;
-    final unit = item.book.format == BookFormat.epub
-        ? context.l10n.chapterShort
-        : context.l10n.pageShort;
+    final page = item.book.format == BookFormat.epub
+        ? null
+        : item.progress.chapterIndex;
 
     return Pressable(
       scale: 0.98,
@@ -103,8 +102,9 @@ class _Card extends StatelessWidget {
                     ),
                   const SizedBox(height: LannaSpacing.s3),
                   Text(
-                    chapter != null
-                        ? '$unit ${chapter + 1} · ${(pct * 100).round()} %'
+                    page != null
+                        ? '${context.l10n.pageShort} ${page + 1} · '
+                              '${(pct * 100).round()} %'
                         : '${(pct * 100).round()} %',
                     style: LannaType.micro.copyWith(
                       color: LannaColors.textMuted,

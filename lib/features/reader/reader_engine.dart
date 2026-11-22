@@ -10,6 +10,7 @@ class ReaderLocation {
     this.percentage,
     this.chapterIndex,
     this.label,
+    this.tocEntry,
     this.remainingMinutes,
     this.atStart = false,
     this.atEnd = false,
@@ -21,6 +22,7 @@ class ReaderLocation {
   final double? percentage;
   final int? chapterIndex;
   final String? label;
+  final EpubTocEntry? tocEntry;
 
   final int? remainingMinutes;
   final bool atStart;

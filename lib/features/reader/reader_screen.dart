@@ -656,7 +656,8 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
           cfi: loc.cfi,
           chapterIndex: loc.chapterIndex,
           percent: _lastPercent,
-          label: _currentChapterLabel() ?? loc.label,
+          label:
+              loc.tocEntry?.label.trim() ?? _currentChapterLabel() ?? loc.label,
         ),
       );
       _notify(context.l10n.bookmarkAdded);
@@ -1137,7 +1138,8 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
     return TocDrawer(
       toc: _toc,
       currentHref: _location?.href,
-      chapterCount: _chapterTotal,
+      currentEntry: _location?.tocEntry,
+      chapterCount: _chapterTotal > 0 ? _toc.length : 0,
       pageCount: _pageCount,
       bookmarks: _bookmarks,
       currentCfi: _location?.cfi,

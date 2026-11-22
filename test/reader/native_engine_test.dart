@@ -592,6 +592,87 @@ void main() {
     });
   });
 
+  group('capítulo actual', () {
+    testWidgets('la etiqueta es el título del índice, no el archivo', (
+      tester,
+    ) async {
+      final locations = <ReaderLocation>[];
+      final source = sourceWith(
+        [
+          '<p>Portada</p>',
+          '<p>Créditos</p>',
+          '<p>${words(60)}</p>',
+          '<p>${words(60)}</p>',
+        ],
+        toc: const [
+          EpubTocEntry(label: 'Capítulo 1', href: 'cap2.xhtml'),
+          EpubTocEntry(label: 'Capítulo 2', href: 'cap3.xhtml'),
+        ],
+      );
+      final controller = await mount(
+        tester,
+        source,
+        callbacks: ReaderEngineCallbacks(onLocationChanged: locations.add),
+      );
+
+      expect(locations.last.label, isNull, reason: 'la portada no es capítulo');
+      expect(locations.last.tocEntry, isNull);
+
+      await act(tester, () => controller.goToCfi('cap3.xhtml'));
+      expect(locations.last.label, 'Capítulo 2');
+      expect(locations.last.tocEntry?.href, 'cap3.xhtml');
+    });
+
+    testWidgets('un href relativo o codificado se reconoce', (tester) async {
+      final locations = <ReaderLocation>[];
+      final source = sourceWith(
+        ['<p>${words(60)}</p>', '<p>${words(60)}</p>'],
+        toc: const [
+          EpubTocEntry(label: 'Uno', href: './cap0.xhtml'),
+          EpubTocEntry(label: 'Dos', href: 'Text/../cap%31.xhtml'),
+        ],
+      );
+      final controller = await mount(
+        tester,
+        source,
+        callbacks: ReaderEngineCallbacks(onLocationChanged: locations.add),
+      );
+      expect(locations.last.label, 'Uno');
+
+      await act(tester, () => controller.next());
+      await act(tester, () => controller.goToCfi('spine:1#0'));
+      expect(locations.last.label, 'Dos');
+    });
+
+    testWidgets('las secciones de un mismo archivo siguen la lectura', (
+      tester,
+    ) async {
+      final locations = <ReaderLocation>[];
+      final source = sourceWith(
+        [
+          '<h2 id="s1">Sección uno</h2><p>${words(400)}</p>'
+              '<h2 id="s2">Sección dos</h2><p>${words(400)}</p>',
+        ],
+        toc: const [
+          EpubTocEntry(label: 'S1', href: 'cap0.xhtml#s1'),
+          EpubTocEntry(label: 'S2', href: 'cap0.xhtml#s2'),
+        ],
+      );
+      final controller = await mount(
+        tester,
+        source,
+        callbacks: ReaderEngineCallbacks(onLocationChanged: locations.add),
+      );
+      expect(locations.last.label, 'S1');
+
+      await act(tester, () => controller.goToCfi('cap0.xhtml#s2'));
+      expect(locations.last.label, 'S2');
+
+      await act(tester, () => controller.goToCfi('spine:0#0'));
+      expect(locations.last.label, 'S1');
+    });
+  });
+
   group('navegación por el índice', () {
     testWidgets('un href sin ancla lleva al inicio de su capítulo', (
       tester,

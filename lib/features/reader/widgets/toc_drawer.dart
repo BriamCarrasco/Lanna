@@ -15,6 +15,7 @@ class TocDrawer extends StatefulWidget {
     super.key,
     required this.toc,
     required this.currentHref,
+    this.currentEntry,
     required this.chapterCount,
     required this.pageCount,
     required this.bookmarks,
@@ -32,6 +33,7 @@ class TocDrawer extends StatefulWidget {
 
   final List<EpubTocEntry> toc;
   final String? currentHref;
+  final EpubTocEntry? currentEntry;
   final int chapterCount;
   final int pageCount;
   final List<Bookmark> bookmarks;
@@ -135,14 +137,19 @@ class _TocDrawerState extends State<TocDrawer> {
       return _Empty(context.l10n.noToc, chrome: chrome);
     }
 
+    final entry = widget.currentEntry;
     final current = widget.currentHref?.split('#').first;
+    bool isActive(EpubTocEntry candidate) {
+      if (entry != null) return identical(candidate, entry);
+      return current != null && candidate.href.split('#').first == current;
+    }
+
     return ListView.builder(
       padding: const EdgeInsets.symmetric(vertical: LannaSpacing.s2),
       itemCount: flat.length,
       itemBuilder: (context, i) {
         final row = flat[i];
-        final active =
-            current != null && row.entry.href.split('#').first == current;
+        final active = isActive(row.entry);
         return InkWell(
           onTap: () => widget.onSelect(row.entry),
           child: Container(
