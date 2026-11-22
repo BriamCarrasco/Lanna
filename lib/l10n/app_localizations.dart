@@ -1238,6 +1238,48 @@ abstract class AppLocalizations {
   /// **'Copyright © 2026 Lanna contributors.\nSoftware libre bajo la licencia GPL-3.0-or-later. Se distribuye SIN NINGUNA GARANTÍA.'**
   String get legalNotice;
 
+  /// No description provided for @originTitle.
+  ///
+  /// In es, this message translates to:
+  /// **'De dónde viene Lanna'**
+  String get originTitle;
+
+  /// No description provided for @originNameTitle.
+  ///
+  /// In es, this message translates to:
+  /// **'El nombre'**
+  String get originNameTitle;
+
+  /// No description provided for @originNameText.
+  ///
+  /// In es, this message translates to:
+  /// **'Cuando leo, Lanna suele estar ahí: sobre mis piernas o en algún lugar cerca. Su compañía se volvió parte de la lectura, así que la aplicación lleva su nombre.'**
+  String get originNameText;
+
+  /// No description provided for @originNamePhoto.
+  ///
+  /// In es, this message translates to:
+  /// **'Foto de Lanna'**
+  String get originNamePhoto;
+
+  /// No description provided for @originLogoTitle.
+  ///
+  /// In es, this message translates to:
+  /// **'El logo'**
+  String get originLogoTitle;
+
+  /// No description provided for @originLogoText.
+  ///
+  /// In es, this message translates to:
+  /// **'Zoe, mi otra gata, también es negra. Aparece de vez en cuando mientras leo o trabajo en la aplicación, y en ella se inspira el logo.'**
+  String get originLogoText;
+
+  /// No description provided for @originLogoPhoto.
+  ///
+  /// In es, this message translates to:
+  /// **'Foto de Zoe'**
+  String get originLogoPhoto;
+
   /// No description provided for @language.
   ///
   /// In es, this message translates to:

@@ -598,6 +598,29 @@ class AppLocalizationsEs extends AppLocalizations {
       'Copyright © 2026 Lanna contributors.\nSoftware libre bajo la licencia GPL-3.0-or-later. Se distribuye SIN NINGUNA GARANTÍA.';
 
   @override
+  String get originTitle => 'De dónde viene Lanna';
+
+  @override
+  String get originNameTitle => 'El nombre';
+
+  @override
+  String get originNameText =>
+      'Cuando leo, Lanna suele estar ahí: sobre mis piernas o en algún lugar cerca. Su compañía se volvió parte de la lectura, así que la aplicación lleva su nombre.';
+
+  @override
+  String get originNamePhoto => 'Foto de Lanna';
+
+  @override
+  String get originLogoTitle => 'El logo';
+
+  @override
+  String get originLogoText =>
+      'Zoe, mi otra gata, también es negra. Aparece de vez en cuando mientras leo o trabajo en la aplicación, y en ella se inspira el logo.';
+
+  @override
+  String get originLogoPhoto => 'Foto de Zoe';
+
+  @override
   String get language => 'Idioma';
 
   @override

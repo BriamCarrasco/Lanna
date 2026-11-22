@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/features.dart';
@@ -353,6 +354,11 @@ class _About extends StatelessWidget {
           style: LannaType.sm.copyWith(color: LannaColors.text),
         ),
         const SizedBox(height: LannaSpacing.s3),
+        _LinkText(
+          context.l10n.originTitle,
+          onTap: () => context.go('/settings/origin'),
+        ),
+        const SizedBox(height: LannaSpacing.s2),
         _LinkText(
           context.l10n.sourceCode,
           onTap: () => _openUrl(context, _sourceUrl),

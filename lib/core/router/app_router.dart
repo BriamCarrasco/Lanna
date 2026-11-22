@@ -10,6 +10,7 @@ import '../../features/library/folders_screen.dart';
 import '../../features/library/library_screen.dart';
 import '../../features/library/library_shell.dart';
 import '../../features/reader/reader_entry.dart';
+import '../../features/settings/origin_screen.dart';
 import '../../features/settings/settings_screen.dart';
 import '../../features/stats/stats_screen.dart';
 import '../theme/tokens.dart';
@@ -81,6 +82,13 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             path: '/settings',
             name: 'settings',
             builder: (context, state) => const SettingsScreen(),
+            routes: [
+              GoRoute(
+                path: 'origin',
+                name: 'origin',
+                builder: (context, state) => const OriginScreen(),
+              ),
+            ],
           ),
         ],
       ),
