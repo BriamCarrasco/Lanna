@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-package com.lanna.lanna
+package com.lanna.reader
 
 import android.app.Activity
 import android.content.Intent

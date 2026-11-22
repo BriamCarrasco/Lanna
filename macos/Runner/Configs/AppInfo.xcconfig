@@ -8,7 +8,7 @@
 PRODUCT_NAME = lanna
 
 // The application's bundle identifier
-PRODUCT_BUNDLE_IDENTIFIER = com.lanna.lanna
+PRODUCT_BUNDLE_IDENTIFIER = com.lanna.reader
 
 // The copyright displayed in application information
 PRODUCT_COPYRIGHT = Copyright © 2026 com.lanna. All rights reserved.

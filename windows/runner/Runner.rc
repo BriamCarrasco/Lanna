@@ -89,13 +89,13 @@ BEGIN
     BEGIN
         BLOCK "040904e4"
         BEGIN
-            VALUE "CompanyName", "com.lanna" "\0"
-            VALUE "FileDescription", "lanna" "\0"
+            VALUE "CompanyName", "Lanna" "\0"
+            VALUE "FileDescription", "Lanna" "\0"
             VALUE "FileVersion", VERSION_AS_STRING "\0"
             VALUE "InternalName", "lanna" "\0"
-            VALUE "LegalCopyright", "Copyright (C) 2026 com.lanna. All rights reserved." "\0"
+            VALUE "LegalCopyright", "Copyright (C) 2026 Lanna contributors. GPL-3.0-or-later." "\0"
             VALUE "OriginalFilename", "lanna.exe" "\0"
-            VALUE "ProductName", "lanna" "\0"
+            VALUE "ProductName", "Lanna" "\0"
             VALUE "ProductVersion", VERSION_AS_STRING "\0"
         END
     END
