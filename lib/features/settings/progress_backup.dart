@@ -60,12 +60,16 @@ String _backupError(ProgressFileError kind, AppLocalizations l10n) =>
     };
 
 String describeImport(ProgressImportReport report, AppLocalizations l10n) {
-  if (report.total == 0) return l10n.backupNoProgress;
+  if (report.total == 0 && report.collections == 0) {
+    return l10n.backupNoProgress;
+  }
 
   return [
-    report.applied == 0
-        ? l10n.noNewProgress
-        : l10n.progressImportedIn(report.applied),
+    if (report.applied > 0)
+      l10n.progressImportedIn(report.applied)
+    else if (report.collections == 0)
+      l10n.noNewProgress,
+    if (report.collections > 0) l10n.backupCollections(report.collections),
     if (report.upToDate > 0) l10n.backupUpToDate(report.upToDate),
     if (report.unmatched > 0) l10n.backupUnmatched(report.unmatched),
     if (report.invalid > 0) l10n.backupInvalidEntries(report.invalid),

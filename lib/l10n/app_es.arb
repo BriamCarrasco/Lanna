@@ -334,6 +334,14 @@
       }
     }
   },
+  "backupCollections": "{count, plural, =1{1 colección actualizada} other{{count} colecciones actualizadas}}",
+  "@backupCollections": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "backupUnmatched": "{count, plural, =1{1 libro no está en esta biblioteca} other{{count} libros no están en esta biblioteca}}",
   "@backupUnmatched": {
     "placeholders": {

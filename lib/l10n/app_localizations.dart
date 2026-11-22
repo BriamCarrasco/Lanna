@@ -1472,6 +1472,12 @@ abstract class AppLocalizations {
   /// **'{count, plural, =1{1 libro ya al día} other{{count} libros ya al día}}'**
   String backupUpToDate(int count);
 
+  /// No description provided for @backupCollections.
+  ///
+  /// In es, this message translates to:
+  /// **'{count, plural, =1{1 colección actualizada} other{{count} colecciones actualizadas}}'**
+  String backupCollections(int count);
+
   /// No description provided for @backupUnmatched.
   ///
   /// In es, this message translates to:

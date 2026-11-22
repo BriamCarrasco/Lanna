@@ -317,6 +317,272 @@ void main() {
     expect(row.pages, 0);
   });
 
+  Future<Set<String>> members(AppDatabase db, String collectionId) async => {
+    for (final e in await (db.select(
+      db.collectionEntries,
+    )..where((e) => e.collectionId.equals(collectionId))).get())
+      e.bookId,
+  };
+
+  test('las colecciones viajan con su id y reimportar no duplica', () async {
+    await book(phone, 'p1', hash: _hashA);
+    await book(phone, 'p2', hash: _hashB, title: 'Berserk', author: 'Miura');
+    await phone.createCollection('col-manga', 'Manga');
+    await phone.createCollection('col-vacia', 'Pendientes');
+    await phone
+        .into(phone.collectionEntries)
+        .insert(
+          CollectionEntriesCompanion.insert(
+            collectionId: 'col-manga',
+            bookId: 'p2',
+            addedAt: Value(DateTime.utc(2026, 10, 5)),
+          ),
+        );
+    await book(desktop, 'd1', hash: _hashA);
+    await book(
+      desktop,
+      'd2',
+      hash: 'c' * 64,
+      title: 'Berserk',
+      author: 'Miura',
+    );
+
+    final bytes = await transfer(phone).export();
+    final report = await transfer(desktop).import(bytes);
+
+    expect(report.collections, 2);
+    final manga = await desktop.findCollection('col-manga');
+    expect(manga?.name, 'Manga');
+    expect(await desktop.findCollection('col-vacia'), isNotNull);
+    expect(await members(desktop, 'col-manga'), {'d2'});
+    final entry = await (desktop.select(
+      desktop.collectionEntries,
+    )..where((e) => e.bookId.equals('d2'))).getSingle();
+    expect(entry.addedAt.toUtc(), DateTime.utc(2026, 10, 5));
+
+    final again = await transfer(desktop).import(bytes);
+    expect(again.collections, 0);
+    expect(await desktop.select(desktop.collections).get(), hasLength(2));
+    expect(await members(desktop, 'col-manga'), {'d2'});
+  });
+
+  test(
+    'una colección con el mismo nombre se une sin borrar lo local',
+    () async {
+      await book(phone, 'p1', hash: _hashA);
+      await book(phone, 'p2', hash: _hashB, title: 'Berserk');
+      await phone.createCollection('id-telefono', 'Mangas Favoritos');
+      for (final id in ['p1', 'p2']) {
+        await phone
+            .into(phone.collectionEntries)
+            .insert(
+              CollectionEntriesCompanion.insert(
+                collectionId: 'id-telefono',
+                bookId: id,
+              ),
+            );
+      }
+      await book(desktop, 'd1', hash: _hashA);
+      await book(desktop, 'd2', hash: _hashB, title: 'Berserk');
+      await book(desktop, 'd3', hash: 'c' * 64, title: 'Akira');
+      await desktop.createCollection('id-pc', 'mangas favoritos');
+      await desktop
+          .into(desktop.collectionEntries)
+          .insert(
+            CollectionEntriesCompanion.insert(
+              collectionId: 'id-pc',
+              bookId: 'd3',
+            ),
+          );
+
+      final report = await transfer(desktop)
+          .import(await transfer(phone).export());
+
+      expect(report.collections, 1);
+      expect(await desktop.findCollection('id-telefono'), isNull);
+      expect(await members(desktop, 'id-pc'), {'d1', 'd2', 'd3'});
+    },
+  );
+
+  test('las colecciones dañadas se saltan sin romper el resto', () async {
+    await book(desktop, 'd', hash: _hashA);
+
+    final report = await transfer(desktop).import(
+      utf8.encode(
+        jsonEncode({
+          'kind': progressFileKind,
+          'books': <Object?>[],
+          'collections': [
+            null,
+            {'id': 'ok', 'name': ''},
+            {'id': '../../x', 'name': 'Mala'},
+            {'id': 'x' * 65, 'name': 'Larga'},
+            {
+              'id': 'buena',
+              'name': 'Buena',
+              'createdAt': '2999-01-01T00:00:00Z',
+              'books': [
+                null,
+                {'hash': 'no-es-hash'},
+                {'hash': 'f' * 64, 'format': 'epub'},
+                {'hash': _hashA, 'addedAt': 'ayer'},
+              ],
+            },
+          ],
+        }),
+      ),
+    );
+
+    expect(report.collections, 1);
+    expect(await desktop.select(desktop.collections).get(), hasLength(1));
+    final buena = await desktop.findCollection('buena');
+    expect(buena?.createdAt.toUtc(), _now);
+    expect(await members(desktop, 'buena'), {'d'});
+  });
+
+  Future<void> mark(AppDatabase db, String id, String bookId, String cfi) =>
+      db.addBookmark(
+        BookmarksCompanion.insert(
+          id: id,
+          bookId: bookId,
+          cfi: cfi,
+          label: const Value('Capítulo 2'),
+          createdAt: Value(DateTime.utc(2026, 10, 3)),
+        ),
+      );
+
+  Future<void> highlight(
+    AppDatabase db,
+    String id,
+    String bookId,
+    String cfi,
+  ) => db.addHighlight(
+    HighlightsCompanion.insert(
+      id: id,
+      bookId: bookId,
+      cfi: cfi,
+      content: const Value('Pero aquí los hombres son tontos'),
+      color: const Value('pink'),
+      note: const Value('releer'),
+    ),
+  );
+
+  test(
+    'series, ocultos, favoritos, marcadores y subrayados viajan por la huella',
+    () async {
+      await book(phone, 'p1', hash: _hashA, title: 'Naruto 1');
+      await book(phone, 'p2', hash: _hashB, title: 'Naruto 40');
+      await phone.setSeriesById({'p1': 'Naruto', 'p2': 'Naruto'});
+      await phone.setHidden(['p2'], hidden: true);
+      await phone.setFavorite('p1', true);
+      await mark(phone, 'bm-1', 'p1', 'spine:7#11620');
+      await highlight(phone, 'hl-1', 'p1', 'spine:7#11944-11976');
+      await book(desktop, 'd1', hash: _hashA, title: 'Naruto 1');
+      await book(desktop, 'd2', hash: _hashB, title: 'Naruto 40');
+      await desktop.setSeriesById({'d1': 'NARUTO 1-27', 'd2': 'NARUTO 28-72'});
+      await book(
+        desktop,
+        'd3',
+        hash: 'c' * 64,
+        title: 'Akira',
+        author: 'Otomo',
+      );
+      await desktop.setSeriesById({'d3': 'Akira'});
+
+      final bytes = await transfer(phone).export();
+      final report = await transfer(desktop).import(bytes);
+
+      expect(report.applied, 2);
+      final d1 = await desktop.findBook('d1');
+      final d2 = await desktop.findBook('d2');
+      expect(d1?.series, 'Naruto');
+      expect(d2?.series, 'Naruto');
+      expect(d1?.hidden, isFalse);
+      expect(d2?.hidden, isTrue);
+      expect(d1?.favoritedAt, isNotNull);
+      expect((await desktop.findBook('d3'))?.series, 'Akira');
+      final bookmark = (await desktop.select(desktop.bookmarks).get()).single;
+      expect(bookmark.id, 'bm-1');
+      expect(bookmark.bookId, 'd1');
+      expect(bookmark.cfi, 'spine:7#11620');
+      expect(bookmark.label, 'Capítulo 2');
+      expect(bookmark.createdAt.toUtc(), DateTime.utc(2026, 10, 3));
+      final marked = (await desktop.select(desktop.highlights).get()).single;
+      expect(marked.id, 'hl-1');
+      expect(marked.color, 'pink');
+      expect(marked.note, 'releer');
+      expect(marked.content, 'Pero aquí los hombres son tontos');
+
+      final again = await transfer(desktop).import(bytes);
+      expect(again.applied, 0);
+      expect(await desktop.select(desktop.bookmarks).get(), hasLength(1));
+      expect(await desktop.select(desktop.highlights).get(), hasLength(1));
+    },
+  );
+
+  test(
+    'sin huella exacta no se tocan series, ocultos ni anotaciones',
+    () async {
+      await book(phone, 'p', hash: _hashA);
+      await phone.setSeriesById({'p': 'Cortázar completo'});
+      await phone.setHidden(['p'], hidden: true);
+      await mark(phone, 'bm-1', 'p', 'spine:3#10');
+      await highlight(phone, 'hl-1', 'p', 'spine:3#10-20');
+      await book(desktop, 'otra-edicion', hash: _hashB);
+      await desktop.setSeriesById({'otra-edicion': 'Rayuela'});
+      await mark(desktop, 'bm-local', 'otra-edicion', 'spine:1#0');
+
+      await transfer(desktop).import(await transfer(phone).export());
+
+      final row = await desktop.findBook('otra-edicion');
+      expect(row?.series, 'Rayuela');
+      expect(row?.hidden, isFalse);
+      expect(
+        (await desktop.select(desktop.bookmarks).get()).single.id,
+        'bm-local',
+      );
+      expect(await desktop.select(desktop.highlights).get(), isEmpty);
+    },
+  );
+
+  test('las anotaciones dañadas se descartan', () async {
+    await book(desktop, 'd', hash: _hashA);
+    await mark(desktop, 'ya-existe', 'd', 'spine:1#0');
+
+    await transfer(desktop).import(
+      file([
+        {
+          'hash': _hashA,
+          'format': 'epub',
+          'series': '',
+          'hidden': 'sí',
+          'bookmarks': [
+            null,
+            {'id': '../x', 'cfi': 'spine:1#5'},
+            {'id': 'sin-posicion'},
+            {'id': 'mala-posicion', 'cfi': 'javascript:alert(1)'},
+            {'id': 'ya-existe', 'cfi': 'spine:9#9'},
+            {'id': 'misma-posicion', 'cfi': 'spine:1#0'},
+            {'id': 'buena', 'cfi': 'spine:2#4', 'percent': 9},
+          ],
+          'highlights': [
+            {'id': 'h', 'cfi': 'spine:2#4-8', 'color': '<b>', 'note': 7},
+          ],
+        },
+      ]),
+    );
+
+    final marks = await desktop.select(desktop.bookmarks).get();
+    expect(marks.map((b) => b.id).toSet(), {'ya-existe', 'buena'});
+    expect(marks.firstWhere((b) => b.id == 'buena').percent, 1.0);
+    final marked = (await desktop.select(desktop.highlights).get()).single;
+    expect(marked.color, 'yellow');
+    expect(marked.note, isNull);
+    final row = await desktop.findBook('d');
+    expect(row?.series, isNull);
+    expect(row?.hidden, isFalse);
+  });
+
   test('un respaldo de una versión futura importa lo que entiende', () async {
     await book(desktop, 'd', hash: _hashA);
 

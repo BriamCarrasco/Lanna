@@ -836,6 +836,17 @@ class AppLocalizationsEs extends AppLocalizations {
   }
 
   @override
+  String backupCollections(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count colecciones actualizadas',
+      one: '1 colección actualizada',
+    );
+    return '$_temp0';
+  }
+
+  @override
   String backupUnmatched(int count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,

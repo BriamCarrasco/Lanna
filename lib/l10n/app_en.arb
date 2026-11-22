@@ -229,6 +229,7 @@
   "daysCount": "{count, plural, =1{1 day} other{{count} days}}",
   "finishedBooksCount": "{count, plural, =1{1 book finished} other{{count} books finished}}",
   "backupUpToDate": "{count, plural, =1{1 book already up to date} other{{count} books already up to date}}",
+  "backupCollections": "{count, plural, =1{1 collection updated} other{{count} collections updated}}",
   "backupUnmatched": "{count, plural, =1{1 book isn't in this library} other{{count} books aren't in this library}}",
   "backupInvalidEntries": "{count, plural, =1{1 invalid entry} other{{count} invalid entries}}",
   "progressImportedIn": "{count, plural, =1{Progress imported into 1 book} other{Progress imported into {count} books}}",
