@@ -85,11 +85,10 @@ flutter_launcher_icons:
 
 flutter_native_splash:
   color: "#0D0D10"
-  image: "assets/logo/lanna_splash.png"
+  image: "assets/logo/lanna_adaptive.png"
   android_12:
     color: "#0D0D10"
     image: "assets/logo/lanna_adaptive.png"
-    icon_background_color: "#F4EBE0"
   android: true
   ios: false
   web: false
