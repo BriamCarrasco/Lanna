@@ -8,8 +8,10 @@ import '../local/app_database.dart';
 import '../models/book_format.dart';
 
 const progressFileKind = 'lanna-progress';
-const progressFileVersion = 1;
+const progressFileVersion = 2;
 const maxProgressFileBytes = 32 * 1024 * 1024;
+const _maxSessionSeconds = 24 * 60 * 60;
+const _maxSessionPages = 100000;
 
 enum ProgressFileError { tooLarge, invalid, notLanna, noBooks }
 
@@ -38,6 +40,52 @@ class ProgressImportReport {
   int get total => applied + upToDate + unmatched + invalid;
 }
 
+class ProgressSession {
+  const ProgressSession({
+    required this.startedAt,
+    required this.seconds,
+    this.startPercent = 0,
+    this.endPercent = 0,
+    this.pages = 0,
+  });
+
+  final DateTime startedAt;
+  final int seconds;
+  final double startPercent;
+  final double endPercent;
+  final int pages;
+
+  Map<String, Object?> toJson() => {
+    'startedAt': startedAt.toUtc().toIso8601String(),
+    'seconds': seconds,
+    'startPercent': startPercent,
+    'endPercent': endPercent,
+    'pages': pages,
+  };
+
+  static ProgressSession? fromJson(Object? json) {
+    if (json is! Map) return null;
+    final startedAt = _date(json['startedAt']);
+    final seconds = json['seconds'];
+    if (startedAt == null ||
+        seconds is! int ||
+        seconds <= 0 ||
+        seconds > _maxSessionSeconds) {
+      return null;
+    }
+    final pages = json['pages'];
+    return ProgressSession(
+      startedAt: startedAt,
+      seconds: seconds,
+      startPercent: _percent(json['startPercent']),
+      endPercent: _percent(json['endPercent']),
+      pages: pages is int && pages >= 0 && pages <= _maxSessionPages
+          ? pages
+          : 0,
+    );
+  }
+}
+
 class ProgressEntry {
   const ProgressEntry({
     this.hash,
@@ -49,6 +97,7 @@ class ProgressEntry {
     this.chapterIndex,
     this.updatedAt,
     this.finishedAt,
+    this.sessions = const [],
   });
 
   final String? hash;
@@ -60,6 +109,7 @@ class ProgressEntry {
   final int? chapterIndex;
   final DateTime? updatedAt;
   final DateTime? finishedAt;
+  final List<ProgressSession> sessions;
 
   bool get hasProgress => updatedAt != null;
 
@@ -76,6 +126,7 @@ class ProgressEntry {
         'updatedAt': at.toUtc().toIso8601String(),
       },
     if (finishedAt case final at?) 'finishedAt': at.toUtc().toIso8601String(),
+    if (sessions.isNotEmpty) 'sessions': [for (final s in sessions) s.toJson()],
   };
 
   static ProgressEntry? fromJson(Object? json) {
@@ -90,7 +141,15 @@ class ProgressEntry {
     };
     final finishedAt = _date(json['finishedAt']);
     final updatedAt = _date(progress?['updatedAt']);
-    if (updatedAt == null && finishedAt == null) return null;
+    final sessions = switch (json['sessions']) {
+      final List<Object?> list => [
+        for (final raw in list) ?ProgressSession.fromJson(raw),
+      ],
+      _ => const <ProgressSession>[],
+    };
+    if (updatedAt == null && finishedAt == null && sessions.isEmpty) {
+      return null;
+    }
     return ProgressEntry(
       hash: hash,
       title: title,
@@ -105,6 +164,7 @@ class ProgressEntry {
           : _index(progress?['chapterIndex']),
       updatedAt: updatedAt,
       finishedAt: finishedAt,
+      sessions: sessions,
     );
   }
 }
@@ -121,9 +181,25 @@ class ProgressTransfer {
     final progress = {
       for (final p in await _db.select(_db.readingProgress).get()) p.bookId: p,
     };
+    final sessions = <String, List<ProgressSession>>{};
+    for (final s in await _db.select(_db.readingSessions).get()) {
+      sessions
+          .putIfAbsent(s.bookId, () => [])
+          .add(
+            ProgressSession(
+              startedAt: s.startedAt,
+              seconds: s.seconds,
+              startPercent: s.startPercent,
+              endPercent: s.endPercent,
+              pages: s.pages,
+            ),
+          );
+    }
     final entries = [
       for (final book in books)
-        if (progress[book.id] != null || book.finishedAt != null)
+        if (progress[book.id] != null ||
+            book.finishedAt != null ||
+            sessions[book.id] != null)
           ProgressEntry(
             hash: book.contentHash,
             title: book.title,
@@ -134,6 +210,7 @@ class ProgressTransfer {
             chapterIndex: progress[book.id]?.chapterIndex,
             updatedAt: progress[book.id]?.updatedAt,
             finishedAt: book.finishedAt,
+            sessions: sessions[book.id] ?? const [],
           ),
     ];
     final document = {
@@ -161,6 +238,12 @@ class ProgressTransfer {
       for (final p in await _db.select(_db.readingProgress).get()) p.bookId: p,
     };
     final finished = {for (final b in books) b.id: b.finishedAt};
+    final sessionStarts = <String, Set<int>>{};
+    for (final s in await _db.select(_db.readingSessions).get()) {
+      sessionStarts
+          .putIfAbsent(s.bookId, () => {})
+          .add(s.startedAt.millisecondsSinceEpoch ~/ 1000);
+    }
     final now = _clock();
     DateTime? notAfterNow(DateTime? at) =>
         at != null && at.isAfter(now) ? now : at;
@@ -213,6 +296,24 @@ class ProgressTransfer {
             when finished[book.id] == null) {
           await _db.updateBook(book.id, BooksCompanion(finishedAt: Value(at)));
           finished[book.id] = at;
+          changed = true;
+        }
+        final starts = sessionStarts.putIfAbsent(book.id, () => {});
+        for (final session in entry.sessions) {
+          if (session.startedAt.isAfter(now)) continue;
+          if (!starts.add(session.startedAt.millisecondsSinceEpoch ~/ 1000)) {
+            continue;
+          }
+          await _db.addReadingSession(
+            ReadingSessionsCompanion.insert(
+              bookId: book.id,
+              startedAt: session.startedAt,
+              seconds: session.seconds,
+              startPercent: Value(session.startPercent),
+              endPercent: Value(session.endPercent),
+              pages: Value(session.pages),
+            ),
+          );
           changed = true;
         }
         changed ? applied++ : upToDate++;

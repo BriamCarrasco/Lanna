@@ -221,6 +221,102 @@ void main() {
     await rejects(utf8.encode('{"kind": "$progressFileKind", "books": {}}'));
   });
 
+  Future<void> session(
+    AppDatabase db,
+    String id,
+    DateTime start,
+    int seconds,
+  ) => db.addReadingSession(
+    ReadingSessionsCompanion.insert(
+      bookId: id,
+      startedAt: start,
+      seconds: seconds,
+      startPercent: const Value(0.1),
+      endPercent: const Value(0.2),
+      pages: const Value(12),
+    ),
+  );
+
+  Future<List<ReadingSession>> sessions(AppDatabase db) =>
+      db.select(db.readingSessions).get();
+
+  test(
+    'las sesiones de lectura viajan con el progreso y no se duplican',
+    () async {
+      await book(phone, 'p', hash: _hashA);
+      await progress(phone, 'p', 0.4, DateTime.utc(2026, 10, 2));
+      await session(phone, 'p', DateTime.utc(2026, 10, 1, 8), 1200);
+      await session(phone, 'p', DateTime.utc(2026, 10, 2, 21), 900);
+      await book(phone, 'solo-sesiones', hash: _hashB, title: 'Ficciones');
+      await session(phone, 'solo-sesiones', DateTime.utc(2026, 9, 30), 600);
+      await book(desktop, 'd', hash: _hashA);
+      await book(desktop, 'd2', hash: _hashB, title: 'Ficciones');
+      await session(desktop, 'd', DateTime.utc(2026, 10, 1, 8), 1200);
+
+      final bytes = await transfer(phone).export();
+      final report = await transfer(desktop).import(bytes);
+
+      expect(report.applied, 2);
+      final rows = await sessions(desktop);
+      expect(rows, hasLength(3));
+      final added = rows.firstWhere(
+        (s) => s.startedAt.toUtc() == DateTime.utc(2026, 10, 2, 21),
+      );
+      expect(added.bookId, 'd');
+      expect(added.seconds, 900);
+      expect(added.startPercent, 0.1);
+      expect(added.endPercent, 0.2);
+      expect(added.pages, 12);
+      expect(rows.where((s) => s.bookId == 'd2').single.seconds, 600);
+
+      final again = await transfer(desktop).import(bytes);
+      expect(again.applied, 0);
+      expect(again.upToDate, 2);
+      expect(await sessions(desktop), hasLength(3));
+    },
+  );
+
+  test('las sesiones dañadas o futuras se descartan', () async {
+    await book(desktop, 'd', hash: _hashA);
+
+    final report = await transfer(desktop).import(
+      file([
+        {
+          'hash': _hashA,
+          'format': 'epub',
+          'sessions': [
+            null,
+            {'startedAt': 'ayer', 'seconds': 60},
+            {'startedAt': '2026-10-01T10:00:00Z', 'seconds': -5},
+            {'startedAt': '2026-10-01T10:00:00Z', 'seconds': 999999},
+            {'startedAt': '2999-01-01T00:00:00Z', 'seconds': 60},
+            {
+              'startedAt': '2026-10-01T10:00:00Z',
+              'seconds': 300,
+              'startPercent': 'x',
+              'endPercent': 3,
+              'pages': -1,
+            },
+          ],
+        },
+        {
+          'hash': _hashA,
+          'sessions': [
+            {'startedAt': 'mal', 'seconds': 1},
+          ],
+        },
+      ]),
+    );
+
+    expect(report.applied, 1);
+    expect(report.invalid, 1);
+    final row = (await sessions(desktop)).single;
+    expect(row.seconds, 300);
+    expect(row.startPercent, 0);
+    expect(row.endPercent, 1);
+    expect(row.pages, 0);
+  });
+
   test('un respaldo de una versión futura importa lo que entiende', () async {
     await book(desktop, 'd', hash: _hashA);
 
