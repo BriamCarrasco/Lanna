@@ -21,7 +21,6 @@ import 'widgets/book_actions.dart';
 import 'widgets/book_cover.dart';
 import 'widgets/book_grid.dart';
 import 'widgets/compact_book_tile.dart';
-import 'widgets/continue_reading_row.dart';
 import 'widgets/empty_library_view.dart';
 import 'widgets/filters_panel.dart';
 import 'widgets/section_scaffold.dart';
@@ -188,8 +187,6 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
   @override
   Widget build(BuildContext context) {
     final library = ref.watch(libraryProvider);
-    final continueReading =
-        ref.watch(continueReadingProvider).valueOrNull ?? const [];
     final hasFolders =
         ref.watch(libraryFoldersProvider).valueOrNull?.isNotEmpty ?? false;
     final query = ref.watch(librarySearchProvider);
@@ -215,7 +212,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
               count: count,
               compact: compact,
               hasSeries: hasSeries,
-              body: _body(visible, count, continueReading, query, hasFolders),
+              body: _body(visible, count, query, hasFolders),
             )
           : _selectionScaffold(
               selection: selection,
@@ -224,7 +221,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                 for (final b in booksOf(visible.valueOrNull ?? const []))
                   if (b.format.hasSeries) b,
               ],
-              body: _body(visible, count, const [], query, hasFolders),
+              body: _body(visible, count, query, hasFolders),
             ),
     );
   }
@@ -232,7 +229,6 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
   Widget _body(
     AsyncValue<List<LibraryEntry>> visible,
     int count,
-    List<BookWithProgress> continueReading,
     String query,
     bool hasFolders,
   ) {
@@ -245,9 +241,6 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
             libraryEmpty: count == 0,
             filters: _filters,
             onFilters: (f) => setState(() => _filters = f),
-            continueReading: query.isEmpty && !_filters.active
-                ? continueReading
-                : const [],
             query: query,
             view: _view,
             hasFolders: hasFolders,
@@ -429,7 +422,6 @@ class _LibraryBody extends StatelessWidget {
     required this.libraryEmpty,
     required this.filters,
     required this.onFilters,
-    required this.continueReading,
     required this.query,
     required this.view,
     required this.hasFolders,
@@ -444,7 +436,6 @@ class _LibraryBody extends StatelessWidget {
   final bool libraryEmpty;
   final LibraryFilters filters;
   final ValueChanged<LibraryFilters> onFilters;
-  final List<BookWithProgress> continueReading;
   final String query;
   final _ViewMode view;
   final bool hasFolders;
@@ -481,12 +472,6 @@ class _LibraryBody extends StatelessWidget {
             scrollCacheExtent: const ScrollCacheExtent.viewport(1),
             physics: const AlwaysScrollableScrollPhysics(),
             slivers: [
-              if (continueReading.isNotEmpty) ...[
-                _SectionLabel(context.l10n.continueReading),
-                SliverToBoxAdapter(
-                  child: ContinueReadingRow(items: continueReading),
-                ),
-              ],
               _SectionLabel(
                 searching ? context.l10n.results : context.l10n.allBooks,
                 trailing: '${booksOf(entries).length}',

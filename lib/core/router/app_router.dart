@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../features/home/home_screen.dart';
 import '../../features/library/authors_screen.dart';
 import '../../features/library/collections_screen.dart';
 import '../../features/library/favorites_screen.dart';
@@ -42,6 +43,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         routes: [
           GoRoute(
             path: '/',
+            name: 'home',
+            builder: (context, state) => const HomeScreen(),
+          ),
+          GoRoute(
+            path: '/library',
             name: 'library',
             builder: (context, state) => const LibraryScreen(),
           ),

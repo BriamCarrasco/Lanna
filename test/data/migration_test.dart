@@ -63,6 +63,11 @@ void main() {
     if (version < 19) {
       await db.customStatement('ALTER TABLE reader_prefs DROP COLUMN language');
     }
+    if (version < 20) {
+      await db.customStatement(
+        'ALTER TABLE reader_prefs DROP COLUMN stats_view',
+      );
+    }
     if (withDeadTable) {
       await db.customStatement(
         'CREATE TABLE book_locations ('
@@ -120,6 +125,21 @@ void main() {
     ]) {
       expect(await hasTable(db, name), isTrue, reason: 'falta $name');
     }
+  });
+
+  test('de v19 a v20 llega la vista de estadísticas, en Diario', () async {
+    final db = await atSchema(19);
+    addTearDown(db.close);
+    await db.customStatement('INSERT INTO reader_prefs (id) VALUES (0)');
+    expect(await columns(db, 'reader_prefs'), isNot(contains('stats_view')));
+
+    await db.migration.onUpgrade(Migrator(db), 19, db.schemaVersion);
+
+    expect(await columns(db, 'reader_prefs'), contains('stats_view'));
+    final row = await db
+        .customSelect('SELECT stats_view FROM reader_prefs')
+        .getSingle();
+    expect(row.data['stats_view'], 'diary');
   });
 
   test('de v12 a v13 llega la dirección de lectura', () async {

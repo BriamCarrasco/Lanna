@@ -35,6 +35,8 @@ abstract final class LannaRadii {
 }
 
 abstract final class LannaType {
+  static const List<FontFeature> tabular = [FontFeature.tabularFigures()];
+
   static const TextStyle display = TextStyle(
     fontFamily: AppFonts.serif,
     fontSize: 24,

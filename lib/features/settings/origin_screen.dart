@@ -25,11 +25,11 @@ class OriginScreen extends StatelessWidget {
       child: LayoutBuilder(
         builder: (context, constraints) {
           final width = constraints.maxWidth;
-          final gutter = width < _compactBelow
-              ? LannaSpacing.s5
-              : width < _wideFrom
-              ? LannaSpacing.s8
-              : LannaSpacing.s10;
+          final gutter = switch (width) {
+            < _compactBelow => LannaSpacing.s5,
+            < _wideFrom => LannaSpacing.s8,
+            _ => LannaSpacing.s10,
+          };
           final inner = width - gutter * 2;
           final large = width >= 1600;
           final name = _Story(

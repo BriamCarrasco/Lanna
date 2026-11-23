@@ -35,36 +35,59 @@ class BookCover extends StatelessWidget {
     final cover = book.coverPath;
     return AspectRatio(
       aspectRatio: 2 / 3,
-      child: ClipRRect(
-        borderRadius: LannaRadii.brSm,
-        child: Stack(
-          fit: StackFit.expand,
-          children: [
-            if (cover == null)
-              _FallbackCover(title: book.title)
-            else
-              LayoutBuilder(
-                builder: (context, constraints) => Image(
-                  image: ResizeImage(
-                    FileImage(File(cover)),
-                    width: coverDecodeWidth(
-                      constraints.maxWidth,
-                      MediaQuery.devicePixelRatioOf(context),
+      child: DecoratedBox(
+        decoration: const BoxDecoration(
+          borderRadius: LannaRadii.brSm,
+          boxShadow: [
+            BoxShadow(
+              color: Color(0x66000000),
+              blurRadius: 10,
+              offset: Offset(0, 3),
+            ),
+          ],
+        ),
+        child: ClipRRect(
+          borderRadius: LannaRadii.brSm,
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              if (cover == null)
+                _FallbackCover(title: book.title, author: book.author)
+              else
+                LayoutBuilder(
+                  builder: (context, constraints) => Image(
+                    image: ResizeImage(
+                      FileImage(File(cover)),
+                      width: coverDecodeWidth(
+                        constraints.maxWidth,
+                        MediaQuery.devicePixelRatioOf(context),
+                      ),
+                      policy: ResizeImagePolicy.fit,
                     ),
-                    policy: ResizeImagePolicy.fit,
+                    fit: BoxFit.cover,
+                    gaplessPlayback: true,
+                    errorBuilder: (_, _, _) =>
+                        _FallbackCover(title: book.title, author: book.author),
                   ),
-                  fit: BoxFit.cover,
-                  gaplessPlayback: true,
-                  errorBuilder: (_, _, _) => _FallbackCover(title: book.title),
+                ),
+              const IgnorePointer(
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    borderRadius: LannaRadii.brSm,
+                    border: Border.fromBorderSide(
+                      BorderSide(color: Color(0x14FFFFFF)),
+                    ),
+                  ),
                 ),
               ),
-            if (showFormat)
-              Positioned(
-                left: LannaSpacing.s1 + 2,
-                bottom: LannaSpacing.s1 + 2,
-                child: _FormatBadge(formatLabel(book)),
-              ),
-          ],
+              if (showFormat)
+                Positioned(
+                  left: LannaSpacing.s1 + 2,
+                  bottom: LannaSpacing.s1 + 2,
+                  child: _FormatBadge(formatLabel(book)),
+                ),
+            ],
+          ),
         ),
       ),
     );
@@ -99,50 +122,92 @@ class _FormatBadge extends StatelessWidget {
 }
 
 class _FallbackCover extends StatelessWidget {
-  const _FallbackCover({required this.title});
+  const _FallbackCover({required this.title, this.author});
 
   final String title;
+  final String? author;
 
   @override
   Widget build(BuildContext context) {
-    final base = _seedColor(title);
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            base,
-            HSLColor.fromColor(base).withLightness(0.16).toColor(),
-          ],
-        ),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(LannaSpacing.s3),
-        child: Align(
-          alignment: Alignment.bottomLeft,
-          child: Text(
-            title,
-            maxLines: 4,
-            overflow: TextOverflow.ellipsis,
-            style: AppTheme.reading(
-              fontSize: 13,
-              height: 1.25,
-              fontWeight: FontWeight.w500,
-              color: const Color(0xFFF0E6DF),
-            ),
-          ),
-        ),
+    final cloth = _clothColor(title);
+    final ink = const Color(0xFFEDE5D8);
+    return ColoredBox(
+      color: cloth,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final w = constraints.maxWidth;
+          final pad = (w * 0.1).clamp(6.0, 18.0);
+          final titleSize = (w * 0.11).clamp(9.0, 20.0);
+          return Stack(
+            fit: StackFit.expand,
+            children: [
+              Positioned(
+                left: 0,
+                top: 0,
+                bottom: 0,
+                width: (w * 0.05).clamp(3.0, 8.0),
+                child: ColoredBox(color: Colors.black.withValues(alpha: 0.22)),
+              ),
+              Padding(
+                padding: EdgeInsets.fromLTRB(pad * 1.3, pad * 1.4, pad, pad),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: w < 56
+                          ? const SizedBox.shrink()
+                          : Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Flexible(
+                                  child: Text(
+                                    title,
+                                    maxLines: 5,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: AppTheme.reading(
+                                      fontSize: titleSize,
+                                      height: 1.2,
+                                      fontWeight: FontWeight.w500,
+                                      color: ink,
+                                    ),
+                                  ),
+                                ),
+                                SizedBox(height: pad * 0.6),
+                                Container(
+                                  width: w * 0.18,
+                                  height: 1,
+                                  color: ink.withValues(alpha: 0.35),
+                                ),
+                              ],
+                            ),
+                    ),
+                    if (author != null && w >= 72)
+                      Text(
+                        author!,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: LannaType.micro.copyWith(
+                          fontSize: (w * 0.065).clamp(8.0, 12.0),
+                          color: ink.withValues(alpha: 0.7),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ],
+          );
+        },
       ),
     );
   }
 
-  Color _seedColor(String title) {
+  Color _clothColor(String title) {
     var hash = 0;
     for (final unit in title.codeUnits) {
       hash = (hash * 31 + unit) & 0x7fffffff;
     }
-    final hue = (hash % 360).toDouble();
-    return HSLColor.fromAHSL(1, hue, 0.28, 0.30).toColor();
+    const hues = [8.0, 24.0, 152.0, 198.0, 220.0, 262.0, 340.0];
+    final hue = hues[hash % hues.length];
+    return HSLColor.fromAHSL(1, hue, 0.16, 0.24).toColor();
   }
 }

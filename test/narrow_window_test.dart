@@ -8,6 +8,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:lanna/app.dart';
 import 'package:lanna/data/local/app_database.dart';
 import 'package:lanna/data/local/database_provider.dart';
+import 'package:lanna/features/reader/reader_theme.dart';
 
 void main() {
   setUpAll(() async {
@@ -25,6 +26,9 @@ void main() {
     addTearDown(tester.platformDispatcher.clearLocalesTestValue);
     final db = AppDatabase.forTesting(NativeDatabase.memory());
     addTearDown(db.close);
+    await db.saveReaderPrefs(
+      const ReaderSettings(statsView: 'summary').toCompanion(),
+    );
     await tester.pumpWidget(
       ProviderScope(
         overrides: [appDatabaseProvider.overrideWithValue(db)],

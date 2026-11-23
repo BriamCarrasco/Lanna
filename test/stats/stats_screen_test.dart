@@ -6,6 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:lanna/data/local/app_database.dart';
 import 'package:lanna/data/local/database_provider.dart';
 import 'package:lanna/data/models/book_format.dart';
+import 'package:lanna/features/reader/reader_theme.dart';
 import 'package:lanna/features/stats/stats_screen.dart';
 import 'package:lanna/l10n/app_localizations.dart';
 
@@ -15,10 +16,13 @@ void main() {
     await db.upsertBook(
       BooksCompanion.insert(
         id: 'b',
-        title: 'Misery',
-        filePath: '/libros/misery.epub',
+        title: 'Libro de prueba',
+        filePath: '/libros/libro.epub',
         format: BookFormat.epub,
       ),
+    );
+    await db.saveReaderPrefs(
+      const ReaderSettings(statsView: 'summary').toCompanion(),
     );
     return db;
   }

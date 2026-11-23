@@ -174,6 +174,8 @@ class ReaderPrefs extends Table {
 
   TextColumn get language => text().withDefault(const Constant('system'))();
 
+  TextColumn get statsView => text().withDefault(const Constant('diary'))();
+
   @override
   Set<Column<Object>> get primaryKey => {id};
 }

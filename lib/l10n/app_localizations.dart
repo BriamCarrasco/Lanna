@@ -1861,6 +1861,186 @@ abstract class AppLocalizations {
   /// In es, this message translates to:
   /// **'V'**
   String get weekdayFifth;
+
+  /// No description provided for @home.
+  ///
+  /// In es, this message translates to:
+  /// **'Inicio'**
+  String get home;
+
+  /// No description provided for @lastReadMoment.
+  ///
+  /// In es, this message translates to:
+  /// **'Leíste hace un momento'**
+  String get lastReadMoment;
+
+  /// No description provided for @lastReadHours.
+  ///
+  /// In es, this message translates to:
+  /// **'Leíste hace {hours} h'**
+  String lastReadHours(int hours);
+
+  /// No description provided for @lastReadYesterday.
+  ///
+  /// In es, this message translates to:
+  /// **'Leíste ayer'**
+  String get lastReadYesterday;
+
+  /// No description provided for @lastReadDays.
+  ///
+  /// In es, this message translates to:
+  /// **'Leíste hace {days} días'**
+  String lastReadDays(int days);
+
+  /// No description provided for @percentRead.
+  ///
+  /// In es, this message translates to:
+  /// **'{percent} % leído'**
+  String percentRead(int percent);
+
+  /// No description provided for @timeToFinish.
+  ///
+  /// In es, this message translates to:
+  /// **'{time} para terminar'**
+  String timeToFinish(String time);
+
+  /// No description provided for @todayMinutes.
+  ///
+  /// In es, this message translates to:
+  /// **'Hoy llevas {done} de tus {goal} minutos'**
+  String todayMinutes(int done, int goal);
+
+  /// No description provided for @todayGoalMet.
+  ///
+  /// In es, this message translates to:
+  /// **'Hoy cumpliste tu meta: {time}'**
+  String todayGoalMet(String time);
+
+  /// No description provided for @alsoReading.
+  ///
+  /// In es, this message translates to:
+  /// **'También tienes abiertos'**
+  String get alsoReading;
+
+  /// No description provided for @recentlyAdded.
+  ///
+  /// In es, this message translates to:
+  /// **'Añadidos hace poco'**
+  String get recentlyAdded;
+
+  /// No description provided for @seeLibrary.
+  ///
+  /// In es, this message translates to:
+  /// **'Ver la biblioteca ({count})'**
+  String seeLibrary(int count);
+
+  /// No description provided for @weekSummary.
+  ///
+  /// In es, this message translates to:
+  /// **'{time}, en {days} de los 7 días'**
+  String weekSummary(String time, int days);
+
+  /// No description provided for @seeStats.
+  ///
+  /// In es, this message translates to:
+  /// **'Ver tus estadísticas'**
+  String get seeStats;
+
+  /// No description provided for @pickBookToStart.
+  ///
+  /// In es, this message translates to:
+  /// **'Elige un libro para empezar a leer.'**
+  String get pickBookToStart;
+
+  /// No description provided for @statsView.
+  ///
+  /// In es, this message translates to:
+  /// **'Vista'**
+  String get statsView;
+
+  /// No description provided for @statsDiary.
+  ///
+  /// In es, this message translates to:
+  /// **'Diario'**
+  String get statsDiary;
+
+  /// No description provided for @statsSummary.
+  ///
+  /// In es, this message translates to:
+  /// **'Resumen'**
+  String get statsSummary;
+
+  /// No description provided for @diaryWeek.
+  ///
+  /// In es, this message translates to:
+  /// **'Esta semana leíste {time}, en {days} de los 7 días.'**
+  String diaryWeek(String time, int days);
+
+  /// No description provided for @diaryWeekEmpty.
+  ///
+  /// In es, this message translates to:
+  /// **'Esta semana todavía no has leído.'**
+  String get diaryWeekEmpty;
+
+  /// No description provided for @diaryGoalLine.
+  ///
+  /// In es, this message translates to:
+  /// **'La línea marca tu meta.'**
+  String get diaryGoalLine;
+
+  /// No description provided for @whatYouRead.
+  ///
+  /// In es, this message translates to:
+  /// **'Lo que leíste'**
+  String get whatYouRead;
+
+  /// No description provided for @diaryEmpty.
+  ///
+  /// In es, this message translates to:
+  /// **'Aquí aparecerá lo que leas cada día.'**
+  String get diaryEmpty;
+
+  /// No description provided for @progressGained.
+  ///
+  /// In es, this message translates to:
+  /// **'avanzaste {percent} %'**
+  String progressGained(int percent);
+
+  /// No description provided for @readingDays.
+  ///
+  /// In es, this message translates to:
+  /// **'{count, plural, =1{1 día con lectura} other{{count} días con lectura}}'**
+  String readingDays(int count);
+
+  /// No description provided for @yearSummary.
+  ///
+  /// In es, this message translates to:
+  /// **'{time} de lectura y {books}.'**
+  String yearSummary(String time, String books);
+
+  /// No description provided for @bestStreakSentence.
+  ///
+  /// In es, this message translates to:
+  /// **'{count, plural, =1{Tu mejor racha: 1 día.} other{Tu mejor racha: {count} días seguidos.}}'**
+  String bestStreakSentence(int count);
+
+  /// No description provided for @yearByMonth.
+  ///
+  /// In es, this message translates to:
+  /// **'Tu año, mes a mes'**
+  String get yearByMonth;
+
+  /// No description provided for @finishedIn.
+  ///
+  /// In es, this message translates to:
+  /// **'Terminados en {year}'**
+  String finishedIn(String year);
+
+  /// No description provided for @inYear.
+  ///
+  /// In es, this message translates to:
+  /// **'En {year}'**
+  String inYear(String year);
 }
 
 class _AppLocalizationsDelegate

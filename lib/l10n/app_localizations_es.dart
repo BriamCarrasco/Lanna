@@ -1179,4 +1179,136 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get weekdayFifth => 'V';
+
+  @override
+  String get home => 'Inicio';
+
+  @override
+  String get lastReadMoment => 'Leíste hace un momento';
+
+  @override
+  String lastReadHours(int hours) {
+    return 'Leíste hace $hours h';
+  }
+
+  @override
+  String get lastReadYesterday => 'Leíste ayer';
+
+  @override
+  String lastReadDays(int days) {
+    return 'Leíste hace $days días';
+  }
+
+  @override
+  String percentRead(int percent) {
+    return '$percent % leído';
+  }
+
+  @override
+  String timeToFinish(String time) {
+    return '$time para terminar';
+  }
+
+  @override
+  String todayMinutes(int done, int goal) {
+    return 'Hoy llevas $done de tus $goal minutos';
+  }
+
+  @override
+  String todayGoalMet(String time) {
+    return 'Hoy cumpliste tu meta: $time';
+  }
+
+  @override
+  String get alsoReading => 'También tienes abiertos';
+
+  @override
+  String get recentlyAdded => 'Añadidos hace poco';
+
+  @override
+  String seeLibrary(int count) {
+    return 'Ver la biblioteca ($count)';
+  }
+
+  @override
+  String weekSummary(String time, int days) {
+    return '$time, en $days de los 7 días';
+  }
+
+  @override
+  String get seeStats => 'Ver tus estadísticas';
+
+  @override
+  String get pickBookToStart => 'Elige un libro para empezar a leer.';
+
+  @override
+  String get statsView => 'Vista';
+
+  @override
+  String get statsDiary => 'Diario';
+
+  @override
+  String get statsSummary => 'Resumen';
+
+  @override
+  String diaryWeek(String time, int days) {
+    return 'Esta semana leíste $time, en $days de los 7 días.';
+  }
+
+  @override
+  String get diaryWeekEmpty => 'Esta semana todavía no has leído.';
+
+  @override
+  String get diaryGoalLine => 'La línea marca tu meta.';
+
+  @override
+  String get whatYouRead => 'Lo que leíste';
+
+  @override
+  String get diaryEmpty => 'Aquí aparecerá lo que leas cada día.';
+
+  @override
+  String progressGained(int percent) {
+    return 'avanzaste $percent %';
+  }
+
+  @override
+  String readingDays(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count días con lectura',
+      one: '1 día con lectura',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String yearSummary(String time, String books) {
+    return '$time de lectura y $books.';
+  }
+
+  @override
+  String bestStreakSentence(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Tu mejor racha: $count días seguidos.',
+      one: 'Tu mejor racha: 1 día.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get yearByMonth => 'Tu año, mes a mes';
+
+  @override
+  String finishedIn(String year) {
+    return 'Terminados en $year';
+  }
+
+  @override
+  String inYear(String year) {
+    return 'En $year';
+  }
 }

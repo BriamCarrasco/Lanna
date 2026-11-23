@@ -55,6 +55,9 @@ class ReaderSettingsController {
 
   Future<void> setLanguage(String code) =>
       _save(_current.copyWith(language: code));
+
+  Future<void> setStatsView(String view) =>
+      _save(_current.copyWith(statsView: view));
 }
 
 final readerSettingsControllerProvider = Provider(ReaderSettingsController.new);

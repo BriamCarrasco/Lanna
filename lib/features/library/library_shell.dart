@@ -28,6 +28,7 @@ class _LibraryShellState extends ConsumerState<LibraryShell> {
   final _searchController = TextEditingController();
   final _searchFocus = FocusNode(debugLabel: 'búsqueda');
   LibrarySection? _lastSection;
+  bool _searchFromHome = false;
 
   @override
   void initState() {
@@ -85,11 +86,19 @@ class _LibraryShellState extends ConsumerState<LibraryShell> {
     if (path.startsWith('/authors')) return LibrarySection.authors;
     if (path.startsWith('/stats')) return LibrarySection.stats;
     if (path.startsWith('/settings')) return LibrarySection.settings;
-    return LibrarySection.library;
+    if (path.startsWith('/library')) return LibrarySection.library;
+    return LibrarySection.home;
   }
 
-  void _onSearchChanged(String q) =>
-      ref.read(librarySearchProvider.notifier).state = q;
+  void _onSearchChanged(String q) {
+    ref.read(librarySearchProvider.notifier).state = q;
+    if (q.isNotEmpty &&
+        _sectionFor(GoRouterState.of(context).uri.path) ==
+            LibrarySection.home) {
+      _searchFromHome = true;
+      context.go('/library');
+    }
+  }
 
   void _select(LibrarySection section, LibrarySection current) {
     if (section != current) goToLibrarySection(context, section);
@@ -99,13 +108,14 @@ class _LibraryShellState extends ConsumerState<LibraryShell> {
   Widget build(BuildContext context) {
     final path = GoRouterState.of(context).uri.path;
     final section = _sectionFor(path);
-    if (_lastSection != null && _lastSection != section) {
+    if (_lastSection != null && _lastSection != section && !_searchFromHome) {
       _searchController.clear();
       WidgetsBinding.instance.addPostFrameCallback((_) {
         ref.read(librarySearchProvider.notifier).state = '';
       });
     }
     _lastSection = section;
+    _searchFromHome = false;
 
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -141,7 +151,9 @@ class _LibraryShellState extends ConsumerState<LibraryShell> {
 
   Widget _narrow(LibrarySection section) {
     final showSearch =
-        section != LibrarySection.settings && section != LibrarySection.stats;
+        section != LibrarySection.settings &&
+        section != LibrarySection.stats &&
+        section != LibrarySection.home;
     return Scaffold(
       backgroundColor: LannaColors.bg,
       body: SafeArea(

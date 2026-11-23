@@ -10,6 +10,7 @@ import '../../../core/theme/tokens.dart';
 import '../../../l10n/l10n.dart';
 
 enum LibrarySection {
+  home,
   library,
   favorites,
   folders,
@@ -22,6 +23,7 @@ enum LibrarySection {
 List<(IconData, String, LibrarySection)> librarySections(
   AppLocalizations l10n,
 ) => [
+  (Icons.home_outlined, l10n.home, LibrarySection.home),
   (Icons.menu_book_outlined, l10n.library, LibrarySection.library),
   (Icons.favorite_border, l10n.favorites, LibrarySection.favorites),
   (Icons.folder_outlined, l10n.folders, LibrarySection.folders),
@@ -37,8 +39,10 @@ List<(IconData, String, LibrarySection)> librarySections(
 
 void goToLibrarySection(BuildContext context, LibrarySection section) {
   switch (section) {
-    case LibrarySection.library:
+    case LibrarySection.home:
       context.go('/');
+    case LibrarySection.library:
+      context.go('/library');
     case LibrarySection.favorites:
       context.go('/favorites');
     case LibrarySection.folders:

@@ -12,6 +12,7 @@ import '../../l10n/l10n.dart';
 import '../library/widgets/section_scaffold.dart';
 import '../reader/reader_settings_provider.dart';
 import '../reader/reader_theme.dart';
+import 'diary_view.dart';
 import 'reading_stats.dart';
 import 'stats_providers.dart';
 
@@ -28,10 +29,22 @@ class StatsScreen extends ConsumerWidget {
     final stats = ref.watch(readingStatsProvider).valueOrNull;
     final finished = ref.watch(finishedThisYearProvider).valueOrNull?.length;
     final empty = ref.watch(readingSessionsProvider).valueOrNull?.isEmpty;
+    final view =
+        ref.watch(
+          readerSettingsProvider.select((s) => s.valueOrNull?.statsView),
+        ) ??
+        'diary';
+    final headerToggle = MediaQuery.sizeOf(context).width >= 1000;
 
     return SectionScaffold(
       title: context.l10n.stats,
-      actions: const [_GoalButton()],
+      actions: [
+        if (headerToggle) ...[
+          StatsViewToggle(value: view),
+          const SizedBox(width: LannaSpacing.s3),
+        ],
+        const _GoalButton(),
+      ],
       child: stats == null
           ? const SizedBox.shrink()
           : LayoutBuilder(
@@ -39,7 +52,22 @@ class StatsScreen extends ConsumerWidget {
                 final gutter = constraints.maxWidth < 620
                     ? LannaSpacing.s4
                     : LannaSpacing.s6;
-                return SingleChildScrollView(
+                final toggle = headerToggle
+                    ? null
+                    : Padding(
+                        padding: EdgeInsets.fromLTRB(gutter, gutter, gutter, 0),
+                        child: StatsViewToggle(value: view, expand: true),
+                      );
+                if (view == 'diary') {
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      ?toggle,
+                      Expanded(child: DiaryView(stats: stats)),
+                    ],
+                  );
+                }
+                final summary = SingleChildScrollView(
                   padding: EdgeInsets.fromLTRB(
                     gutter,
                     gutter,
@@ -59,8 +87,104 @@ class StatsScreen extends ConsumerWidget {
                     ],
                   ),
                 );
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    ?toggle,
+                    Expanded(child: summary),
+                  ],
+                );
               },
             ),
+    );
+  }
+}
+
+class StatsViewToggle extends ConsumerWidget {
+  const StatsViewToggle({super.key, required this.value, this.expand = false});
+
+  final String value;
+  final bool expand;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final options = {
+      'diary': context.l10n.statsDiary,
+      'summary': context.l10n.statsSummary,
+    };
+    final items = [
+      for (final MapEntry(:key, value: label) in options.entries)
+        _ToggleItem(
+          label: label,
+          selected: key == value,
+          expand: expand,
+          onTap: () =>
+              ref.read(readerSettingsControllerProvider).setStatsView(key),
+        ),
+    ];
+    return Semantics(
+      label: context.l10n.statsView,
+      container: true,
+      child: Container(
+        padding: const EdgeInsets.all(3),
+        decoration: BoxDecoration(
+          borderRadius: LannaRadii.brMd,
+          border: Border.all(color: LannaColors.border),
+        ),
+        child: Row(
+          mainAxisSize: expand ? MainAxisSize.max : MainAxisSize.min,
+          children: [
+            for (var i = 0; i < items.length; i++) ...[
+              if (i > 0) const SizedBox(width: 2),
+              if (expand) Expanded(child: items[i]) else items[i],
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ToggleItem extends StatelessWidget {
+  const _ToggleItem({
+    required this.label,
+    required this.selected,
+    required this.expand,
+    required this.onTap,
+  });
+
+  final String label;
+  final bool selected;
+  final bool expand;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      button: true,
+      selected: selected,
+      child: Material(
+        color: selected ? LannaColors.surfaceActive : Colors.transparent,
+        borderRadius: LannaRadii.brSm,
+        child: InkWell(
+          borderRadius: LannaRadii.brSm,
+          onTap: selected ? null : onTap,
+          child: Container(
+            height: expand ? 36 : 32,
+            alignment: Alignment.center,
+            padding: const EdgeInsets.symmetric(horizontal: LannaSpacing.s4),
+            child: Text(
+              label,
+              style: LannaType.md.copyWith(
+                fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
+                color: selected
+                    ? LannaColors.textStrong
+                    : LannaColors.textMuted,
+              ),
+            ),
+          ),
+        ),
+      ),
     );
   }
 }

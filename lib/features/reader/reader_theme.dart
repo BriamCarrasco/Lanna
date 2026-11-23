@@ -122,6 +122,7 @@ class ReaderSettings {
     this.pageNumbers = true,
     this.dailyGoalMinutes = 20,
     this.language = 'system',
+    this.statsView = 'diary',
   });
 
   static const dailyGoals = [10, 20, 30, 45, 60];
@@ -146,6 +147,12 @@ class ReaderSettings {
   final bool pageNumbers;
   final int dailyGoalMinutes;
   final String language;
+  final String statsView;
+
+  static const statsViews = ['diary', 'summary'];
+
+  static String sanitizeStatsView(String value) =>
+      statsViews.contains(value) ? value : 'diary';
 
   static const minScale = 70;
   static const maxScale = 220;
@@ -164,6 +171,7 @@ class ReaderSettings {
       pageNumbers: row.pageNumbers,
       dailyGoalMinutes: row.dailyGoalMinutes,
       language: row.language,
+      statsView: sanitizeStatsView(row.statsView),
     );
   }
 
@@ -179,6 +187,7 @@ class ReaderSettings {
     pageNumbers: Value(pageNumbers),
     dailyGoalMinutes: Value(dailyGoalMinutes),
     language: Value(language),
+    statsView: Value(statsView),
   );
 
   ReaderSettings copyWith({
@@ -193,6 +202,7 @@ class ReaderSettings {
     bool? pageNumbers,
     int? dailyGoalMinutes,
     String? language,
+    String? statsView,
   }) => ReaderSettings(
     preset: preset ?? this.preset,
     fontScale: (fontScale ?? this.fontScale).clamp(minScale, maxScale),
@@ -205,6 +215,7 @@ class ReaderSettings {
     pageNumbers: pageNumbers ?? this.pageNumbers,
     dailyGoalMinutes: dailyGoalMinutes ?? this.dailyGoalMinutes,
     language: language ?? this.language,
+    statsView: sanitizeStatsView(statsView ?? this.statsView),
   );
 
   static const fontFamilies = ['serif', 'sans', 'book'];

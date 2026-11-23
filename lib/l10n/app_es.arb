@@ -792,5 +792,152 @@
   },
   "weekdayFirst": "L",
   "weekdayThird": "X",
-  "weekdayFifth": "V"
+  "weekdayFifth": "V",
+  "home": "Inicio",
+  "lastReadMoment": "Leíste hace un momento",
+  "lastReadHours": "Leíste hace {hours} h",
+  "@lastReadHours": {
+    "placeholders": {
+      "hours": {
+        "type": "int"
+      }
+    }
+  },
+  "lastReadYesterday": "Leíste ayer",
+  "lastReadDays": "Leíste hace {days} días",
+  "@lastReadDays": {
+    "placeholders": {
+      "days": {
+        "type": "int"
+      }
+    }
+  },
+  "percentRead": "{percent} % leído",
+  "@percentRead": {
+    "placeholders": {
+      "percent": {
+        "type": "int"
+      }
+    }
+  },
+  "timeToFinish": "{time} para terminar",
+  "@timeToFinish": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "todayMinutes": "Hoy llevas {done} de tus {goal} minutos",
+  "@todayMinutes": {
+    "placeholders": {
+      "done": {
+        "type": "int"
+      },
+      "goal": {
+        "type": "int"
+      }
+    }
+  },
+  "todayGoalMet": "Hoy cumpliste tu meta: {time}",
+  "@todayGoalMet": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "alsoReading": "También tienes abiertos",
+  "recentlyAdded": "Añadidos hace poco",
+  "seeLibrary": "Ver la biblioteca ({count})",
+  "@seeLibrary": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "weekSummary": "{time}, en {days} de los 7 días",
+  "@weekSummary": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      },
+      "days": {
+        "type": "int"
+      }
+    }
+  },
+  "seeStats": "Ver tus estadísticas",
+  "pickBookToStart": "Elige un libro para empezar a leer.",
+  "statsView": "Vista",
+  "statsDiary": "Diario",
+  "statsSummary": "Resumen",
+  "diaryWeek": "Esta semana leíste {time}, en {days} de los 7 días.",
+  "@diaryWeek": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      },
+      "days": {
+        "type": "int"
+      }
+    }
+  },
+  "diaryWeekEmpty": "Esta semana todavía no has leído.",
+  "diaryGoalLine": "La línea marca tu meta.",
+  "whatYouRead": "Lo que leíste",
+  "diaryEmpty": "Aquí aparecerá lo que leas cada día.",
+  "progressGained": "avanzaste {percent} %",
+  "@progressGained": {
+    "placeholders": {
+      "percent": {
+        "type": "int"
+      }
+    }
+  },
+  "readingDays": "{count, plural, =1{1 día con lectura} other{{count} días con lectura}}",
+  "@readingDays": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "yearSummary": "{time} de lectura y {books}.",
+  "@yearSummary": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      },
+      "books": {
+        "type": "String"
+      }
+    }
+  },
+  "bestStreakSentence": "{count, plural, =1{Tu mejor racha: 1 día.} other{Tu mejor racha: {count} días seguidos.}}",
+  "@bestStreakSentence": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "yearByMonth": "Tu año, mes a mes",
+  "finishedIn": "Terminados en {year}",
+  "@finishedIn": {
+    "placeholders": {
+      "year": {
+        "type": "String"
+      }
+    }
+  },
+  "inYear": "En {year}",
+  "@inYear": {
+    "placeholders": {
+      "year": {
+        "type": "String"
+      }
+    }
+  }
 }

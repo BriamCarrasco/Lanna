@@ -1944,6 +1944,18 @@ class $ReaderPrefsTable extends ReaderPrefs
     requiredDuringInsert: false,
     defaultValue: const Constant('system'),
   );
+  static const VerificationMeta _statsViewMeta = const VerificationMeta(
+    'statsView',
+  );
+  @override
+  late final GeneratedColumn<String> statsView = GeneratedColumn<String>(
+    'stats_view',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('diary'),
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -1959,6 +1971,7 @@ class $ReaderPrefsTable extends ReaderPrefs
     engine,
     dailyGoalMinutes,
     language,
+    statsView,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -2056,6 +2069,12 @@ class $ReaderPrefsTable extends ReaderPrefs
         language.isAcceptableOrUnknown(data['language']!, _languageMeta),
       );
     }
+    if (data.containsKey('stats_view')) {
+      context.handle(
+        _statsViewMeta,
+        statsView.isAcceptableOrUnknown(data['stats_view']!, _statsViewMeta),
+      );
+    }
     return context;
   }
 
@@ -2117,6 +2136,10 @@ class $ReaderPrefsTable extends ReaderPrefs
         DriftSqlType.string,
         data['${effectivePrefix}language'],
       )!,
+      statsView: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}stats_view'],
+      )!,
     );
   }
 
@@ -2140,6 +2163,7 @@ class ReaderPref extends DataClass implements Insertable<ReaderPref> {
   final String engine;
   final int dailyGoalMinutes;
   final String language;
+  final String statsView;
   const ReaderPref({
     required this.id,
     required this.theme,
@@ -2154,6 +2178,7 @@ class ReaderPref extends DataClass implements Insertable<ReaderPref> {
     required this.engine,
     required this.dailyGoalMinutes,
     required this.language,
+    required this.statsView,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -2171,6 +2196,7 @@ class ReaderPref extends DataClass implements Insertable<ReaderPref> {
     map['engine'] = Variable<String>(engine);
     map['daily_goal_minutes'] = Variable<int>(dailyGoalMinutes);
     map['language'] = Variable<String>(language);
+    map['stats_view'] = Variable<String>(statsView);
     return map;
   }
 
@@ -2189,6 +2215,7 @@ class ReaderPref extends DataClass implements Insertable<ReaderPref> {
       engine: Value(engine),
       dailyGoalMinutes: Value(dailyGoalMinutes),
       language: Value(language),
+      statsView: Value(statsView),
     );
   }
 
@@ -2211,6 +2238,7 @@ class ReaderPref extends DataClass implements Insertable<ReaderPref> {
       engine: serializer.fromJson<String>(json['engine']),
       dailyGoalMinutes: serializer.fromJson<int>(json['dailyGoalMinutes']),
       language: serializer.fromJson<String>(json['language']),
+      statsView: serializer.fromJson<String>(json['statsView']),
     );
   }
   @override
@@ -2230,6 +2258,7 @@ class ReaderPref extends DataClass implements Insertable<ReaderPref> {
       'engine': serializer.toJson<String>(engine),
       'dailyGoalMinutes': serializer.toJson<int>(dailyGoalMinutes),
       'language': serializer.toJson<String>(language),
+      'statsView': serializer.toJson<String>(statsView),
     };
   }
 
@@ -2247,6 +2276,7 @@ class ReaderPref extends DataClass implements Insertable<ReaderPref> {
     String? engine,
     int? dailyGoalMinutes,
     String? language,
+    String? statsView,
   }) => ReaderPref(
     id: id ?? this.id,
     theme: theme ?? this.theme,
@@ -2261,6 +2291,7 @@ class ReaderPref extends DataClass implements Insertable<ReaderPref> {
     engine: engine ?? this.engine,
     dailyGoalMinutes: dailyGoalMinutes ?? this.dailyGoalMinutes,
     language: language ?? this.language,
+    statsView: statsView ?? this.statsView,
   );
   ReaderPref copyWithCompanion(ReaderPrefsCompanion data) {
     return ReaderPref(
@@ -2287,6 +2318,7 @@ class ReaderPref extends DataClass implements Insertable<ReaderPref> {
           ? data.dailyGoalMinutes.value
           : this.dailyGoalMinutes,
       language: data.language.present ? data.language.value : this.language,
+      statsView: data.statsView.present ? data.statsView.value : this.statsView,
     );
   }
 
@@ -2305,7 +2337,8 @@ class ReaderPref extends DataClass implements Insertable<ReaderPref> {
           ..write('pageNumbers: $pageNumbers, ')
           ..write('engine: $engine, ')
           ..write('dailyGoalMinutes: $dailyGoalMinutes, ')
-          ..write('language: $language')
+          ..write('language: $language, ')
+          ..write('statsView: $statsView')
           ..write(')'))
         .toString();
   }
@@ -2325,6 +2358,7 @@ class ReaderPref extends DataClass implements Insertable<ReaderPref> {
     engine,
     dailyGoalMinutes,
     language,
+    statsView,
   );
   @override
   bool operator ==(Object other) =>
@@ -2342,7 +2376,8 @@ class ReaderPref extends DataClass implements Insertable<ReaderPref> {
           other.pageNumbers == this.pageNumbers &&
           other.engine == this.engine &&
           other.dailyGoalMinutes == this.dailyGoalMinutes &&
-          other.language == this.language);
+          other.language == this.language &&
+          other.statsView == this.statsView);
 }
 
 class ReaderPrefsCompanion extends UpdateCompanion<ReaderPref> {
@@ -2359,6 +2394,7 @@ class ReaderPrefsCompanion extends UpdateCompanion<ReaderPref> {
   final Value<String> engine;
   final Value<int> dailyGoalMinutes;
   final Value<String> language;
+  final Value<String> statsView;
   const ReaderPrefsCompanion({
     this.id = const Value.absent(),
     this.theme = const Value.absent(),
@@ -2373,6 +2409,7 @@ class ReaderPrefsCompanion extends UpdateCompanion<ReaderPref> {
     this.engine = const Value.absent(),
     this.dailyGoalMinutes = const Value.absent(),
     this.language = const Value.absent(),
+    this.statsView = const Value.absent(),
   });
   ReaderPrefsCompanion.insert({
     this.id = const Value.absent(),
@@ -2388,6 +2425,7 @@ class ReaderPrefsCompanion extends UpdateCompanion<ReaderPref> {
     this.engine = const Value.absent(),
     this.dailyGoalMinutes = const Value.absent(),
     this.language = const Value.absent(),
+    this.statsView = const Value.absent(),
   });
   static Insertable<ReaderPref> custom({
     Expression<int>? id,
@@ -2403,6 +2441,7 @@ class ReaderPrefsCompanion extends UpdateCompanion<ReaderPref> {
     Expression<String>? engine,
     Expression<int>? dailyGoalMinutes,
     Expression<String>? language,
+    Expression<String>? statsView,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
@@ -2418,6 +2457,7 @@ class ReaderPrefsCompanion extends UpdateCompanion<ReaderPref> {
       if (engine != null) 'engine': engine,
       if (dailyGoalMinutes != null) 'daily_goal_minutes': dailyGoalMinutes,
       if (language != null) 'language': language,
+      if (statsView != null) 'stats_view': statsView,
     });
   }
 
@@ -2435,6 +2475,7 @@ class ReaderPrefsCompanion extends UpdateCompanion<ReaderPref> {
     Value<String>? engine,
     Value<int>? dailyGoalMinutes,
     Value<String>? language,
+    Value<String>? statsView,
   }) {
     return ReaderPrefsCompanion(
       id: id ?? this.id,
@@ -2450,6 +2491,7 @@ class ReaderPrefsCompanion extends UpdateCompanion<ReaderPref> {
       engine: engine ?? this.engine,
       dailyGoalMinutes: dailyGoalMinutes ?? this.dailyGoalMinutes,
       language: language ?? this.language,
+      statsView: statsView ?? this.statsView,
     );
   }
 
@@ -2495,6 +2537,9 @@ class ReaderPrefsCompanion extends UpdateCompanion<ReaderPref> {
     if (language.present) {
       map['language'] = Variable<String>(language.value);
     }
+    if (statsView.present) {
+      map['stats_view'] = Variable<String>(statsView.value);
+    }
     return map;
   }
 
@@ -2513,7 +2558,8 @@ class ReaderPrefsCompanion extends UpdateCompanion<ReaderPref> {
           ..write('pageNumbers: $pageNumbers, ')
           ..write('engine: $engine, ')
           ..write('dailyGoalMinutes: $dailyGoalMinutes, ')
-          ..write('language: $language')
+          ..write('language: $language, ')
+          ..write('statsView: $statsView')
           ..write(')'))
         .toString();
   }
@@ -6304,6 +6350,7 @@ typedef $$ReaderPrefsTableCreateCompanionBuilder =
       Value<String> engine,
       Value<int> dailyGoalMinutes,
       Value<String> language,
+      Value<String> statsView,
     });
 typedef $$ReaderPrefsTableUpdateCompanionBuilder =
     ReaderPrefsCompanion Function({
@@ -6320,6 +6367,7 @@ typedef $$ReaderPrefsTableUpdateCompanionBuilder =
       Value<String> engine,
       Value<int> dailyGoalMinutes,
       Value<String> language,
+      Value<String> statsView,
     });
 
 class $$ReaderPrefsTableFilterComposer
@@ -6393,6 +6441,11 @@ class $$ReaderPrefsTableFilterComposer
 
   ColumnFilters<String> get language => $composableBuilder(
     column: $table.language,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get statsView => $composableBuilder(
+    column: $table.statsView,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -6470,6 +6523,11 @@ class $$ReaderPrefsTableOrderingComposer
     column: $table.language,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<String> get statsView => $composableBuilder(
+    column: $table.statsView,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$ReaderPrefsTableAnnotationComposer
@@ -6529,6 +6587,9 @@ class $$ReaderPrefsTableAnnotationComposer
 
   GeneratedColumn<String> get language =>
       $composableBuilder(column: $table.language, builder: (column) => column);
+
+  GeneratedColumn<String> get statsView =>
+      $composableBuilder(column: $table.statsView, builder: (column) => column);
 }
 
 class $$ReaderPrefsTableTableManager
@@ -6575,6 +6636,7 @@ class $$ReaderPrefsTableTableManager
                 Value<String> engine = const Value.absent(),
                 Value<int> dailyGoalMinutes = const Value.absent(),
                 Value<String> language = const Value.absent(),
+                Value<String> statsView = const Value.absent(),
               }) => ReaderPrefsCompanion(
                 id: id,
                 theme: theme,
@@ -6589,6 +6651,7 @@ class $$ReaderPrefsTableTableManager
                 engine: engine,
                 dailyGoalMinutes: dailyGoalMinutes,
                 language: language,
+                statsView: statsView,
               ),
           createCompanionCallback:
               ({
@@ -6605,6 +6668,7 @@ class $$ReaderPrefsTableTableManager
                 Value<String> engine = const Value.absent(),
                 Value<int> dailyGoalMinutes = const Value.absent(),
                 Value<String> language = const Value.absent(),
+                Value<String> statsView = const Value.absent(),
               }) => ReaderPrefsCompanion.insert(
                 id: id,
                 theme: theme,
@@ -6619,6 +6683,7 @@ class $$ReaderPrefsTableTableManager
                 engine: engine,
                 dailyGoalMinutes: dailyGoalMinutes,
                 language: language,
+                statsView: statsView,
               ),
           withReferenceMapper: (p0) => p0
               .map((e) => (e.readTable(table), BaseReferences(db, table, e)))

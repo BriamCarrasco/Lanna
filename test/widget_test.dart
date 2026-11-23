@@ -6,10 +6,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:go_router/go_router.dart';
 import 'package:lanna/app.dart';
 import 'package:lanna/data/local/app_database.dart';
 import 'package:lanna/data/local/database_provider.dart';
 import 'package:lanna/data/models/book_format.dart';
+import 'package:lanna/features/library/library_shell.dart';
 import 'package:lanna/features/library/widgets/book_grid.dart';
 import 'package:lanna/features/library/widgets/filters_panel.dart';
 
@@ -31,6 +33,8 @@ Future<void> _pumpApp(
       child: const LannaApp(),
     ),
   );
+  await tester.pumpAndSettle();
+  GoRouter.of(tester.element(find.byType(LibraryShell))).go('/library');
   await tester.pumpAndSettle();
 }
 
