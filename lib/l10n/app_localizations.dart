@@ -1253,7 +1253,7 @@ abstract class AppLocalizations {
   /// No description provided for @originNameText.
   ///
   /// In es, this message translates to:
-  /// **'Cuando leo, Lanna suele estar ahí: sobre mis piernas o en algún lugar cerca. Su compañía se volvió parte de la lectura, así que la aplicación lleva su nombre.'**
+  /// **'Lanna lleva el nombre de una de mis gatas. Su presencia habitual mientras leo terminó convirtiéndose en el nombre de esta aplicación.'**
   String get originNameText;
 
   /// No description provided for @originNamePhoto.
@@ -1265,13 +1265,13 @@ abstract class AppLocalizations {
   /// No description provided for @originLogoTitle.
   ///
   /// In es, this message translates to:
-  /// **'El logo'**
+  /// **'La identidad visual'**
   String get originLogoTitle;
 
   /// No description provided for @originLogoText.
   ///
   /// In es, this message translates to:
-  /// **'Zoe, mi otra gata, también es negra. Aparece de vez en cuando mientras leo o trabajo en la aplicación, y en ella se inspira el logo.'**
+  /// **'El símbolo de Lanna está inspirado en Zoe, mi otra gata. Su silueta fue el punto de partida para construir la identidad visual de la aplicación.'**
   String get originLogoText;
 
   /// No description provided for @originLogoPhoto.

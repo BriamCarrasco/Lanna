@@ -599,17 +599,17 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get originNameText =>
-      'When I read, Lanna is usually there: on my lap or somewhere nearby. Her company became part of reading, so the app carries her name.';
+      'Lanna is named after one of my cats. Her constant presence while I read ended up becoming the name of this app.';
 
   @override
   String get originNamePhoto => 'Photo of Lanna';
 
   @override
-  String get originLogoTitle => 'The logo';
+  String get originLogoTitle => 'The visual identity';
 
   @override
   String get originLogoText =>
-      'Zoe, my other cat, is also black. She turns up now and then while I read or work on the app, and the logo is inspired by her.';
+      'The Lanna symbol is inspired by Zoe, my other cat. Her silhouette was the starting point for building the app\'s visual identity.';
 
   @override
   String get originLogoPhoto => 'Photo of Zoe';

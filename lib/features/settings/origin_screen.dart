@@ -1,4 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
@@ -10,51 +12,86 @@ import '../library/widgets/section_scaffold.dart';
 class OriginScreen extends StatelessWidget {
   const OriginScreen({super.key});
 
-  static const _twoColumnsFrom = 720.0;
+  static const _wideFrom = 840.0;
+  static const _compactBelow = 480.0;
+  static const _textColumn = 760.0;
 
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
-    final blocks = [
-      _OriginBlock(
-        title: l10n.originNameTitle,
-        text: l10n.originNameText,
-        photoLabel: l10n.originNamePhoto,
-      ),
-      _OriginBlock(
-        title: l10n.originLogoTitle,
-        text: l10n.originLogoText,
-        photoLabel: l10n.originLogoPhoto,
-      ),
-    ];
     return SectionScaffold(
       title: l10n.originTitle,
       onBack: () => context.go('/settings'),
       child: LayoutBuilder(
         builder: (context, constraints) {
-          final gutter = constraints.maxWidth < 480
-              ? LannaSpacing.s4
-              : LannaSpacing.screenGutter;
-          final wide = constraints.maxWidth >= _twoColumnsFrom;
+          final width = constraints.maxWidth;
+          final gutter = width < _compactBelow
+              ? LannaSpacing.s5
+              : width < _wideFrom
+              ? LannaSpacing.s8
+              : LannaSpacing.s10;
+          final inner = width - gutter * 2;
+          final large = width >= 1600;
+          final name = _Story(
+            title: l10n.originNameTitle,
+            text: l10n.originNameText,
+            large: large,
+          );
+          final logo = _Story(
+            title: l10n.originLogoTitle,
+            text: l10n.originLogoText,
+            large: large,
+          );
+          final zoe = _Photo(label: l10n.originLogoPhoto, aspectRatio: 4 / 5);
+
+          if (width < _wideFrom) {
+            return SingleChildScrollView(
+              padding: EdgeInsets.fromLTRB(gutter, gutter, gutter, 56),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _Photo(label: l10n.originNamePhoto, aspectRatio: 4 / 3),
+                  const SizedBox(height: LannaSpacing.s6),
+                  name,
+                  const SizedBox(height: 48),
+                  logo,
+                  const SizedBox(height: LannaSpacing.s6),
+                  SizedBox(width: inner * 0.6, child: zoe),
+                ],
+              ),
+            );
+          }
+
+          final textWidth = math.min(_textColumn, inner * 0.4);
+          final photoArea = inner - textWidth - 64;
+          final lannaWidth = math.min(
+            photoArea,
+            constraints.maxHeight * 0.7 * 3 / 2,
+          );
           return SingleChildScrollView(
-            padding: EdgeInsets.all(gutter),
-            child: wide
-                ? Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Expanded(child: blocks[0]),
-                      const SizedBox(width: LannaSpacing.s8),
-                      Expanded(child: blocks[1]),
-                    ],
-                  )
-                : Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      blocks[0],
-                      const SizedBox(height: LannaSpacing.s10),
-                      blocks[1],
-                    ],
+            padding: EdgeInsets.fromLTRB(gutter, gutter, gutter, 72),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _Row(
+                  textWidth: textWidth,
+                  text: name,
+                  photo: SizedBox(
+                    width: lannaWidth,
+                    child: _Photo(
+                      label: l10n.originNamePhoto,
+                      aspectRatio: 3 / 2,
+                    ),
                   ),
+                ),
+                const SizedBox(height: 72),
+                _Row(
+                  textWidth: textWidth,
+                  text: logo,
+                  photo: SizedBox(width: lannaWidth * 0.34, child: zoe),
+                ),
+              ],
+            ),
           );
         },
       ),
@@ -62,35 +99,56 @@ class OriginScreen extends StatelessWidget {
   }
 }
 
-class _OriginBlock extends StatelessWidget {
-  const _OriginBlock({
-    required this.title,
+class _Row extends StatelessWidget {
+  const _Row({
+    required this.textWidth,
     required this.text,
-    required this.photoLabel,
+    required this.photo,
   });
+
+  final double textWidth;
+  final Widget text;
+  final Widget photo;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(width: textWidth, child: text),
+        const SizedBox(width: 64),
+        photo,
+      ],
+    );
+  }
+}
+
+class _Story extends StatelessWidget {
+  const _Story({required this.title, required this.text, required this.large});
 
   final String title;
   final String text;
-  final String photoLabel;
+  final bool large;
 
   @override
   Widget build(BuildContext context) {
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _PhotoSlot(label: photoLabel),
-        const SizedBox(height: LannaSpacing.s5),
         Text(
           title,
-          style: LannaType.title.copyWith(color: LannaColors.textStrong),
+          style: LannaType.display.copyWith(
+            fontSize: large ? 30 : 24,
+            color: LannaColors.textStrong,
+          ),
         ),
-        const SizedBox(height: LannaSpacing.s2),
+        const SizedBox(height: LannaSpacing.s3),
         Text(
           text,
-          style: LannaType.title.copyWith(
-            fontSize: 17,
-            fontWeight: FontWeight.w400,
-            height: 1.55,
+          style: TextStyle(
+            fontFamily: AppFonts.serif,
+            fontSize: large ? 21 : 18,
+            height: 1.6,
             color: LannaColors.text,
           ),
         ),
@@ -99,39 +157,26 @@ class _OriginBlock extends StatelessWidget {
   }
 }
 
-class _PhotoSlot extends StatelessWidget {
-  const _PhotoSlot({required this.label});
+class _Photo extends StatelessWidget {
+  const _Photo({required this.label, required this.aspectRatio});
 
   final String label;
+  final double aspectRatio;
 
   @override
   Widget build(BuildContext context) {
-    return Semantics(
-      label: label,
-      child: AspectRatio(
-        aspectRatio: 4 / 3,
-        child: DecoratedBox(
-          decoration: BoxDecoration(
-            color: LannaColors.surfaceHigh,
-            borderRadius: LannaRadii.brXl,
-            border: Border.all(color: LannaColors.border),
-          ),
-          child: Center(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(
-                  Icons.photo_outlined,
-                  size: 32,
-                  color: LannaColors.textMuted,
-                ),
-                const SizedBox(height: LannaSpacing.s2),
-                Text(
-                  label,
-                  style: LannaType.md.copyWith(color: LannaColors.textMuted),
-                ),
-              ],
-            ),
+    return AspectRatio(
+      aspectRatio: aspectRatio,
+      child: DecoratedBox(
+        decoration: const BoxDecoration(
+          color: LannaColors.surface,
+          borderRadius: LannaRadii.brMd,
+        ),
+        child: Center(
+          child: Text(
+            label,
+            textAlign: TextAlign.center,
+            style: LannaType.sm.copyWith(color: LannaColors.textMuted),
           ),
         ),
       ),

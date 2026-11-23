@@ -87,17 +87,23 @@ void main() {
 
       expect(find.byType(OriginScreen), findsOneWidget);
       expect(find.text('El nombre'), findsOneWidget);
-      expect(find.text('El logo'), findsOneWidget);
+      expect(find.text('La identidad visual'), findsOneWidget);
       expect(find.text('Foto de Lanna'), findsOneWidget);
       expect(find.text('Foto de Zoe'), findsOneWidget);
       expect(tester.takeException(), isNull);
 
-      final name = tester.getRect(find.text('Foto de Lanna'));
-      final logo = tester.getRect(find.text('Foto de Zoe'));
-      if (size.width >= 720 + 260) {
-        expect(name.center.dy, closeTo(logo.center.dy, 1));
+      final nameTitle = tester.getRect(find.text('El nombre'));
+      final logoTitle = tester.getRect(find.text('La identidad visual'));
+      final lanna = tester.getRect(find.text('Foto de Lanna'));
+      final zoe = tester.getRect(find.text('Foto de Zoe'));
+      expect(logoTitle.top, greaterThan(nameTitle.bottom));
+      expect(zoe.top, greaterThan(lanna.bottom));
+      if (size.width >= 840 + 260) {
+        expect(lanna.left, greaterThan(nameTitle.right));
+        expect(zoe.left, greaterThan(logoTitle.right));
       } else {
-        expect(logo.top, greaterThan(name.bottom));
+        expect(nameTitle.top, greaterThan(lanna.bottom));
+        expect(zoe.top, greaterThan(logoTitle.bottom));
       }
 
       if (shotsDir != null) {

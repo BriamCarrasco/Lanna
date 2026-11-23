@@ -605,17 +605,17 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get originNameText =>
-      'Cuando leo, Lanna suele estar ahí: sobre mis piernas o en algún lugar cerca. Su compañía se volvió parte de la lectura, así que la aplicación lleva su nombre.';
+      'Lanna lleva el nombre de una de mis gatas. Su presencia habitual mientras leo terminó convirtiéndose en el nombre de esta aplicación.';
 
   @override
   String get originNamePhoto => 'Foto de Lanna';
 
   @override
-  String get originLogoTitle => 'El logo';
+  String get originLogoTitle => 'La identidad visual';
 
   @override
   String get originLogoText =>
-      'Zoe, mi otra gata, también es negra. Aparece de vez en cuando mientras leo o trabajo en la aplicación, y en ella se inspira el logo.';
+      'El símbolo de Lanna está inspirado en Zoe, mi otra gata. Su silueta fue el punto de partida para construir la identidad visual de la aplicación.';
 
   @override
   String get originLogoPhoto => 'Foto de Zoe';
