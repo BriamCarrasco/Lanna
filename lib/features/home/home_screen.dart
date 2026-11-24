@@ -70,7 +70,9 @@ class HomeScreen extends ConsumerWidget {
           _ => 48.0,
         };
         final grid = _ShelfGrid.fit(width - gutter * 2, wide: wide);
-        final section = wide ? 64.0 : 40.0;
+        final section = wide ? 56.0 : 40.0;
+        final side = width >= _panelFrom && stats != null;
+        final others = reading.skip(1).toList();
         return SingleChildScrollView(
           padding: EdgeInsets.fromLTRB(
             gutter,
@@ -92,19 +94,32 @@ class HomeScreen extends ConsumerWidget {
                       color: LannaColors.textStrong,
                     ),
                   )
+                else if (side)
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        child: _Hero(
+                          item: reading.first,
+                          stats: stats,
+                          wide: wide,
+                        ),
+                      ),
+                      const SizedBox(width: 56),
+                      SizedBox(
+                        width: (width * 0.22).clamp(340.0, 440.0),
+                        child: _SideColumn(stats: stats, others: others),
+                      ),
+                    ],
+                  )
                 else
-                  _Hero(
-                    item: reading.first,
-                    stats: stats,
-                    wide: wide,
-                    panel: width >= _panelFrom && stats != null,
-                  ),
-                if (reading.length > 1) ...[
+                  _Hero(item: reading.first, stats: stats, wide: wide),
+                if (others.isNotEmpty && !side) ...[
                   SizedBox(height: section),
                   _SectionHeader(context.l10n.alsoReading),
                   const SizedBox(height: LannaSpacing.s4),
                   grid.row([
-                    for (final item in reading.skip(1))
+                    for (final item in others)
                       _ShelfItem(
                         book: item.book,
                         detail: _position(context, item),
@@ -155,17 +170,11 @@ String _position(BuildContext context, BookWithProgress item) {
 }
 
 class _Hero extends StatelessWidget {
-  const _Hero({
-    required this.item,
-    required this.stats,
-    required this.wide,
-    required this.panel,
-  });
+  const _Hero({required this.item, required this.stats, required this.wide});
 
   final BookWithProgress item;
   final ReadingStats? stats;
   final bool wide;
-  final bool panel;
 
   @override
   Widget build(BuildContext context) {
@@ -244,9 +253,9 @@ class _Hero extends StatelessWidget {
       );
     }
 
-    final coverWidth = (MediaQuery.sizeOf(context).width * 0.11).clamp(
+    final coverWidth = (MediaQuery.sizeOf(context).width * 0.13).clamp(
       180.0,
-      240.0,
+      260.0,
     );
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -256,33 +265,26 @@ class _Hero extends StatelessWidget {
         Expanded(
           child: Align(
             alignment: Alignment.topLeft,
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 760),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  meta,
-                  const SizedBox(height: LannaSpacing.s8),
-                  _Progress(item: item),
-                  const SizedBox(height: LannaSpacing.s6),
-                  Row(
-                    children: [
-                      button,
-                      if (today != null) ...[
-                        const SizedBox(width: LannaSpacing.s5),
-                        Flexible(child: today),
-                      ],
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                meta,
+                const SizedBox(height: LannaSpacing.s8),
+                _Progress(item: item),
+                const SizedBox(height: LannaSpacing.s6),
+                Row(
+                  children: [
+                    button,
+                    if (today != null) ...[
+                      const SizedBox(width: LannaSpacing.s5),
+                      Flexible(child: today),
                     ],
-                  ),
-                ],
-              ),
+                  ],
+                ),
+              ],
             ),
           ),
         ),
-        if (panel) ...[
-          const SizedBox(width: 64),
-          SizedBox(width: 264, child: _WeekPanel(stats: stats!)),
-        ],
       ],
     );
   }
@@ -388,11 +390,18 @@ class _WeekPanel extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          l10n.thisWeek,
-          style: LannaType.md.copyWith(color: LannaColors.textMuted),
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                l10n.thisWeek,
+                style: LannaType.lg.copyWith(color: LannaColors.textStrong),
+              ),
+            ),
+            _Link(label: l10n.seeStats, onTap: () => context.go('/stats')),
+          ],
         ),
-        const SizedBox(height: LannaSpacing.s2),
+        const SizedBox(height: LannaSpacing.s1),
         Text(
           l10n.weekSummary(formatReadingTime(stats.weekSeconds), read.length),
           style: const TextStyle(
@@ -423,9 +432,108 @@ class _WeekPanel extends StatelessWidget {
               ),
           ],
         ),
-        const SizedBox(height: LannaSpacing.s5),
-        _Link(label: l10n.seeStats, onTap: () => context.go('/stats')),
       ],
+    );
+  }
+}
+
+class _SideColumn extends StatelessWidget {
+  const _SideColumn({required this.stats, required this.others});
+
+  final ReadingStats stats;
+  final List<BookWithProgress> others;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _WeekPanel(stats: stats),
+        if (others.isNotEmpty) ...[
+          const SizedBox(height: LannaSpacing.s8),
+          _SectionHeader(context.l10n.alsoReading),
+          const SizedBox(height: LannaSpacing.s2),
+          for (final item in others) _CompactBook(item: item),
+        ],
+      ],
+    );
+  }
+}
+
+class _CompactBook extends ConsumerWidget {
+  const _CompactBook({required this.item});
+
+  final BookWithProgress item;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final book = item.book;
+    return Pressable(
+      scale: 0.99,
+      onTap: () => openBook(context, book),
+      onSecondaryTapUp: (details) =>
+          unawaited(showBookMenu(context, ref, book, details.globalPosition)),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: LannaSpacing.s3),
+        decoration: const BoxDecoration(
+          border: Border(top: BorderSide(color: LannaColors.borderSubtle)),
+        ),
+        child: Row(
+          children: [
+            SizedBox(width: 44, child: BookCover(book: book)),
+            const SizedBox(width: LannaSpacing.s4),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    book.title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: LannaType.base.copyWith(
+                      fontWeight: FontWeight.w600,
+                      color: LannaColors.text,
+                    ),
+                  ),
+                  if (book.author != null)
+                    Text(
+                      book.author!,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: LannaType.sm.copyWith(
+                        color: LannaColors.textMuted,
+                      ),
+                    ),
+                  const SizedBox(height: LannaSpacing.s2),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(1),
+                          child: LinearProgressIndicator(
+                            value: item.progress.percent.clamp(0.0, 1.0),
+                            minHeight: 2,
+                            color: LannaColors.textMuted,
+                            backgroundColor: LannaColors.borderSubtle,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: LannaSpacing.s3),
+                      Text(
+                        _position(context, item),
+                        style: LannaType.sm.copyWith(
+                          color: LannaColors.textMuted,
+                          fontFeatures: LannaType.tabular,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

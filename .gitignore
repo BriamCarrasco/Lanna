@@ -66,3 +66,6 @@ app.*.map.json
 # SonarQube
 .sonar-token
 .scannerwork/
+
+# Capturas de flutter screenshot
+/flutter_[0-9]*.png

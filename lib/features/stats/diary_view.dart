@@ -73,6 +73,7 @@ class DiaryView extends ConsumerWidget {
   final ReadingStats stats;
 
   static const _twoColumnsFrom = 900.0;
+  static const _fixedFrom = 640.0;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -80,11 +81,6 @@ class DiaryView extends ConsumerWidget {
     final finished =
         ref.watch(finishedThisYearProvider).valueOrNull ?? const [];
     final today = stats.today;
-    final entries = diaryEntries(
-      sessions,
-      since: DateTime(today.year, today.month, today.day - 30),
-    );
-
     return LayoutBuilder(
       builder: (context, constraints) {
         final width = constraints.maxWidth;
@@ -94,9 +90,60 @@ class DiaryView extends ConsumerWidget {
           < _twoColumnsFrom => LannaSpacing.s6,
           _ => LannaSpacing.s10,
         };
+        final fixed = wide && constraints.maxHeight >= _fixedFrom;
+        final entries = diaryEntries(
+          sessions,
+          since: DateTime(
+            today.year,
+            today.month,
+            today.day - (fixed ? 90 : 30),
+          ),
+          limit: fixed ? 60 : 8,
+        );
         final week = _Week(stats: stats, large: wide);
-        final read = _Entries(entries: entries, today: today);
-        final year = _Year(stats: stats, finished: finished);
+        final read = _Entries(
+          entries: entries,
+          today: today,
+          scrollable: fixed,
+        );
+        final year = _Year(
+          stats: stats,
+          finished: finished,
+          rows: fixed ? 1 : 2,
+        );
+        if (fixed) {
+          return Padding(
+            padding: EdgeInsets.fromLTRB(gutter, gutter + 8, gutter, 40),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  flex: 7,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      week,
+                      const SizedBox(height: 48),
+                      _Months(stats: stats),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 72),
+                Expanded(
+                  flex: 5,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Expanded(child: read),
+                      const SizedBox(height: LannaSpacing.s8),
+                      year,
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          );
+        }
         return SingleChildScrollView(
           padding: EdgeInsets.fromLTRB(gutter, gutter + 8, gutter, 56),
           child: wide
@@ -458,10 +505,15 @@ class _Months extends StatelessWidget {
 }
 
 class _Entries extends StatelessWidget {
-  const _Entries({required this.entries, required this.today});
+  const _Entries({
+    required this.entries,
+    required this.today,
+    this.scrollable = false,
+  });
 
   final List<DiaryEntry> entries;
   final DateTime today;
+  final bool scrollable;
 
   String _dayTitle(BuildContext context, DateTime day) {
     final l10n = context.l10n;
@@ -477,39 +529,45 @@ class _Entries extends StatelessWidget {
     for (final entry in entries) {
       days.putIfAbsent(entry.day, () => []).add(entry);
     }
+    final items = [
+      if (entries.isEmpty)
+        Text(
+          context.l10n.diaryEmpty,
+          style: LannaType.base.copyWith(color: LannaColors.textMuted),
+        )
+      else
+        for (final MapEntry(key: day, value: list) in days.entries) ...[
+          Container(
+            padding: const EdgeInsets.only(
+              top: LannaSpacing.s3,
+              bottom: LannaSpacing.s1,
+            ),
+            decoration: const BoxDecoration(
+              border: Border(top: BorderSide(color: LannaColors.borderSubtle)),
+            ),
+            child: Text(
+              _dayTitle(context, day),
+              style: LannaType.sm.copyWith(
+                fontWeight: FontWeight.w600,
+                color: LannaColors.textMuted,
+              ),
+            ),
+          ),
+          for (final entry in list) _EntryTile(entry: entry),
+          const SizedBox(height: LannaSpacing.s2),
+        ],
+    ];
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         _Heading(context.l10n.whatYouRead),
         const SizedBox(height: LannaSpacing.s4),
-        if (entries.isEmpty)
-          Text(
-            context.l10n.diaryEmpty,
-            style: LannaType.base.copyWith(color: LannaColors.textMuted),
+        if (scrollable)
+          Expanded(
+            child: ListView(padding: EdgeInsets.zero, children: items),
           )
         else
-          for (final MapEntry(key: day, value: list) in days.entries) ...[
-            Container(
-              padding: const EdgeInsets.only(
-                top: LannaSpacing.s3,
-                bottom: LannaSpacing.s1,
-              ),
-              decoration: const BoxDecoration(
-                border: Border(
-                  top: BorderSide(color: LannaColors.borderSubtle),
-                ),
-              ),
-              child: Text(
-                _dayTitle(context, day),
-                style: LannaType.sm.copyWith(
-                  fontWeight: FontWeight.w600,
-                  color: LannaColors.textMuted,
-                ),
-              ),
-            ),
-            for (final entry in list) _EntryTile(entry: entry),
-            const SizedBox(height: LannaSpacing.s2),
-          ],
+          ...items,
       ],
     );
   }
@@ -579,10 +637,11 @@ class _EntryTile extends ConsumerWidget {
 }
 
 class _Year extends StatelessWidget {
-  const _Year({required this.stats, required this.finished});
+  const _Year({required this.stats, required this.finished, this.rows = 2});
 
   final ReadingStats stats;
   final List<Book> finished;
+  final int rows;
 
   @override
   Widget build(BuildContext context) {
@@ -627,7 +686,7 @@ class _Year extends StatelessWidget {
                 spacing: gap,
                 runSpacing: gap,
                 children: [
-                  for (final book in books.take(columns * 2))
+                  for (final book in books.take(columns * rows))
                     SizedBox(
                       width: cover,
                       child: Pressable(

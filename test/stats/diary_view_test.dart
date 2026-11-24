@@ -210,4 +210,46 @@ void main() {
     expect(find.byType(DiaryView), findsOneWidget);
     await unmount(tester);
   });
+
+  testWidgets('en pantalla ancha solo se desplaza Lo que leíste', (
+    tester,
+  ) async {
+    final db = await seeded();
+    addTearDown(db.close);
+    final now = DateTime.now();
+    for (var i = 1; i < 25; i++) {
+      await db.addReadingSession(
+        ReadingSessionsCompanion.insert(
+          bookId: 'a',
+          startedAt: DateTime(now.year, now.month, now.day - i, 21),
+          seconds: 15 * 60,
+        ),
+      );
+    }
+
+    await pumpStats(tester, db, const Size(1275, 800));
+    final diary = find.byType(DiaryView);
+    expect(
+      find.descendant(of: diary, matching: find.byType(SingleChildScrollView)),
+      findsNothing,
+    );
+    final list = find.descendant(of: diary, matching: find.byType(ListView));
+    expect(list, findsOneWidget);
+    final heading = tester.getTopLeft(find.text('Lo que leíste'));
+    await tester.drag(list, const Offset(0, -400));
+    await tester.pumpAndSettle();
+    expect(tester.getTopLeft(find.text('Lo que leíste')), heading);
+    expect(tester.takeException(), isNull);
+    await unmount(tester);
+
+    await pumpStats(tester, db, const Size(400, 860));
+    expect(
+      find.descendant(
+        of: find.byType(DiaryView),
+        matching: find.byType(SingleChildScrollView),
+      ),
+      findsOneWidget,
+    );
+    await unmount(tester);
+  });
 }
