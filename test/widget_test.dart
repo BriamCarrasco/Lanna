@@ -799,7 +799,9 @@ void main() {
     await tester.pump(const Duration(milliseconds: 50));
   });
 
-  testWidgets('cada portada lleva la etiqueta de su formato', (tester) async {
+  testWidgets('las portadas que no son EPUB llevan la etiqueta de su formato', (
+    tester,
+  ) async {
     final db = AppDatabase.forTesting(NativeDatabase.memory());
     addTearDown(db.close);
     for (final (id, path, format) in [
@@ -821,7 +823,8 @@ void main() {
 
     await _pumpApp(tester, db);
 
-    for (final label in ['EPUB', 'PDF', 'CBR', 'CBZ']) {
+    expect(find.text('EPUB'), findsNothing);
+    for (final label in ['PDF', 'CBR', 'CBZ']) {
       expect(find.text(label), findsOneWidget, reason: label);
     }
 

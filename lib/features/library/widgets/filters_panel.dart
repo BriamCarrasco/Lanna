@@ -331,10 +331,12 @@ class FiltersButton extends StatelessWidget {
     super.key,
     required this.filters,
     required this.onChanged,
+    this.iconOnly = false,
   });
 
   final LibraryFilters filters;
   final ValueChanged<LibraryFilters> onChanged;
+  final bool iconOnly;
 
   @override
   Widget build(BuildContext context) {
@@ -342,57 +344,66 @@ class FiltersButton extends StatelessWidget {
         (filters.format != FormatFilter.all ? 1 : 0) +
         (filters.read != ReadFilter.all ? 1 : 0);
     final active = count > 0;
-    final tint = active ? LannaColors.accentStrong : LannaColors.textMuted;
+    void open() =>
+        showFiltersPanel(context, filters: filters, onChanged: onChanged);
+    if (iconOnly) {
+      return IconButton(
+        tooltip: context.l10n.filters,
+        onPressed: open,
+        icon: Badge(
+          isLabelVisible: active,
+          smallSize: 7,
+          backgroundColor: LannaColors.accent,
+          child: Icon(
+            Icons.tune,
+            size: 20,
+            color: active ? LannaColors.text : LannaColors.textMuted,
+          ),
+        ),
+      );
+    }
     return Tooltip(
       message: context.l10n.filters,
-      child: InkWell(
-        borderRadius: LannaRadii.brPill,
-        onTap: () =>
-            showFiltersPanel(context, filters: filters, onChanged: onChanged),
-        child: Container(
-          padding: const EdgeInsets.symmetric(
-            horizontal: LannaSpacing.s3,
-            vertical: LannaSpacing.s1 + 1,
-          ),
-          decoration: BoxDecoration(
-            color: active ? LannaColors.accentTint : LannaColors.bg,
-            border: Border.all(
-              color: active ? LannaColors.accent : LannaColors.border,
-            ),
-            borderRadius: LannaRadii.brPill,
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(Icons.tune, size: 14, color: tint),
-              const SizedBox(width: LannaSpacing.s1 + 2),
-              Text(
-                context.l10n.filters,
-                style: LannaType.sm.copyWith(
-                  color: active ? LannaColors.accentStrong : LannaColors.text,
-                ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: LannaRadii.brMd,
+          onTap: open,
+          child: Container(
+            height: 34,
+            padding: const EdgeInsets.symmetric(horizontal: LannaSpacing.s3),
+            decoration: BoxDecoration(
+              border: Border.all(
+                color: active ? LannaColors.textMuted : LannaColors.border,
               ),
-              if (active) ...[
-                const SizedBox(width: LannaSpacing.s1 + 2),
-                Container(
-                  constraints: const BoxConstraints(minWidth: 17),
-                  height: 17,
-                  alignment: Alignment.center,
-                  padding: const EdgeInsets.symmetric(horizontal: 4),
-                  decoration: const BoxDecoration(
-                    color: LannaColors.accent,
-                    borderRadius: LannaRadii.brPill,
-                  ),
-                  child: Text(
+              borderRadius: LannaRadii.brMd,
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  Icons.tune,
+                  size: 16,
+                  color: active ? LannaColors.text : LannaColors.textMuted,
+                ),
+                const SizedBox(width: LannaSpacing.s2),
+                Text(
+                  context.l10n.filters,
+                  style: LannaType.md.copyWith(color: LannaColors.text),
+                ),
+                if (active) ...[
+                  const SizedBox(width: LannaSpacing.s2),
+                  Text(
                     '$count',
-                    style: LannaType.micro.copyWith(
+                    style: LannaType.md.copyWith(
                       fontWeight: FontWeight.w700,
-                      color: LannaColors.bg,
+                      color: LannaColors.accentStrong,
+                      fontFeatures: LannaType.tabular,
                     ),
                   ),
-                ),
+                ],
               ],
-            ],
+            ),
           ),
         ),
       ),

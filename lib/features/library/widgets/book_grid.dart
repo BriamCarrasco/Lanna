@@ -1,5 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/tokens.dart';
@@ -12,11 +15,44 @@ import 'book_cover.dart';
 
 typedef BookMenuCallback = void Function(Book book, Offset globalPosition);
 
-const _gridDelegate = SliverGridDelegateWithMaxCrossAxisExtent(
-  maxCrossAxisExtent: 168,
-  childAspectRatio: 0.54,
-  crossAxisSpacing: LannaSpacing.s5,
-  mainAxisSpacing: LannaSpacing.s6,
+class CoverGridDelegate extends SliverGridDelegate {
+  const CoverGridDelegate({required this.textScale});
+
+  final double textScale;
+
+  static const _textExtent = 64.0;
+
+  @override
+  SliverGridLayout getLayout(SliverConstraints constraints) {
+    final width = constraints.crossAxisExtent;
+    final narrow = width < 560;
+    final gap = narrow ? LannaSpacing.s4 : LannaSpacing.s6;
+    final maxExtent = narrow ? 128.0 : 172.0;
+    final count = math.max(3, ((width + gap) / (maxExtent + gap)).ceil());
+    final itemWidth = (width - gap * (count - 1)) / count;
+    final itemHeight = itemWidth * 1.5 + _textExtent * textScale;
+    return SliverGridRegularTileLayout(
+      crossAxisCount: count,
+      mainAxisStride: itemHeight + (narrow ? LannaSpacing.s4 : LannaSpacing.s6),
+      crossAxisStride: itemWidth + gap,
+      childMainAxisExtent: itemHeight,
+      childCrossAxisExtent: itemWidth,
+      reverseCrossAxis: false,
+    );
+  }
+
+  @override
+  bool shouldRelayout(CoverGridDelegate oldDelegate) =>
+      oldDelegate.textScale != textScale;
+}
+
+CoverGridDelegate _gridDelegate(BuildContext context) =>
+    CoverGridDelegate(textScale: MediaQuery.textScalerOf(context).scale(1));
+
+EdgeInsets _gridPadding(BuildContext context) => EdgeInsets.symmetric(
+  horizontal: MediaQuery.sizeOf(context).width < 600
+      ? LannaSpacing.s4
+      : LannaSpacing.s6,
 );
 
 class BookGridSliver extends StatelessWidget {
@@ -34,9 +70,9 @@ class BookGridSliver extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SliverPadding(
-      padding: const EdgeInsets.symmetric(horizontal: LannaSpacing.s6),
+      padding: _gridPadding(context),
       sliver: SliverGrid.builder(
-        gridDelegate: _gridDelegate,
+        gridDelegate: _gridDelegate(context),
         itemCount: books.length,
         itemBuilder: (context, i) => BookGridTile(
           book: books[i],
@@ -56,8 +92,10 @@ class LibraryGridSliver extends StatelessWidget {
     required this.onOpenSeries,
     this.selection,
     this.onToggle,
+    this.progress = const {},
   });
 
+  final Map<String, double> progress;
   final List<LibraryEntry> entries;
   final BookMenuCallback onMenu;
   final ValueChanged<SeriesEntry> onOpenSeries;
@@ -68,14 +106,18 @@ class LibraryGridSliver extends StatelessWidget {
   Widget build(BuildContext context) {
     final selection = this.selection;
     return SliverPadding(
-      padding: const EdgeInsets.symmetric(horizontal: LannaSpacing.s6),
+      padding: _gridPadding(context),
       sliver: SliverGrid.builder(
-        gridDelegate: _gridDelegate,
+        gridDelegate: _gridDelegate(context),
         itemCount: entries.length,
         itemBuilder: (context, i) => switch (entries[i]) {
           BookEntry(:final book) when selection == null => BookGridTile(
             book: book,
             onMenu: onMenu,
+            progress: switch (progress[book.id]) {
+              final p? when p > 0 && p < 0.99 => p,
+              _ => null,
+            },
           ),
           BookEntry(:final book) when !book.format.hasSeries => Unselectable(
             child: BookGridTile(book: book, onMenu: onMenu),
@@ -189,41 +231,36 @@ class SeriesGridTile extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Expanded(
-            child: Align(
-              alignment: Alignment.topCenter,
-              child: Padding(
-                padding: const EdgeInsets.only(right: 8, top: 8),
-                child: Stack(
-                  clipBehavior: Clip.none,
-                  children: [
-                    for (final shift in const [8.0, 4.0])
-                      Positioned.fill(
-                        left: shift,
-                        right: -shift,
-                        top: -shift,
-                        bottom: shift,
-                        child: DecoratedBox(
-                          decoration: BoxDecoration(
-                            color: shift == 8
-                                ? LannaColors.surfaceActive
-                                : LannaColors.border,
-                            borderRadius: LannaRadii.brSm,
-                            border: Border.all(color: LannaColors.bg),
-                          ),
-                        ),
+          Padding(
+            padding: const EdgeInsets.only(right: 8, top: 8),
+            child: Stack(
+              clipBehavior: Clip.none,
+              children: [
+                for (final shift in const [8.0, 4.0])
+                  Positioned.fill(
+                    left: shift,
+                    right: -shift,
+                    top: -shift,
+                    bottom: shift,
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        color: shift == 8
+                            ? LannaColors.surfaceActive
+                            : LannaColors.border,
+                        borderRadius: LannaRadii.brSm,
+                        border: Border.all(color: LannaColors.bg),
                       ),
-                    BookCover(book: series.first, showFormat: true),
-                    Positioned(
-                      top: LannaSpacing.s1 + 2,
-                      right: LannaSpacing.s1 + 2,
-                      child: _CountBadge(count),
                     ),
-                    if (selected case final value?)
-                      Positioned.fill(child: SelectionMark(selected: value)),
-                  ],
+                  ),
+                BookCover(book: series.first, showFormat: true),
+                Positioned(
+                  top: LannaSpacing.s1 + 2,
+                  right: LannaSpacing.s1 + 2,
+                  child: _CountBadge(count),
                 ),
-              ),
+                if (selected case final value?)
+                  Positioned.fill(child: SelectionMark(selected: value)),
+              ],
             ),
           ),
           const SizedBox(height: LannaSpacing.s2),
@@ -313,38 +350,37 @@ class BookGridTile extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Expanded(
-            child: Align(
-              alignment: Alignment.topCenter,
-              child: Stack(
-                children: [
-                  Opacity(
-                    opacity: book.available ? 1 : 0.4,
-                    child: BookCover(book: book, showFormat: true),
-                  ),
-                  if (book.favoritedAt != null)
-                    const Positioned(
-                      top: LannaSpacing.s1 + 2,
-                      right: LannaSpacing.s1 + 2,
-                      child: _FavoriteBadge(),
-                    ),
-                  if (selected case final value?)
-                    Positioned.fill(child: SelectionMark(selected: value)),
-                ],
+          Stack(
+            children: [
+              Opacity(
+                opacity: book.available ? 1 : 0.4,
+                child: BookCover(book: book, showFormat: true),
               ),
-            ),
+              if (book.favoritedAt != null)
+                const Positioned(
+                  top: LannaSpacing.s1 + 2,
+                  right: LannaSpacing.s1 + 2,
+                  child: _FavoriteBadge(),
+                ),
+              if (selected case final value?)
+                Positioned.fill(child: SelectionMark(selected: value)),
+            ],
           ),
-          if (progress case final value?) ...[
-            const SizedBox(height: LannaSpacing.s1 + 2),
-            ClipRRect(
-              borderRadius: LannaRadii.brXs,
-              child: LinearProgressIndicator(
-                value: value.clamp(0.0, 1.0),
-                minHeight: 3,
-                backgroundColor: LannaColors.border,
+          const SizedBox(height: LannaSpacing.s2),
+          SizedBox(
+            height: 2,
+            child: switch (progress) {
+              final value? => ClipRRect(
+                borderRadius: BorderRadius.circular(1),
+                child: LinearProgressIndicator(
+                  value: value.clamp(0.0, 1.0),
+                  minHeight: 2,
+                  backgroundColor: LannaColors.borderSubtle,
+                ),
               ),
-            ),
-          ],
+              null => null,
+            },
+          ),
           const SizedBox(height: LannaSpacing.s2),
           Text(
             book.title,

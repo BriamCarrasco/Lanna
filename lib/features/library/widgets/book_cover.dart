@@ -80,9 +80,9 @@ class BookCover extends StatelessWidget {
                   ),
                 ),
               ),
-              if (showFormat)
+              if (showFormat && book.format != BookFormat.epub)
                 Positioned(
-                  left: LannaSpacing.s1 + 2,
+                  right: LannaSpacing.s1 + 2,
                   bottom: LannaSpacing.s1 + 2,
                   child: _FormatBadge(formatLabel(book)),
                 ),

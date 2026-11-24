@@ -301,18 +301,24 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
     required bool hasSeries,
     required Widget body,
   }) {
-    final select = IconButton(
-      onPressed: _startSelection,
-      icon: Icon(Icons.checklist, size: compact ? null : 20),
-      color: compact ? null : LannaColors.textMuted,
-      tooltip: context.l10n.selectVolumesTooltip,
+    final filters = FiltersButton(
+      key: const ValueKey('library-filters'),
+      filters: _filters,
+      onChanged: (f) => setState(() => _filters = f),
+      iconOnly: compact,
+    );
+    final roomy = MediaQuery.sizeOf(context).width >= 1240;
+    final more = _MoreMenu(
+      onSelect: hasSeries ? _startSelection : null,
+      onRescan: _rescan,
+      onAddFolder: roomy ? null : _addFolder,
     );
     return SectionScaffold(
       title: context.l10n.library,
-      subtitle: context.l10n.booksCount(count),
+      subtitle: compact ? null : context.l10n.booksCount(count),
       actions: compact
           ? [
-              if (hasSeries) select,
+              filters,
               PopupMenuButton<_SortMode>(
                 icon: const Icon(
                   Icons.sort,
@@ -331,49 +337,99 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                     ),
                 ],
               ),
-              _RescanButton(onPressed: _rescan),
-              IconButton(
-                onPressed: _addFolder,
-                icon: const Icon(Icons.create_new_folder_outlined),
-                tooltip: context.l10n.addFolder,
-              ),
+              more,
             ]
           : [
-              _ViewToggle(
-                view: _view,
-                onChanged: (v) => setState(() => _view = v),
-              ),
               _SortButton(
                 sort: _sort,
                 onChanged: (s) => setState(() => _sort = s),
               ),
-              if (hasSeries) select,
-              _RescanButton(onPressed: _rescan, muted: true),
-              FilledButton.icon(
-                onPressed: _addFolder,
-                icon: const Icon(Icons.create_new_folder_outlined, size: 18),
-                label: Text(context.l10n.addFolder),
+              const SizedBox(width: LannaSpacing.s2),
+              filters,
+              const SizedBox(width: LannaSpacing.s2),
+              _ViewToggle(
+                view: _view,
+                onChanged: (v) => setState(() => _view = v),
               ),
+              const SizedBox(width: LannaSpacing.s1),
+              more,
+              if (roomy) ...[
+                const SizedBox(width: LannaSpacing.s3),
+                OutlinedButton.icon(
+                  onPressed: _addFolder,
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: LannaColors.text,
+                    side: const BorderSide(color: LannaColors.border),
+                    minimumSize: const Size(0, 36),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: LannaSpacing.s4,
+                    ),
+                    shape: const RoundedRectangleBorder(
+                      borderRadius: LannaRadii.brMd,
+                    ),
+                    textStyle: LannaType.md.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  icon: const Icon(Icons.create_new_folder_outlined, size: 18),
+                  label: Text(context.l10n.addFolder),
+                ),
+              ],
             ],
       child: body,
     );
   }
 }
 
-class _RescanButton extends ConsumerWidget {
-  const _RescanButton({required this.onPressed, this.muted = false});
+class _MoreMenu extends ConsumerWidget {
+  const _MoreMenu({
+    required this.onSelect,
+    required this.onRescan,
+    required this.onAddFolder,
+  });
 
-  final VoidCallback onPressed;
-  final bool muted;
+  final VoidCallback? onSelect;
+  final VoidCallback onRescan;
+  final VoidCallback? onAddFolder;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final running = ref.watch(libraryScanProvider.select((s) => s.running));
-    return IconButton(
-      onPressed: running ? null : onPressed,
-      icon: Icon(Icons.refresh, size: muted ? 20 : null),
-      color: muted ? LannaColors.textMuted : null,
-      tooltip: context.l10n.refreshLibrary,
+    final l10n = context.l10n;
+    return PopupMenuButton<String>(
+      tooltip: l10n.more,
+      position: PopupMenuPosition.under,
+      icon: const Icon(
+        Icons.more_horiz,
+        size: 20,
+        color: LannaColors.textMuted,
+      ),
+      onSelected: (value) => switch (value) {
+        'select' => onSelect?.call(),
+        'rescan' => onRescan(),
+        'folder' => onAddFolder?.call(),
+        _ => null,
+      },
+      itemBuilder: (_) => [
+        if (onSelect != null)
+          lannaMenuItem(
+            value: 'select',
+            icon: Icons.checklist,
+            label: l10n.selectVolumesTooltip,
+          ),
+        if (!running)
+          lannaMenuItem(
+            value: 'rescan',
+            icon: Icons.refresh,
+            label: l10n.refreshLibrary,
+          ),
+        if (onAddFolder != null)
+          lannaMenuItem(
+            value: 'folder',
+            icon: Icons.create_new_folder_outlined,
+            label: l10n.addFolder,
+          ),
+      ],
     );
   }
 }
@@ -416,7 +472,7 @@ class _ScanBanner extends ConsumerWidget {
   }
 }
 
-class _LibraryBody extends StatelessWidget {
+class _LibraryBody extends ConsumerWidget {
   const _LibraryBody({
     required this.entries,
     required this.libraryEmpty,
@@ -446,7 +502,10 @@ class _LibraryBody extends StatelessWidget {
   final ValueChanged<List<Book>> onToggle;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final progress =
+        ref.watch(progressByBookProvider).valueOrNull ??
+        const <String, double>{};
     final searching = query.trim().isNotEmpty;
     return entries.when(
       loading: () => const Center(child: CircularProgressIndicator()),
@@ -472,11 +531,21 @@ class _LibraryBody extends StatelessWidget {
             scrollCacheExtent: const ScrollCacheExtent.viewport(1),
             physics: const AlwaysScrollableScrollPhysics(),
             slivers: [
-              _SectionLabel(
-                searching ? context.l10n.results : context.l10n.allBooks,
-                trailing: '${booksOf(entries).length}',
-                action: FiltersButton(filters: filters, onChanged: onFilters),
-              ),
+              if (searching || filters.active)
+                _SectionLabel(
+                  searching ? context.l10n.results : context.l10n.allBooks,
+                  trailing: '${booksOf(entries).length}',
+                  action: filters.active && entries.isNotEmpty
+                      ? TextButton(
+                          onPressed: () => onFilters(const LibraryFilters()),
+                          child: Text(context.l10n.clearFilters),
+                        )
+                      : null,
+                )
+              else
+                const SliverToBoxAdapter(
+                  child: SizedBox(height: LannaSpacing.s6),
+                ),
               if (entries.isEmpty)
                 SliverToBoxAdapter(
                   child: Padding(
@@ -496,6 +565,7 @@ class _LibraryBody extends StatelessWidget {
               else if (view == _ViewMode.grid)
                 LibraryGridSliver(
                   entries: entries,
+                  progress: progress,
                   onMenu: onBookMenu,
                   onOpenSeries: (series) =>
                       unawaited(showSeries(context, series)),
@@ -543,11 +613,11 @@ class _SectionLabel extends StatelessWidget {
                 children: [
                   Flexible(
                     child: Text(
-                      text.toUpperCase(),
+                      text,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: LannaType.xs.copyWith(
-                        color: LannaColors.textMuted,
+                      style: LannaType.lg.copyWith(
+                        color: LannaColors.textStrong,
                       ),
                     ),
                   ),
@@ -555,7 +625,10 @@ class _SectionLabel extends StatelessWidget {
                     const SizedBox(width: LannaSpacing.s2),
                     Text(
                       trailing!,
-                      style: LannaType.xs.copyWith(color: LannaColors.border),
+                      style: LannaType.md.copyWith(
+                        color: LannaColors.textMuted,
+                        fontFeatures: LannaType.tabular,
+                      ),
                     ),
                   ],
                 ],
