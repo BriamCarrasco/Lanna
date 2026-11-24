@@ -15,12 +15,36 @@ import 'book_cover.dart';
 
 typedef BookMenuCallback = void Function(Book book, Offset globalPosition);
 
+final _tileTitleStyle = LannaType.sm.copyWith(
+  fontWeight: FontWeight.w600,
+  height: 1.25,
+);
+
+double tileTextExtent(TextScaler scaler) {
+  double measure(TextStyle style, int lines) {
+    final painter = TextPainter(
+      text: TextSpan(
+        text: List.filled(lines, 'Ág').join('\n'),
+        style: style,
+      ),
+      textDirection: TextDirection.ltr,
+      textScaler: scaler,
+      maxLines: lines,
+    )..layout();
+    final height = painter.height;
+    painter.dispose();
+    return height;
+  }
+
+  const gaps = LannaSpacing.s2 * 2 + 2;
+  return (gaps + measure(_tileTitleStyle, 2) + measure(LannaType.micro, 1) + 2)
+      .ceilToDouble();
+}
+
 class CoverGridDelegate extends SliverGridDelegate {
-  const CoverGridDelegate({required this.textScale});
+  const CoverGridDelegate({required this.textExtent});
 
-  final double textScale;
-
-  static const _textExtent = 64.0;
+  final double textExtent;
 
   @override
   SliverGridLayout getLayout(SliverConstraints constraints) {
@@ -30,7 +54,7 @@ class CoverGridDelegate extends SliverGridDelegate {
     final maxExtent = narrow ? 128.0 : 172.0;
     final count = math.max(3, ((width + gap) / (maxExtent + gap)).ceil());
     final itemWidth = (width - gap * (count - 1)) / count;
-    final itemHeight = itemWidth * 1.5 + _textExtent * textScale;
+    final itemHeight = itemWidth * 1.5 + textExtent;
     return SliverGridRegularTileLayout(
       crossAxisCount: count,
       mainAxisStride: itemHeight + (narrow ? LannaSpacing.s4 : LannaSpacing.s6),
@@ -43,11 +67,12 @@ class CoverGridDelegate extends SliverGridDelegate {
 
   @override
   bool shouldRelayout(CoverGridDelegate oldDelegate) =>
-      oldDelegate.textScale != textScale;
+      oldDelegate.textExtent != textExtent;
 }
 
-CoverGridDelegate _gridDelegate(BuildContext context) =>
-    CoverGridDelegate(textScale: MediaQuery.textScalerOf(context).scale(1));
+CoverGridDelegate _gridDelegate(BuildContext context) => CoverGridDelegate(
+  textExtent: tileTextExtent(MediaQuery.textScalerOf(context)),
+);
 
 EdgeInsets _gridPadding(BuildContext context) => EdgeInsets.symmetric(
   horizontal: MediaQuery.sizeOf(context).width < 600
@@ -268,10 +293,7 @@ class SeriesGridTile extends StatelessWidget {
             series.name,
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
-            style: LannaType.sm.copyWith(
-              fontWeight: FontWeight.w600,
-              height: 1.25,
-            ),
+            style: _tileTitleStyle,
           ),
           Text(
             context.l10n.volumesCount(count),
@@ -386,10 +408,7 @@ class BookGridTile extends StatelessWidget {
             book.title,
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
-            style: LannaType.sm.copyWith(
-              fontWeight: FontWeight.w600,
-              height: 1.25,
-            ),
+            style: _tileTitleStyle,
           ),
           if (!book.available)
             Text(
