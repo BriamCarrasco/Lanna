@@ -349,9 +349,29 @@ class _About extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          'Lanna $_appVersion · $_license',
-          style: LannaType.sm.copyWith(color: LannaColors.text),
+        Semantics(
+          button: true,
+          hint: context.l10n.licenses,
+          child: InkWell(
+            onTap: () => showLicensePage(
+              context: context,
+              applicationName: 'Lanna',
+              applicationVersion: '$_appVersion · $_license',
+              applicationIcon: Padding(
+                padding: const EdgeInsets.all(LannaSpacing.s3),
+                child: Image.asset(
+                  'assets/logo/lanna.png',
+                  width: 56,
+                  height: 56,
+                ),
+              ),
+              applicationLegalese: context.l10n.legalNotice,
+            ),
+            child: Text(
+              'Lanna $_appVersion · $_license',
+              style: LannaType.sm.copyWith(color: LannaColors.text),
+            ),
+          ),
         ),
         const SizedBox(height: LannaSpacing.s3),
         _LinkText(
@@ -367,24 +387,6 @@ class _About extends StatelessWidget {
         _LinkText(
           context.l10n.checkUpdates,
           onTap: () => _openUrl(context, _releasesUrl),
-        ),
-        const SizedBox(height: LannaSpacing.s2),
-        _LinkText(
-          context.l10n.licenses,
-          onTap: () => showLicensePage(
-            context: context,
-            applicationName: 'Lanna',
-            applicationVersion: '$_appVersion · $_license',
-            applicationIcon: Padding(
-              padding: const EdgeInsets.all(LannaSpacing.s3),
-              child: Image.asset(
-                'assets/logo/lanna.png',
-                width: 56,
-                height: 56,
-              ),
-            ),
-            applicationLegalese: context.l10n.legalNotice,
-          ),
         ),
       ],
     );
