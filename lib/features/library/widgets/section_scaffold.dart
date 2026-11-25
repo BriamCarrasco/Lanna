@@ -5,14 +5,48 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/tokens.dart';
 import '../../../core/widgets/fade_in.dart';
 
-class SectionTabsScope extends InheritedWidget {
-  const SectionTabsScope({super.key, required super.child});
+class SectionActions {
+  const SectionActions(this.owner, this.widgets);
 
-  static bool of(BuildContext context) =>
-      context.dependOnInheritedWidgetOfExactType<SectionTabsScope>() != null;
+  final Object owner;
+  final List<Widget> widgets;
+}
+
+class SectionActionsNotifier extends ValueNotifier<SectionActions?> {
+  SectionActionsNotifier() : super(null);
+
+  bool _disposed = false;
+
+  void publish(Object owner, List<Widget> widgets) {
+    if (!_disposed) value = SectionActions(owner, widgets);
+  }
+
+  void withdraw(Object owner) {
+    if (!_disposed && value?.owner == owner) value = null;
+  }
 
   @override
-  bool updateShouldNotify(SectionTabsScope oldWidget) => false;
+  void dispose() {
+    _disposed = true;
+    super.dispose();
+  }
+}
+
+class SectionTabsScope extends InheritedWidget {
+  const SectionTabsScope({
+    super.key,
+    required this.actions,
+    required super.child,
+  });
+
+  final SectionActionsNotifier actions;
+
+  static SectionTabsScope? maybeOf(BuildContext context) =>
+      context.dependOnInheritedWidgetOfExactType<SectionTabsScope>();
+
+  @override
+  bool updateShouldNotify(SectionTabsScope oldWidget) =>
+      actions != oldWidget.actions;
 }
 
 class SectionScaffold extends StatelessWidget {
@@ -35,27 +69,64 @@ class SectionScaffold extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final bare =
-        onBack == null &&
-        subtitle == null &&
-        actions.isEmpty &&
-        SectionTabsScope.of(context);
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        if (!bare) ...[
-          _SectionHeader(
-            title: title,
-            subtitle: subtitle,
-            onBack: onBack,
-            backIcon: backIcon,
-            actions: actions,
-          ),
-          const Divider(height: 1),
-        ],
-        Expanded(child: child),
-      ],
+    final scope = SectionTabsScope.maybeOf(context);
+    final underTabs = scope != null && onBack == null;
+    final content = underTabs
+        ? child
+        : Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _SectionHeader(
+                title: title,
+                subtitle: subtitle,
+                onBack: onBack,
+                backIcon: backIcon,
+                actions: actions,
+              ),
+              const Divider(height: 1),
+              Expanded(child: child),
+            ],
+          );
+    if (scope == null) return content;
+    return _ActionsPublisher(
+      target: scope.actions,
+      actions: underTabs ? actions : const [],
+      child: content,
     );
+  }
+}
+
+class _ActionsPublisher extends StatefulWidget {
+  const _ActionsPublisher({
+    required this.target,
+    required this.actions,
+    required this.child,
+  });
+
+  final SectionActionsNotifier target;
+  final List<Widget> actions;
+  final Widget child;
+
+  @override
+  State<_ActionsPublisher> createState() => _ActionsPublisherState();
+}
+
+class _ActionsPublisherState extends State<_ActionsPublisher> {
+  @override
+  void dispose() {
+    final target = widget.target;
+    WidgetsBinding.instance.addPostFrameCallback((_) => target.withdraw(this));
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final target = widget.target;
+    final actions = widget.actions;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) target.publish(this, actions);
+    });
+    return widget.child;
   }
 }
 
@@ -76,9 +147,8 @@ class _SectionHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final underTabs = onBack == null && SectionTabsScope.of(context);
     return Container(
-      height: underTabs ? 52 : 64,
+      height: 64,
       color: LannaColors.surface,
       padding: EdgeInsets.only(
         left: onBack == null ? LannaSpacing.s6 : LannaSpacing.s1,
@@ -95,20 +165,19 @@ class _SectionHeader extends StatelessWidget {
           Expanded(
             child: Row(
               children: [
-                if (!underTabs)
-                  Flexible(
-                    child: Text(
-                      title,
-                      maxLines: 1,
-                      softWrap: false,
-                      overflow: TextOverflow.ellipsis,
-                      style: LannaType.display.copyWith(
-                        color: LannaColors.textStrong,
-                      ),
+                Flexible(
+                  child: Text(
+                    title,
+                    maxLines: 1,
+                    softWrap: false,
+                    overflow: TextOverflow.ellipsis,
+                    style: LannaType.display.copyWith(
+                      color: LannaColors.textStrong,
                     ),
                   ),
+                ),
                 if (subtitle != null) ...[
-                  if (!underTabs) const SizedBox(width: LannaSpacing.s3),
+                  const SizedBox(width: LannaSpacing.s3),
                   Flexible(
                     child: Text(
                       subtitle!,

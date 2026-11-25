@@ -52,6 +52,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
   _SortMode _sort = _SortMode.recent;
   _ViewMode _view = _ViewMode.grid;
   LibraryFilters _filters = const LibraryFilters();
+  final _filtersKey = GlobalKey(debugLabel: 'filtros');
   Set<String>? _selection;
 
   @override
@@ -302,7 +303,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
     required Widget body,
   }) {
     final filters = FiltersButton(
-      key: const ValueKey('library-filters'),
+      key: _filtersKey,
       filters: _filters,
       onChanged: (f) => setState(() => _filters = f),
       iconOnly: compact,

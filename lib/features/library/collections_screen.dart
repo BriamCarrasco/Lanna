@@ -47,7 +47,7 @@ class CollectionsScreen extends ConsumerWidget {
         if (compact)
           IconButton(
             onPressed: create,
-            icon: const Icon(Icons.create_new_folder_outlined),
+            icon: const Icon(Icons.add, size: 20, color: LannaColors.textMuted),
             tooltip: context.l10n.newCollection,
           )
         else

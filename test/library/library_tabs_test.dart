@@ -114,6 +114,10 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.byType(LibraryScreen), findsOneWidget);
       expect(find.text('Todos'), findsOneWidget);
+      expect(
+        tester.getRect(find.byTooltip('Ordenar')).center.dy,
+        closeTo(tester.getRect(find.byType(TextField)).center.dy, 2),
+      );
       await shot(tester, 'pestanas-todos-${width.toInt()}');
 
       await tester.tap(find.text('Favoritos').first);
@@ -126,7 +130,17 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.byType(AuthorsScreen), findsOneWidget);
       expect(selectedInBar(tester), 1);
+      expect(find.text('3 autores'), findsNothing);
       await shot(tester, 'pestanas-autores-${width.toInt()}');
+
+      await tester.tap(find.text('Colecciones').first);
+      await tester.pumpAndSettle();
+      final search = tester.getRect(find.byType(TextField));
+      final create = tester.getRect(find.byTooltip('Nueva colección'));
+      expect(create.center.dy, closeTo(search.center.dy, 2));
+      expect(create.left, greaterThan(search.right));
+      expect(find.text('0 colecciones'), findsNothing);
+      await shot(tester, 'pestanas-colecciones-${width.toInt()}');
 
       await tester.tap(inBar('Biblioteca'));
       await tester.pumpAndSettle();

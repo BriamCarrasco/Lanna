@@ -28,6 +28,7 @@ class LibraryShell extends ConsumerStatefulWidget {
 class _LibraryShellState extends ConsumerState<LibraryShell> {
   final _searchController = TextEditingController();
   final _searchFocus = FocusNode(debugLabel: 'búsqueda');
+  final _tabActions = SectionActionsNotifier();
   LibrarySection? _lastSection;
   bool _searchFromHome = false;
 
@@ -42,6 +43,7 @@ class _LibraryShellState extends ConsumerState<LibraryShell> {
     HardwareKeyboard.instance.removeHandler(_onKey);
     _searchController.dispose();
     _searchFocus.dispose();
+    _tabActions.dispose();
     super.dispose();
   }
 
@@ -185,13 +187,37 @@ class _LibraryShellState extends ConsumerState<LibraryShell> {
                 padding: const EdgeInsets.fromLTRB(
                   LannaSpacing.s4,
                   LannaSpacing.s3,
-                  LannaSpacing.s4,
+                  LannaSpacing.s2,
                   LannaSpacing.s1,
                 ),
-                child: LibrarySearchField(
-                  controller: _searchController,
-                  focusNode: _searchFocus,
-                  onChanged: _onSearchChanged,
+                child: SizedBox(
+                  height: 44,
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: LibrarySearchField(
+                          controller: _searchController,
+                          focusNode: _searchFocus,
+                          onChanged: _onSearchChanged,
+                        ),
+                      ),
+                      ValueListenableBuilder<SectionActions?>(
+                        valueListenable: _tabActions,
+                        builder: (context, value, _) {
+                          final actions = value?.widgets ?? const <Widget>[];
+                          return Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const SizedBox(width: LannaSpacing.s1),
+                              ...actions,
+                              if (actions.isEmpty)
+                                const SizedBox(width: LannaSpacing.s1),
+                            ],
+                          );
+                        },
+                      ),
+                    ],
+                  ),
                 ),
               ),
               _LibraryTabs(
@@ -210,7 +236,7 @@ class _LibraryShellState extends ConsumerState<LibraryShell> {
             ],
             Expanded(
               child: inLibrary
-                  ? SectionTabsScope(child: widget.child)
+                  ? SectionTabsScope(actions: _tabActions, child: widget.child)
                   : widget.child,
             ),
           ],

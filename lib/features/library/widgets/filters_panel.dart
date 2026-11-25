@@ -14,6 +14,7 @@ Future<void> showFiltersPanel(
   BuildContext anchor, {
   required LibraryFilters filters,
   required ValueChanged<LibraryFilters> onChanged,
+  GlobalKey? anchorKey,
 }) {
   final panelKey = GlobalKey();
   return showGeneralDialog<void>(
@@ -24,6 +25,7 @@ Future<void> showFiltersPanel(
     transitionDuration: LannaMotion.fast,
     pageBuilder: (context, _, _) => _AdaptivePanel(
       anchor: anchor,
+      anchorKey: anchorKey,
       child: FiltersPanel(
         key: panelKey,
         initial: filters,
@@ -38,9 +40,14 @@ Future<void> showFiltersPanel(
 }
 
 class _AdaptivePanel extends StatefulWidget {
-  const _AdaptivePanel({required this.anchor, required this.child});
+  const _AdaptivePanel({
+    required this.anchor,
+    required this.anchorKey,
+    required this.child,
+  });
 
   final BuildContext anchor;
+  final GlobalKey? anchorKey;
   final Widget child;
 
   @override
@@ -51,8 +58,9 @@ class _AdaptivePanelState extends State<_AdaptivePanel> {
   Rect? _anchorRect;
 
   Rect? _measure() {
-    if (!widget.anchor.mounted) return null;
-    final box = widget.anchor.findRenderObject();
+    final anchor = widget.anchorKey?.currentContext ?? widget.anchor;
+    if (!anchor.mounted) return null;
+    final box = anchor.findRenderObject();
     if (box is! RenderBox || !box.attached || !box.hasSize) return null;
     return box.localToGlobal(Offset.zero) & box.size;
   }
@@ -344,8 +352,12 @@ class FiltersButton extends StatelessWidget {
         (filters.format != FormatFilter.all ? 1 : 0) +
         (filters.read != ReadFilter.all ? 1 : 0);
     final active = count > 0;
-    void open() =>
-        showFiltersPanel(context, filters: filters, onChanged: onChanged);
+    void open() => showFiltersPanel(
+      context,
+      filters: filters,
+      onChanged: onChanged,
+      anchorKey: key is GlobalKey ? key! as GlobalKey : null,
+    );
     if (iconOnly) {
       return IconButton(
         tooltip: context.l10n.filters,
