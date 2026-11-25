@@ -200,6 +200,12 @@ abstract class AppLocalizations {
   /// **'Favoritos'**
   String get favorites;
 
+  /// No description provided for @libraryAll.
+  ///
+  /// In es, this message translates to:
+  /// **'Todos'**
+  String get libraryAll;
+
   /// No description provided for @folders.
   ///
   /// In es, this message translates to:

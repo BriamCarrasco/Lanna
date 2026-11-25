@@ -61,6 +61,9 @@ class AppLocalizationsEs extends AppLocalizations {
   String get favorites => 'Favoritos';
 
   @override
+  String get libraryAll => 'Todos';
+
+  @override
   String get folders => 'Carpetas';
 
   @override

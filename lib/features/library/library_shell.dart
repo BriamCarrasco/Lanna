@@ -10,6 +10,7 @@ import '../../core/theme/app_theme.dart';
 import '../../core/theme/tokens.dart';
 import '../../l10n/l10n.dart';
 import 'widgets/library_sidebar.dart';
+import 'widgets/section_scaffold.dart';
 
 final librarySearchProvider = StateProvider<String>((ref) => '');
 
@@ -149,11 +150,28 @@ class _LibraryShellState extends ConsumerState<LibraryShell> {
     );
   }
 
+  static const _bottomSections = [
+    LibrarySection.home,
+    LibrarySection.library,
+    LibrarySection.stats,
+    LibrarySection.settings,
+  ];
+
+  static const _librarySubsections = [
+    LibrarySection.library,
+    LibrarySection.favorites,
+    LibrarySection.folders,
+    LibrarySection.collections,
+    LibrarySection.authors,
+  ];
+
   Widget _narrow(LibrarySection section) {
-    final showSearch =
-        section != LibrarySection.settings &&
-        section != LibrarySection.stats &&
-        section != LibrarySection.home;
+    final inLibrary = _librarySubsections.contains(section);
+    final barSection = inLibrary ? LibrarySection.library : section;
+    final all = librarySections(context.l10n);
+    final sections = [
+      for (final s in _bottomSections) all.firstWhere((e) => e.$3 == s),
+    ];
     return Scaffold(
       backgroundColor: LannaColors.bg,
       body: SafeArea(
@@ -162,13 +180,13 @@ class _LibraryShellState extends ConsumerState<LibraryShell> {
         right: false,
         child: Column(
           children: [
-            if (showSearch)
+            if (inLibrary) ...[
               Padding(
                 padding: const EdgeInsets.fromLTRB(
                   LannaSpacing.s4,
                   LannaSpacing.s3,
                   LannaSpacing.s4,
-                  LannaSpacing.s2,
+                  LannaSpacing.s1,
                 ),
                 child: LibrarySearchField(
                   controller: _searchController,
@@ -176,13 +194,30 @@ class _LibraryShellState extends ConsumerState<LibraryShell> {
                   onChanged: _onSearchChanged,
                 ),
               ),
-            Expanded(child: widget.child),
+              _LibraryTabs(
+                tabs: [
+                  for (final s in _librarySubsections)
+                    (
+                      s,
+                      s == LibrarySection.library
+                          ? context.l10n.libraryAll
+                          : all.firstWhere((e) => e.$3 == s).$2,
+                    ),
+                ],
+                active: section,
+                onSelect: (s) => _select(s, section),
+              ),
+            ],
+            Expanded(
+              child: inLibrary
+                  ? SectionTabsScope(child: widget.child)
+                  : widget.child,
+            ),
           ],
         ),
       ),
       bottomNavigationBar: LayoutBuilder(
         builder: (context, constraints) {
-          final sections = librarySections(context.l10n);
           final theme = NavigationBarTheme.of(context);
           final label = _fittedLabelStyle(
             context,
@@ -197,11 +232,11 @@ class _LibraryShellState extends ConsumerState<LibraryShell> {
                   : WidgetStateProperty.all(label),
             ),
             child: NavigationBar(
-              selectedIndex: sections.indexWhere((e) => e.$3 == section),
+              selectedIndex: sections.indexWhere((e) => e.$3 == barSection),
               onDestinationSelected: (i) => _select(sections[i].$3, section),
               labelBehavior: label == null
                   ? NavigationDestinationLabelBehavior.alwaysHide
-                  : NavigationDestinationLabelBehavior.onlyShowSelected,
+                  : NavigationDestinationLabelBehavior.alwaysShow,
               destinations: [
                 for (final item in sections)
                   NavigationDestination(icon: Icon(item.$1), label: item.$2),
@@ -237,5 +272,126 @@ class _LibraryShellState extends ConsumerState<LibraryShell> {
     if (widest <= available) return style;
     final size = (style.fontSize ?? 12) * available / widest;
     return size < _minLabelSize ? null : style.copyWith(fontSize: size);
+  }
+}
+
+class _LibraryTabs extends StatefulWidget {
+  const _LibraryTabs({
+    required this.tabs,
+    required this.active,
+    required this.onSelect,
+  });
+
+  final List<(LibrarySection, String)> tabs;
+  final LibrarySection active;
+  final ValueChanged<LibrarySection> onSelect;
+
+  @override
+  State<_LibraryTabs> createState() => _LibraryTabsState();
+}
+
+class _LibraryTabsState extends State<_LibraryTabs> {
+  final _keys = <LibrarySection, GlobalKey>{};
+
+  GlobalKey _keyFor(LibrarySection s) => _keys.putIfAbsent(s, GlobalKey.new);
+
+  @override
+  void initState() {
+    super.initState();
+    _reveal(animate: false);
+  }
+
+  @override
+  void didUpdateWidget(_LibraryTabs oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.active != widget.active) _reveal(animate: true);
+  }
+
+  void _reveal({required bool animate}) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final context = _keys[widget.active]?.currentContext;
+      if (context == null || !context.mounted) return;
+      Scrollable.ensureVisible(
+        context,
+        alignment: 0.5,
+        duration: animate ? LannaMotion.slow : Duration.zero,
+        curve: LannaMotion.ease,
+      );
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: const BoxDecoration(
+        border: Border(bottom: BorderSide(color: LannaColors.borderSubtle)),
+      ),
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: LannaSpacing.s2),
+        child: Row(
+          children: [
+            for (final (section, label) in widget.tabs)
+              _LibraryTab(
+                key: _keyFor(section),
+                label: label,
+                selected: section == widget.active,
+                onTap: () => widget.onSelect(section),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _LibraryTab extends StatelessWidget {
+  const _LibraryTab({
+    super.key,
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      selected: selected,
+      button: true,
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: LannaSpacing.s3 - 1),
+          child: AnimatedContainer(
+            duration: LannaMotion.base,
+            curve: LannaMotion.ease,
+            height: 44,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              border: Border(
+                bottom: BorderSide(
+                  color: selected ? LannaColors.accent : Colors.transparent,
+                  width: 2,
+                ),
+              ),
+            ),
+            child: Text(
+              label,
+              maxLines: 1,
+              style: LannaType.md.copyWith(
+                fontWeight: FontWeight.w600,
+                color: selected
+                    ? LannaColors.textStrong
+                    : LannaColors.textMuted,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }

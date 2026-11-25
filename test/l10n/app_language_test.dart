@@ -65,17 +65,22 @@ void main() {
       await tester.pumpAndSettle();
       expect(tester.takeException(), isNull);
 
-      for (final icon in const [
-        Icons.favorite_border,
-        Icons.folder_outlined,
-        Icons.collections_bookmark_outlined,
-        Icons.person_outline,
-        Icons.insights_outlined,
-        Icons.settings_outlined,
+      for (final label in const [
+        'Favorites',
+        'Folders',
+        'Collections',
+        'Authors',
+        'Statistics',
+        'Settings',
       ]) {
-        await tester.tap(find.byIcon(icon).first);
+        if (find.text(label).evaluate().isEmpty) {
+          await tester.tap(find.byIcon(Icons.menu_book_outlined).first);
+          await tester.pumpAndSettle();
+        }
+        await tester.ensureVisible(find.text(label).first);
+        await tester.tap(find.text(label).first);
         await tester.pumpAndSettle();
-        expect(tester.takeException(), isNull, reason: '$icon');
+        expect(tester.takeException(), isNull, reason: label);
       }
       expect(find.text('App language'), findsOneWidget);
 

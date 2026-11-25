@@ -9,12 +9,7 @@ import 'package:lanna/data/local/app_database.dart';
 import 'package:lanna/data/local/database_provider.dart';
 import 'package:lanna/data/models/book_format.dart';
 
-const _sections = <(String, IconData)>[
-  ('Colecciones', Icons.folder_outlined),
-  ('Autores', Icons.person_outline),
-  ('Estadísticas', Icons.insights_outlined),
-  ('Ajustes', Icons.settings_outlined),
-];
+const _sections = ['Colecciones', 'Autores', 'Estadísticas', 'Ajustes'];
 
 void main() {
   for (final size in const [Size(1400, 900), Size(760, 900), Size(400, 900)]) {
@@ -51,15 +46,18 @@ void main() {
       await tester.pumpAndSettle();
       expect(tester.takeException(), isNull, reason: 'Biblioteca a ${w}px');
 
-      final narrow = size.width < 720;
-      for (final (label, icon) in _sections) {
-        final target = narrow
-            ? find.descendant(
-                of: find.byType(NavigationBar),
-                matching: find.byIcon(icon),
-              )
-            : find.text(label);
-        await tester.tap(target.first);
+      for (final label in _sections) {
+        if (find.text(label).evaluate().isEmpty) {
+          await tester.tap(
+            find.descendant(
+              of: find.byType(NavigationBar),
+              matching: find.byIcon(Icons.menu_book_outlined),
+            ),
+          );
+          await tester.pumpAndSettle();
+        }
+        await tester.ensureVisible(find.text(label).first);
+        await tester.tap(find.text(label).first);
         await tester.pumpAndSettle();
         expect(tester.takeException(), isNull, reason: '$label a ${w}px');
       }

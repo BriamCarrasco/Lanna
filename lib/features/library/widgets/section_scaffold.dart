@@ -5,6 +5,16 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/tokens.dart';
 import '../../../core/widgets/fade_in.dart';
 
+class SectionTabsScope extends InheritedWidget {
+  const SectionTabsScope({super.key, required super.child});
+
+  static bool of(BuildContext context) =>
+      context.dependOnInheritedWidgetOfExactType<SectionTabsScope>() != null;
+
+  @override
+  bool updateShouldNotify(SectionTabsScope oldWidget) => false;
+}
+
 class SectionScaffold extends StatelessWidget {
   const SectionScaffold({
     super.key,
@@ -25,17 +35,24 @@ class SectionScaffold extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final bare =
+        onBack == null &&
+        subtitle == null &&
+        actions.isEmpty &&
+        SectionTabsScope.of(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        _SectionHeader(
-          title: title,
-          subtitle: subtitle,
-          onBack: onBack,
-          backIcon: backIcon,
-          actions: actions,
-        ),
-        const Divider(height: 1),
+        if (!bare) ...[
+          _SectionHeader(
+            title: title,
+            subtitle: subtitle,
+            onBack: onBack,
+            backIcon: backIcon,
+            actions: actions,
+          ),
+          const Divider(height: 1),
+        ],
         Expanded(child: child),
       ],
     );
@@ -59,8 +76,9 @@ class _SectionHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final underTabs = onBack == null && SectionTabsScope.of(context);
     return Container(
-      height: 64,
+      height: underTabs ? 52 : 64,
       color: LannaColors.surface,
       padding: EdgeInsets.only(
         left: onBack == null ? LannaSpacing.s6 : LannaSpacing.s1,
@@ -77,19 +95,20 @@ class _SectionHeader extends StatelessWidget {
           Expanded(
             child: Row(
               children: [
-                Flexible(
-                  child: Text(
-                    title,
-                    maxLines: 1,
-                    softWrap: false,
-                    overflow: TextOverflow.ellipsis,
-                    style: LannaType.display.copyWith(
-                      color: LannaColors.textStrong,
+                if (!underTabs)
+                  Flexible(
+                    child: Text(
+                      title,
+                      maxLines: 1,
+                      softWrap: false,
+                      overflow: TextOverflow.ellipsis,
+                      style: LannaType.display.copyWith(
+                        color: LannaColors.textStrong,
+                      ),
                     ),
                   ),
-                ),
                 if (subtitle != null) ...[
-                  const SizedBox(width: LannaSpacing.s3),
+                  if (!underTabs) const SizedBox(width: LannaSpacing.s3),
                   Flexible(
                     child: Text(
                       subtitle!,
