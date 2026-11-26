@@ -867,7 +867,7 @@ void main() {
     await tester.tap(find.text('Quitar de favoritos'));
     await tester.pumpAndSettle();
     expect(find.text('Rayuela'), findsNothing);
-    expect(find.textContaining('Todavía no tienes favoritos'), findsOneWidget);
+    expect(find.text('Aún no tienes favoritos'), findsOneWidget);
 
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pump(const Duration(milliseconds: 50));

@@ -82,13 +82,24 @@ class AppLocalizationsEn extends AppLocalizations {
   String get noAuthor => 'No author';
 
   @override
-  String get noBooksInLibrary => 'There are no books in the library';
+  String get noAuthorsTitle => 'No authors yet';
+
+  @override
+  String get noAuthorsHint =>
+      'They come from the books in your library. Once you add some, they\'ll show up here.';
+
+  @override
+  String get goToLibrary => 'Go to library';
 
   @override
   String get newCollection => 'New collection';
 
   @override
-  String get createCollectionHint => 'Create a collection to group your books';
+  String get noCollectionsTitle => 'No collections yet';
+
+  @override
+  String get createCollectionHint =>
+      'Use them to group books your way: a series, your to-read pile, the ones you want to reread.';
 
   @override
   String get noCollectionMatches => 'No collection matches your search';
@@ -109,14 +120,25 @@ class AppLocalizationsEn extends AppLocalizations {
   String get emptyCollection => 'This collection is empty';
 
   @override
+  String get emptyCollectionHint =>
+      'Add books from here or from any book\'s menu.';
+
+  @override
   String get booksInCollection => 'Books in the collection';
 
   @override
   String get libraryEmpty => 'The library is empty';
 
   @override
-  String get noFavoritesHint =>
-      'You have no favorites yet. Open a book\'s menu (right-click or press and hold) and choose “Add to favorites”.';
+  String get noFavoritesTitle => 'No favorites yet';
+
+  @override
+  String get noFavoritesHintTouch =>
+      'Press and hold a book and choose “Add to favorites” to keep it handy here.';
+
+  @override
+  String get noFavoritesHintPointer =>
+      'Right-click a book and choose “Add to favorites” to keep it handy here.';
 
   @override
   String get noFavoritesResults => 'No results in your favorites';

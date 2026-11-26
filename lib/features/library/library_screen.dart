@@ -8,7 +8,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/text_search.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/theme/tokens.dart';
-import '../../core/widgets/fade_in.dart';
 import '../../core/widgets/lanna_menu.dart';
 import '../../data/book_repository.dart';
 import '../../data/local/app_database.dart';
@@ -518,12 +517,10 @@ class _LibraryBody extends ConsumerWidget {
                   icon: Icons.search_off,
                   message: context.l10n.noResultsFor(query),
                 )
-              : FadeIn(
-                  child: EmptyLibraryView(
-                    hasFolders: hasFolders,
-                    onAddFolder: onAddFolder,
-                    onRescan: onRescan,
-                  ),
+              : EmptyLibraryView(
+                  hasFolders: hasFolders,
+                  onAddFolder: onAddFolder,
+                  onRescan: onRescan,
                 );
         }
         return RefreshIndicator(

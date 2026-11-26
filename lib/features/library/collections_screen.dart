@@ -40,30 +40,45 @@ class CollectionsScreen extends ConsumerWidget {
           ref.read(bookRepositoryProvider).createCollection(name),
     );
 
+    final none = collections.isEmpty && query.isEmpty;
+
     return SectionScaffold(
       title: context.l10n.collections,
       subtitle: context.l10n.collectionsCount(collections.length),
       actions: [
-        if (compact)
-          IconButton(
-            onPressed: create,
-            icon: const Icon(Icons.add, size: 20, color: LannaColors.textMuted),
-            tooltip: context.l10n.newCollection,
-          )
-        else
-          FilledButton.icon(
-            onPressed: create,
-            icon: const Icon(Icons.add, size: 18),
-            label: Text(context.l10n.newCollection),
-          ),
+        if (!none)
+          compact
+              ? IconButton(
+                  onPressed: create,
+                  icon: const Icon(
+                    Icons.add,
+                    size: 20,
+                    color: LannaColors.textMuted,
+                  ),
+                  tooltip: context.l10n.newCollection,
+                )
+              : FilledButton.icon(
+                  onPressed: create,
+                  icon: const Icon(Icons.add, size: 18),
+                  label: Text(context.l10n.newCollection),
+                ),
       ],
       child: collections.isEmpty
-          ? SectionEmpty(
-              icon: Icons.folder_outlined,
-              message: query.isEmpty
-                  ? context.l10n.createCollectionHint
-                  : context.l10n.noCollectionMatches,
-            )
+          ? none
+                ? EmptyIntro(
+                    title: context.l10n.noCollectionsTitle,
+                    message: context.l10n.createCollectionHint,
+                    action: FilledButton.icon(
+                      onPressed: create,
+                      style: emptyIntroButtonStyle,
+                      icon: const Icon(Icons.add, size: 18),
+                      label: Text(context.l10n.newCollection),
+                    ),
+                  )
+                : SectionEmpty(
+                    icon: Icons.search_off,
+                    message: context.l10n.noCollectionMatches,
+                  )
           : ListView.separated(
               padding: const EdgeInsets.symmetric(vertical: LannaSpacing.s2),
               itemCount: collections.length,
@@ -164,9 +179,15 @@ class CollectionScreen extends ConsumerWidget {
         ),
       ],
       child: books.isEmpty
-          ? SectionEmpty(
-              icon: Icons.folder_open_outlined,
-              message: context.l10n.emptyCollection,
+          ? EmptyIntro(
+              title: context.l10n.emptyCollection,
+              message: context.l10n.emptyCollectionHint,
+              action: FilledButton.icon(
+                onPressed: addBooks,
+                style: emptyIntroButtonStyle,
+                icon: const Icon(Icons.add, size: 18),
+                label: Text(context.l10n.addBooks),
+              ),
             )
           : CustomScrollView(
               scrollCacheExtent: const ScrollCacheExtent.viewport(1),

@@ -72,10 +72,8 @@ class WeekBars extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final goal = math.max(stats.goalSeconds, 1);
-    final top = math.max(
-      (goal * 1.6).round(),
-      days.map(stats.secondsOn).fold<int>(0, math.max),
-    );
+    final best = days.map(stats.secondsOn).fold<int>(0, math.max);
+    final top = math.max(goal, best) * 1.1;
     return SizedBox(
       height: height,
       child: Stack(

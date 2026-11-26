@@ -1,9 +1,11 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../core/text_search.dart';
 import '../../core/theme/tokens.dart';
@@ -33,9 +35,15 @@ class FavoritesScreen extends ConsumerWidget {
       title: context.l10n.favorites,
       subtitle: context.l10n.booksCount(favorites.length),
       child: switch ((favorites.isEmpty, shown.isEmpty)) {
-        (true, _) => SectionEmpty(
-          icon: Icons.favorite_border,
-          message: context.l10n.noFavoritesHint,
+        (true, _) => EmptyIntro(
+          title: context.l10n.noFavoritesTitle,
+          message: Platform.isAndroid || Platform.isIOS
+              ? context.l10n.noFavoritesHintTouch
+              : context.l10n.noFavoritesHintPointer,
+          action: OutlinedButton(
+            onPressed: () => context.go('/library'),
+            child: Text(context.l10n.goToLibrary),
+          ),
         ),
         (_, true) => SectionEmpty(
           icon: Icons.search_off,

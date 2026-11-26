@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../core/text_search.dart';
 import '../../core/theme/app_theme.dart';
@@ -91,9 +92,13 @@ class _AuthorList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (authors.isEmpty) {
-      return SectionEmpty(
-        icon: Icons.person_outline,
-        message: context.l10n.noBooksInLibrary,
+      return EmptyIntro(
+        title: context.l10n.noAuthorsTitle,
+        message: context.l10n.noAuthorsHint,
+        action: OutlinedButton(
+          onPressed: () => context.go('/library'),
+          child: Text(context.l10n.goToLibrary),
+        ),
       );
     }
     return ListView.separated(

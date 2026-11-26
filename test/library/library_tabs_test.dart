@@ -135,10 +135,9 @@ void main() {
 
       await tester.tap(find.text('Colecciones').first);
       await tester.pumpAndSettle();
-      final search = tester.getRect(find.byType(TextField));
-      final create = tester.getRect(find.byTooltip('Nueva colección'));
-      expect(create.center.dy, closeTo(search.center.dy, 2));
-      expect(create.left, greaterThan(search.right));
+      expect(find.text('Aún no tienes colecciones'), findsOneWidget);
+      expect(find.text('Nueva colección'), findsOneWidget);
+      expect(find.byTooltip('Nueva colección'), findsNothing);
       expect(find.text('0 colecciones'), findsNothing);
       await shot(tester, 'pestanas-colecciones-${width.toInt()}');
 

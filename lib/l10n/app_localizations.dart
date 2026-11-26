@@ -242,11 +242,23 @@ abstract class AppLocalizations {
   /// **'Sin autor'**
   String get noAuthor;
 
-  /// No description provided for @noBooksInLibrary.
+  /// No description provided for @noAuthorsTitle.
   ///
   /// In es, this message translates to:
-  /// **'No hay libros en la biblioteca'**
-  String get noBooksInLibrary;
+  /// **'Aún no hay autores'**
+  String get noAuthorsTitle;
+
+  /// No description provided for @noAuthorsHint.
+  ///
+  /// In es, this message translates to:
+  /// **'Salen de los libros de tu biblioteca. Cuando agregues alguno, aparecerán aquí.'**
+  String get noAuthorsHint;
+
+  /// No description provided for @goToLibrary.
+  ///
+  /// In es, this message translates to:
+  /// **'Ir a la biblioteca'**
+  String get goToLibrary;
 
   /// No description provided for @newCollection.
   ///
@@ -254,10 +266,16 @@ abstract class AppLocalizations {
   /// **'Nueva colección'**
   String get newCollection;
 
+  /// No description provided for @noCollectionsTitle.
+  ///
+  /// In es, this message translates to:
+  /// **'Aún no tienes colecciones'**
+  String get noCollectionsTitle;
+
   /// No description provided for @createCollectionHint.
   ///
   /// In es, this message translates to:
-  /// **'Crea una colección para agrupar tus libros'**
+  /// **'Sirven para agrupar libros a tu manera: una saga, lo que tienes pendiente, lo que quieres releer.'**
   String get createCollectionHint;
 
   /// No description provided for @noCollectionMatches.
@@ -296,6 +314,12 @@ abstract class AppLocalizations {
   /// **'Esta colección está vacía'**
   String get emptyCollection;
 
+  /// No description provided for @emptyCollectionHint.
+  ///
+  /// In es, this message translates to:
+  /// **'Añade libros desde aquí o desde el menú de cualquier libro.'**
+  String get emptyCollectionHint;
+
   /// No description provided for @booksInCollection.
   ///
   /// In es, this message translates to:
@@ -308,11 +332,23 @@ abstract class AppLocalizations {
   /// **'La biblioteca está vacía'**
   String get libraryEmpty;
 
-  /// No description provided for @noFavoritesHint.
+  /// No description provided for @noFavoritesTitle.
   ///
   /// In es, this message translates to:
-  /// **'Todavía no tienes favoritos. Abre el menú de un libro (clic derecho o mantener presionado) y elige «Añadir a favoritos».'**
-  String get noFavoritesHint;
+  /// **'Aún no tienes favoritos'**
+  String get noFavoritesTitle;
+
+  /// No description provided for @noFavoritesHintTouch.
+  ///
+  /// In es, this message translates to:
+  /// **'Mantén presionado un libro y elige «Añadir a favoritos». Así lo tendrás a mano aquí.'**
+  String get noFavoritesHintTouch;
+
+  /// No description provided for @noFavoritesHintPointer.
+  ///
+  /// In es, this message translates to:
+  /// **'Haz clic derecho en un libro y elige «Añadir a favoritos». Así lo tendrás a mano aquí.'**
+  String get noFavoritesHintPointer;
 
   /// No description provided for @noFavoritesResults.
   ///

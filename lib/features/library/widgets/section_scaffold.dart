@@ -203,6 +203,64 @@ class _SectionHeader extends StatelessWidget {
   }
 }
 
+class EmptyIntro extends StatelessWidget {
+  const EmptyIntro({super.key, required this.title, this.message, this.action});
+
+  final String title;
+  final String? message;
+  final Widget? action;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: FadeIn(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(LannaSpacing.s6),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 440),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                    fontFamily: AppFonts.serif,
+                    fontSize: 28,
+                    fontWeight: FontWeight.w500,
+                    height: 1.2,
+                    color: LannaColors.textStrong,
+                  ),
+                ),
+                if (message != null) ...[
+                  const SizedBox(height: LannaSpacing.s3),
+                  Text(
+                    message!,
+                    style: LannaType.base.copyWith(
+                      fontSize: 15,
+                      height: 1.6,
+                      color: LannaColors.textMuted,
+                    ),
+                  ),
+                ],
+                if (action != null) ...[
+                  const SizedBox(height: LannaSpacing.s6),
+                  action!,
+                ],
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+ButtonStyle get emptyIntroButtonStyle => FilledButton.styleFrom(
+  minimumSize: const Size(0, 44),
+  padding: const EdgeInsets.symmetric(horizontal: LannaSpacing.s5),
+);
+
 class SectionEmpty extends StatelessWidget {
   const SectionEmpty({
     super.key,
