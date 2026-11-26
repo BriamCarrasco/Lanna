@@ -76,11 +76,19 @@ class LibrarySidebar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final all = librarySections(context.l10n);
+    Widget item((IconData, String, LibrarySection) e) => _NavItem(
+      icon: e.$1,
+      label: e.$2,
+      selected: e.$3 == active,
+      onTap: () => onSelect(e.$3),
+    );
+
     return Container(
       width: 232,
       decoration: const BoxDecoration(
-        color: LannaColors.surfaceHigh,
-        border: Border(right: BorderSide(color: LannaColors.border)),
+        color: LannaColors.bg,
+        border: Border(right: BorderSide(color: LannaColors.borderSubtle)),
       ),
       padding: const EdgeInsets.fromLTRB(
         LannaSpacing.s4,
@@ -92,12 +100,10 @@ class LibrarySidebar extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: LannaSpacing.s1 + 2,
-            ),
+            padding: const EdgeInsets.symmetric(horizontal: LannaSpacing.s1),
             child: Row(
               children: [
-                Image.asset('assets/logo/lanna.png', width: 34, height: 34),
+                Image.asset('assets/logo/lanna.png', width: 30, height: 30),
                 const SizedBox(width: LannaSpacing.s3 - 2),
                 Flexible(
                   child: Text(
@@ -113,22 +119,31 @@ class LibrarySidebar extends StatelessWidget {
             ),
           ),
           const SizedBox(height: LannaSpacing.s5),
-
           if (searchController != null && onSearchChanged != null) ...[
             LibrarySearchField(
               controller: searchController!,
               focusNode: searchFocusNode,
               onChanged: onSearchChanged!,
+              minimal: true,
             ),
             const SizedBox(height: LannaSpacing.s5),
           ],
-
           Expanded(
             child: SingleChildScrollView(
-              child: _NavSection(active: active, onSelect: onSelect),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  for (final e in all)
+                    if (e.$3 != LibrarySection.settings) item(e),
+                ],
+              ),
             ),
           ),
-          if (driveSyncEnabled) const _AccountChip(),
+          item(all.firstWhere((e) => e.$3 == LibrarySection.settings)),
+          if (driveSyncEnabled) ...[
+            const SizedBox(height: LannaSpacing.s3),
+            const _AccountChip(),
+          ],
         ],
       ),
     );
@@ -143,22 +158,30 @@ class LibrarySearchField extends StatelessWidget {
     required this.controller,
     required this.onChanged,
     this.focusNode,
+    this.minimal = false,
   });
 
   final TextEditingController controller;
   final ValueChanged<String> onChanged;
   final FocusNode? focusNode;
+  final bool minimal;
 
   @override
   Widget build(BuildContext context) {
     return Container(
       height: LannaSpacing.fieldHeight,
-      padding: const EdgeInsets.only(left: LannaSpacing.s3 - 2, right: 4),
-      decoration: BoxDecoration(
-        color: LannaColors.bg,
-        borderRadius: LannaRadii.brMd,
-        border: Border.all(color: LannaColors.border),
-      ),
+      padding: minimal
+          ? const EdgeInsets.only(left: LannaSpacing.s1)
+          : const EdgeInsets.only(left: LannaSpacing.s3 - 2, right: 4),
+      decoration: minimal
+          ? const BoxDecoration(
+              border: Border(bottom: BorderSide(color: LannaColors.border)),
+            )
+          : BoxDecoration(
+              color: LannaColors.bg,
+              borderRadius: LannaRadii.brMd,
+              border: Border.all(color: LannaColors.border),
+            ),
       child: Row(
         children: [
           const Icon(Icons.search, size: 15, color: LannaColors.textMuted),
@@ -174,7 +197,9 @@ class LibrarySearchField extends StatelessWidget {
               decoration: InputDecoration(
                 isDense: true,
                 border: InputBorder.none,
-                hintText: context.l10n.searchLibrary,
+                hintText: minimal
+                    ? context.l10n.search
+                    : context.l10n.searchLibrary,
                 hintStyle: LannaType.md.copyWith(color: LannaColors.textMuted),
                 contentPadding: const EdgeInsets.symmetric(
                   vertical: LannaSpacing.s2,
@@ -219,114 +244,67 @@ class LibrarySearchField extends StatelessWidget {
   }
 }
 
-class _NavSection extends StatelessWidget {
-  const _NavSection({required this.active, required this.onSelect});
-
-  final LibrarySection active;
-  final ValueChanged<LibrarySection> onSelect;
-
-  static const _itemHeight = 36.0;
-  static const _gap = 3.0;
-
-  @override
-  Widget build(BuildContext context) {
-    final items = librarySections(context.l10n);
-    final index = items.indexWhere((e) => e.$3 == active);
-    return SizedBox(
-      height: items.length * (_itemHeight + _gap) - _gap,
-      child: Stack(
-        children: [
-          AnimatedPositioned(
-            duration: LannaMotion.slow,
-            curve: LannaMotion.ease,
-            top: index * (_itemHeight + _gap),
-            left: 0,
-            right: 0,
-            height: _itemHeight,
-            child: const DecoratedBox(
-              decoration: BoxDecoration(
-                color: LannaColors.surfaceActive,
-                borderRadius: LannaRadii.brMd,
-              ),
-            ),
-          ),
-          Column(
-            children: [
-              for (var i = 0; i < items.length; i++) ...[
-                if (i > 0) const SizedBox(height: _gap),
-                _NavItem(
-                  icon: items[i].$1,
-                  label: items[i].$2,
-                  selected: i == index,
-                  height: _itemHeight,
-                  onTap: () => onSelect(items[i].$3),
-                ),
-              ],
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-}
-
 class _NavItem extends StatelessWidget {
   const _NavItem({
     required this.icon,
     required this.label,
     required this.selected,
-    required this.height,
     required this.onTap,
   });
 
   final IconData icon;
   final String label;
   final bool selected;
-  final double height;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      height: height,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: LannaRadii.brMd,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: LannaSpacing.s3 - 1),
-          child: Row(
-            children: [
-              TweenAnimationBuilder<double>(
-                tween: Tween(begin: 0, end: selected ? 1 : 0),
-                duration: LannaMotion.slow,
-                curve: LannaMotion.ease,
-                builder: (context, t, _) => Icon(
-                  icon,
-                  size: 17,
-                  color: Color.lerp(
-                    LannaColors.textMuted,
-                    LannaColors.accent,
-                    t,
-                  ),
-                ),
-              ),
-              const SizedBox(width: LannaSpacing.s3 - 1),
-              Expanded(
-                child: AnimatedDefaultTextStyle(
-                  duration: LannaMotion.base,
+    const style = LannaType.base;
+    return Semantics(
+      selected: selected,
+      child: SizedBox(
+        height: 38,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: LannaRadii.brMd,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: LannaSpacing.s1),
+            child: Row(
+              children: [
+                TweenAnimationBuilder<double>(
+                  tween: Tween(begin: 0, end: selected ? 1 : 0),
+                  duration: LannaMotion.slow,
                   curve: LannaMotion.ease,
-                  style: LannaType.md.copyWith(
-                    fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
-                    color: selected ? LannaColors.text : LannaColors.textMuted,
-                  ),
-                  child: Text(
-                    label,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
+                  builder: (context, t, _) => Icon(
+                    icon,
+                    size: 18,
+                    color: Color.lerp(
+                      LannaColors.textMuted,
+                      LannaColors.accent,
+                      t,
+                    ),
                   ),
                 ),
-              ),
-            ],
+                const SizedBox(width: LannaSpacing.s3),
+                Expanded(
+                  child: AnimatedDefaultTextStyle(
+                    duration: LannaMotion.base,
+                    curve: LannaMotion.ease,
+                    style: style.copyWith(
+                      fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
+                      color: selected
+                          ? LannaColors.textStrong
+                          : LannaColors.textMuted,
+                    ),
+                    child: Text(
+                      label,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
