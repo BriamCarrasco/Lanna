@@ -180,7 +180,7 @@
   "notConnected": "Sin conectar",
   "driveSoon": "Sincronización con Drive: próximamente",
   "connect": "Conectar",
-  "readingProgress": "Progreso de lectura",
+  "backupSection": "Respaldo",
   "exportProgress": "Exportar progreso",
   "exportProgressHint": "Guarda un respaldo para llevarlo a otro dispositivo",
   "export": "Exportar",

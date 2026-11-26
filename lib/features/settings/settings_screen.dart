@@ -33,9 +33,6 @@ Future<void> _openUrl(BuildContext context, String url) async {
   }
 }
 
-Widget _flexChild(bool compact, Widget child) =>
-    compact ? child : Expanded(child: child);
-
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
 
@@ -50,168 +47,151 @@ class SettingsScreen extends ConsumerWidget {
       child: LayoutBuilder(
         builder: (context, constraints) {
           final compact = constraints.maxWidth < 620;
-          final gutter = compact ? LannaSpacing.s4 : LannaSpacing.s6;
-          return SingleChildScrollView(
-            padding: EdgeInsets.fromLTRB(
-              gutter,
-              gutter,
-              gutter,
-              LannaSpacing.s8,
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
+          final gutter = compact ? LannaSpacing.s4 : LannaSpacing.s8;
+          final sections = <Widget>[
+            _Section(
+              title: context.l10n.reading,
               children: [
-                _Section(
-                  title: context.l10n.reading,
-                  child: Column(
-                    children: [
-                      _SettingRow(
-                        title: context.l10n.pageAnimation,
-                        subtitle: context.l10n.pageAnimationHint,
-                        stack: compact,
-                        trailing: _Segmented(
-                          options: {
-                            'curl': context.l10n.animationCurl,
-                            'slide': context.l10n.animationSlide,
-                            'fade': context.l10n.animationFade,
-                            'none': context.l10n.animationNone,
-                          },
-                          value: settings.pageAnimation,
-                          onChanged: controller.setPageAnimation,
-                        ),
-                      ),
-                      const _RowDivider(),
-                      _SettingRow(
-                        title: context.l10n.edgeTaps,
-                        trailing: _Toggle(
-                          value: settings.edgeTaps,
-                          onChanged: controller.setEdgeTaps,
-                        ),
-                      ),
-                      const _RowDivider(),
-                      _SettingRow(
-                        title: context.l10n.keepAwake,
-                        trailing: _Toggle(
-                          value: settings.keepAwake,
-                          onChanged: controller.setKeepAwake,
-                        ),
-                      ),
-                      const _RowDivider(),
-                      _SettingRow(
-                        title: context.l10n.dailyGoalSetting,
-                        subtitle: context.l10n.dailyGoalHint,
-                        stack: compact,
-                        trailing: _Segmented(
-                          options: {
-                            for (final m in ReaderSettings.dailyGoals)
-                              '$m': '$m min',
-                          },
-                          value: '${settings.dailyGoalMinutes}',
-                          onChanged: (v) =>
-                              controller.setDailyGoal(int.parse(v)),
-                        ),
-                      ),
-                    ],
+                _SettingRow(
+                  title: context.l10n.pageAnimation,
+                  subtitle: context.l10n.pageAnimationHint,
+                  stack: compact,
+                  trailing: _Segmented(
+                    options: {
+                      'curl': context.l10n.animationCurl,
+                      'slide': context.l10n.animationSlide,
+                      'fade': context.l10n.animationFade,
+                      'none': context.l10n.animationNone,
+                    },
+                    value: settings.pageAnimation,
+                    onChanged: controller.setPageAnimation,
                   ),
                 ),
-                const SizedBox(height: LannaSpacing.s5),
-                _Section(
-                  title: context.l10n.language,
-                  child: _SettingRow(
-                    title: context.l10n.appLanguage,
-                    stack: compact,
-                    trailing: _Segmented(
-                      options: {
-                        'system': context.l10n.languageSystem,
-                        'es': 'Español',
-                        'en': 'English',
-                      },
-                      value: settings.language,
-                      onChanged: controller.setLanguage,
-                    ),
+                _SettingRow(
+                  title: context.l10n.edgeTaps,
+                  trailing: _Toggle(
+                    value: settings.edgeTaps,
+                    onChanged: controller.setEdgeTaps,
                   ),
                 ),
-                if (driveSyncEnabled) ...[
-                  const SizedBox(height: LannaSpacing.s5),
-                  _Section(
-                    title: context.l10n.syncDrive,
-                    child: _SettingRow(
-                      title: 'Google Drive',
-                      subtitle: context.l10n.notConnected,
-                      trailing: OutlinedButton(
-                        onPressed: () => ScaffoldMessenger.of(context)
-                            .showSnackBar(
-                              SnackBar(content: Text(context.l10n.driveSoon)),
-                            ),
-                        child: Text(context.l10n.connect),
-                      ),
-                    ),
-                  ),
-                ],
-                const SizedBox(height: LannaSpacing.s5),
-                _Section(
-                  title: context.l10n.readingProgress,
-                  child: Column(
-                    children: [
-                      _SettingRow(
-                        title: context.l10n.exportProgress,
-                        subtitle: context.l10n.exportProgressHint,
-                        stack: compact,
-                        trailing: OutlinedButton.icon(
-                          onPressed: () => exportProgressFile(context, ref),
-                          icon: const Icon(Icons.upload_outlined, size: 18),
-                          label: Text(context.l10n.export),
-                        ),
-                      ),
-                      const _RowDivider(),
-                      _SettingRow(
-                        title: context.l10n.importProgress,
-                        subtitle: context.l10n.importProgressHint,
-                        stack: compact,
-                        trailing: OutlinedButton.icon(
-                          onPressed: () => importProgressFile(context, ref),
-                          icon: const Icon(Icons.download_outlined, size: 18),
-                          label: Text(context.l10n.import),
-                        ),
-                      ),
-                    ],
+                _SettingRow(
+                  title: context.l10n.keepAwake,
+                  trailing: _Toggle(
+                    value: settings.keepAwake,
+                    onChanged: controller.setKeepAwake,
                   ),
                 ),
-                const SizedBox(height: LannaSpacing.s5),
-                Flex(
-                  direction: compact ? Axis.vertical : Axis.horizontal,
-                  crossAxisAlignment: compact
-                      ? CrossAxisAlignment.stretch
-                      : CrossAxisAlignment.start,
-                  children: [
-                    _flexChild(
-                      compact,
-                      _Section(
-                        title: context.l10n.libraryFolders,
-                        child: Padding(
-                          padding: EdgeInsets.all(LannaSpacing.s4),
-                          child: _Folders(),
-                        ),
-                      ),
-                    ),
-                    SizedBox(
-                      width: compact ? 0 : LannaSpacing.s4,
-                      height: compact ? LannaSpacing.s5 : 0,
-                    ),
-                    _flexChild(
-                      compact,
-                      _Section(
-                        title: context.l10n.about,
-                        child: Padding(
-                          padding: EdgeInsets.all(LannaSpacing.s4),
-                          child: _About(),
-                        ),
-                      ),
-                    ),
-                  ],
+                _SettingRow(
+                  title: context.l10n.dailyGoalSetting,
+                  subtitle: context.l10n.dailyGoalHint,
+                  stack: compact,
+                  trailing: _Segmented(
+                    options: {
+                      for (final m in ReaderSettings.dailyGoals) '$m': '$m min',
+                    },
+                    value: '${settings.dailyGoalMinutes}',
+                    onChanged: (v) => controller.setDailyGoal(int.parse(v)),
+                  ),
                 ),
               ],
             ),
+            _Section(
+              title: context.l10n.language,
+              children: [
+                _SettingRow(
+                  title: context.l10n.appLanguage,
+                  stack: compact,
+                  trailing: _Segmented(
+                    options: {
+                      'system': context.l10n.languageSystem,
+                      'es': 'Español',
+                      'en': 'English',
+                    },
+                    value: settings.language,
+                    onChanged: controller.setLanguage,
+                  ),
+                ),
+              ],
+            ),
+            if (driveSyncEnabled)
+              _Section(
+                title: context.l10n.syncDrive,
+                children: [
+                  _SettingRow(
+                    title: 'Google Drive',
+                    subtitle: context.l10n.notConnected,
+                    trailing: OutlinedButton(
+                      onPressed: () => ScaffoldMessenger.of(context)
+                          .showSnackBar(
+                            SnackBar(content: Text(context.l10n.driveSoon)),
+                          ),
+                      child: Text(context.l10n.connect),
+                    ),
+                  ),
+                ],
+              ),
+            _Section(
+              title: context.l10n.backupSection,
+              children: [
+                _SettingRow(
+                  title: context.l10n.exportProgress,
+                  subtitle: context.l10n.exportProgressHint,
+                  trailing: TextButton(
+                    onPressed: () => exportProgressFile(context, ref),
+                    child: Text(context.l10n.export),
+                  ),
+                ),
+                _SettingRow(
+                  title: context.l10n.importProgress,
+                  subtitle: context.l10n.importProgressHint,
+                  trailing: TextButton(
+                    onPressed: () => importProgressFile(context, ref),
+                    child: Text(context.l10n.import),
+                  ),
+                ),
+              ],
+            ),
+          ];
+          final folders = _Section(
+            title: context.l10n.libraryFolders,
+            children: const [
+              Padding(
+                padding: EdgeInsets.symmetric(vertical: LannaSpacing.s3),
+                child: _Folders(),
+              ),
+            ],
+          );
+          final about = _Section(
+            title: context.l10n.about,
+            children: const [
+              Padding(
+                padding: EdgeInsets.symmetric(vertical: LannaSpacing.s3),
+                child: _About(),
+              ),
+            ],
+          );
+          if (compact) {
+            sections.addAll([folders, about]);
+          } else {
+            sections.add(
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(child: folders),
+                  const SizedBox(width: 48),
+                  Expanded(child: about),
+                ],
+              ),
+            );
+          }
+          return SingleChildScrollView(
+            padding: EdgeInsets.fromLTRB(
+              gutter,
+              LannaSpacing.s2,
+              gutter,
+              LannaSpacing.s8,
+            ),
+            child: _Stack(sections),
           );
         },
       ),
@@ -413,33 +393,53 @@ class _LinkText extends StatelessWidget {
   }
 }
 
-class _Section extends StatelessWidget {
-  const _Section({required this.title, required this.child});
-  final String title;
-  final Widget child;
+class _Stack extends StatelessWidget {
+  const _Stack(this.sections);
+  final List<Widget> sections;
 
   @override
   Widget build(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Padding(
-          padding: const EdgeInsets.only(bottom: LannaSpacing.s3, left: 2),
-          child: Text(
-            title.toUpperCase(),
-            style: LannaType.xs.copyWith(color: LannaColors.textMuted),
-          ),
-        ),
-        Container(
-          decoration: BoxDecoration(
-            color: LannaColors.surfaceHigh,
-            border: Border.all(color: LannaColors.border),
-            borderRadius: LannaRadii.brLg,
-          ),
-          clipBehavior: Clip.antiAlias,
-          child: child,
-        ),
+        for (var i = 0; i < sections.length; i++) ...[
+          if (i > 0) const Divider(height: 1, color: LannaColors.border),
+          sections[i],
+        ],
       ],
+    );
+  }
+}
+
+class _Section extends StatelessWidget {
+  const _Section({required this.title, required this.children});
+  final String title;
+  final List<Widget> children;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: LannaSpacing.s5),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            title,
+            style: const TextStyle(
+              fontFamily: AppFonts.serif,
+              fontSize: 20,
+              fontWeight: FontWeight.w500,
+              height: 1.3,
+              color: LannaColors.textStrong,
+            ),
+          ),
+          const SizedBox(height: LannaSpacing.s1),
+          for (var i = 0; i < children.length; i++) ...[
+            if (i > 0) const _RowDivider(),
+            children[i],
+          ],
+        ],
+      ),
     );
   }
 }
@@ -489,10 +489,7 @@ class _SettingRow extends StatelessWidget {
     );
 
     return Padding(
-      padding: const EdgeInsets.symmetric(
-        horizontal: LannaSpacing.s4,
-        vertical: LannaSpacing.s3,
-      ),
+      padding: const EdgeInsets.symmetric(vertical: LannaSpacing.s3),
       child: stack
           ? Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -566,16 +563,18 @@ class _Segmented extends StatelessWidget {
                   ),
                   decoration: BoxDecoration(
                     color: entry.key == value
-                        ? LannaColors.accent
+                        ? LannaColors.surfaceActive
                         : Colors.transparent,
                     borderRadius: LannaRadii.brSm,
                   ),
                   child: Text(
                     entry.value,
                     style: LannaType.sm.copyWith(
-                      fontWeight: FontWeight.w700,
+                      fontWeight: entry.key == value
+                          ? FontWeight.w700
+                          : FontWeight.w500,
                       color: entry.key == value
-                          ? LannaColors.surface
+                          ? LannaColors.textStrong
                           : LannaColors.textMuted,
                     ),
                   ),

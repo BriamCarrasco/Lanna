@@ -1178,11 +1178,11 @@ abstract class AppLocalizations {
   /// **'Conectar'**
   String get connect;
 
-  /// No description provided for @readingProgress.
+  /// No description provided for @backupSection.
   ///
   /// In es, this message translates to:
-  /// **'Progreso de lectura'**
-  String get readingProgress;
+  /// **'Respaldo'**
+  String get backupSection;
 
   /// No description provided for @exportProgress.
   ///

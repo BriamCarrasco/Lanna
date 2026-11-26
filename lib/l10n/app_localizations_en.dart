@@ -561,7 +561,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get connect => 'Connect';
 
   @override
-  String get readingProgress => 'Reading progress';
+  String get backupSection => 'Backup';
 
   @override
   String get exportProgress => 'Export progress';

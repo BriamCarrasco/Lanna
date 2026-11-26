@@ -180,7 +180,7 @@
   "notConnected": "Not connected",
   "driveSoon": "Drive sync: coming soon",
   "connect": "Connect",
-  "readingProgress": "Reading progress",
+  "backupSection": "Backup",
   "exportProgress": "Export progress",
   "exportProgressHint": "Save a backup to take to another device",
   "export": "Export",
