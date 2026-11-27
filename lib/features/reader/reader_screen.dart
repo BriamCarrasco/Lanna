@@ -142,6 +142,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
   bool _showSearch = false;
 
   int _pageCount = 0;
+  String? _pageLabel;
   List<SearchHit> _searchHits = const [];
   bool _searchBusy = false;
   String _searchQuery = '';
@@ -392,6 +393,13 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
 
   (double, double)? _lastInsets;
 
+  static const _compactHeight = 600.0;
+
+  static (double, double) _insetsFor(Size size, EdgeInsets safe) =>
+      size.height < _compactHeight
+      ? (24.0, 48.0)
+      : (safe.top + 52.0, safe.bottom + 48.0);
+
   EdgeInsets? _stableSafeArea;
 
   void _pushInsets({bool force = false}) {
@@ -400,7 +408,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
     final safe = MediaQuery.viewPaddingOf(context);
     if (_chromeVisible) _stableSafeArea = safe;
     final effective = _stableSafeArea ?? safe;
-    final next = (effective.top + 52.0, effective.bottom + 48.0);
+    final next = _insetsFor(MediaQuery.sizeOf(context), effective);
     if (_lastInsets == next && !force) return;
     _lastInsets = next;
     unawaited(controller.setInsets(next.$1, next.$2));
@@ -482,8 +490,10 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
       _engine = engine;
       _initialLocator = progress?.locator;
       _initialPercent = progress?.percent;
-      final safe = MediaQuery.viewPaddingOf(context);
-      _lastInsets = (safe.top + 52.0, safe.bottom + 48.0);
+      _lastInsets = _insetsFor(
+        MediaQuery.sizeOf(context),
+        MediaQuery.viewPaddingOf(context),
+      );
     });
   }
 
@@ -1034,6 +1044,9 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
         if (!mounted || total == _pageCount) return;
         setState(() => _pageCount = total);
       },
+      onPageLabel: (label) {
+        if (mounted) setState(() => _pageLabel = label);
+      },
       onSearchResults: (query, hits) {
         if (!mounted || query != _searchQuery) return;
         setState(() {
@@ -1371,6 +1384,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
                 rtl: controller?.rtl ?? false,
                 onSeek: (f) => controller?.goToPercentage(f),
                 trailingLabel: (f) => '${(f * 100).round()} %',
+                restingLabel: _pageLabel,
                 bubbleLabel: (f) =>
                     controller?.scrubLabel(f) ?? '${(f * 100).round()} %',
               ),
