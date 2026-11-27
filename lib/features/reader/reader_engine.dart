@@ -133,6 +133,7 @@ class ReaderEngineCallbacks {
     this.onLocationChanged,
     this.onTocLoaded,
     this.onPageCount,
+    this.onPageLabel,
     this.onSearchResults,
     this.onRendered,
     this.onTextSelected,
@@ -145,6 +146,7 @@ class ReaderEngineCallbacks {
   final void Function(ReaderLocation location)? onLocationChanged;
   final void Function(List<EpubTocEntry> toc)? onTocLoaded;
   final void Function(int total)? onPageCount;
+  final void Function(String? label)? onPageLabel;
   final void Function()? onRendered;
   final void Function(String query, List<SearchHit> hits)? onSearchResults;
   final void Function(ReaderSelection selection)? onTextSelected;

@@ -12,6 +12,7 @@ class ReaderScrubber extends StatefulWidget {
     required this.onSeek,
     required this.trailingLabel,
     this.bubbleLabel,
+    this.restingLabel,
     this.rtl = false,
   });
 
@@ -21,6 +22,7 @@ class ReaderScrubber extends StatefulWidget {
   final ValueChanged<double> onSeek;
   final String Function(double fraction) trailingLabel;
   final String Function(double fraction)? bubbleLabel;
+  final String? restingLabel;
 
   @override
   State<ReaderScrubber> createState() => _ReaderScrubberState();
@@ -70,7 +72,9 @@ class _ReaderScrubberState extends State<ReaderScrubber> {
         ),
         const SizedBox(width: LannaSpacing.s2),
         Text(
-          widget.trailingLabel(current),
+          _drag == null
+              ? widget.restingLabel ?? widget.trailingLabel(current)
+              : widget.trailingLabel(current),
           style: LannaType.micro.copyWith(color: chrome.onBarMuted),
         ),
       ],

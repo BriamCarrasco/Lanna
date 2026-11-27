@@ -81,6 +81,8 @@ void main() {
     );
   }
 
+  String? pageLabel;
+
   Future<ReaderEngineController> mount(
     WidgetTester tester,
     NativeBookSource source, {
@@ -91,6 +93,7 @@ void main() {
     void Function(ReaderEngineController)? whenReady,
   }) async {
     ReaderEngineController? controller;
+    pageLabel = null;
     final wired = ReaderEngineCallbacks(
       onReady: (c) {
         controller = c;
@@ -101,6 +104,10 @@ void main() {
       onTextSelected: callbacks?.onTextSelected,
       onSelectionCleared: callbacks?.onSelectionCleared,
       onPageCount: callbacks?.onPageCount,
+      onPageLabel: (label) {
+        pageLabel = label;
+        callbacks?.onPageLabel?.call(label);
+      },
       onSearchResults: callbacks?.onSearchResults,
       onHighlightTapped: callbacks?.onHighlightTapped,
       onError: callbacks?.onError,
@@ -1390,19 +1397,21 @@ void main() {
       matching: text is String ? find.text(text) : find.textContaining(text),
     );
 
-    final exact = RegExp(r'^\d+ / \d+$');
-    final any = RegExp(r'^\d+( / \d+)?$');
+    final any = RegExp(r'^\d+$');
 
     Future<void> counted(WidgetTester tester) async {
-      for (var i = 0; i < 40 && footer(exact).evaluate().isEmpty; i++) {
+      for (var i = 0; i < 40 && pageLabel == null; i++) {
         await settle(tester);
       }
-      expect(footer(exact), findsOneWidget, reason: 'no terminó de contar');
+      expect(pageLabel, isNotNull, reason: 'no terminó de contar');
     }
 
     (int, int) shown(WidgetTester tester) {
-      final parts = tester.widget<Text>(footer(exact)).data!.split(' / ');
-      return (int.parse(parts.first), int.parse(parts.last));
+      final parts = pageLabel!.split(' / ');
+      final current = int.parse(parts.first);
+      expect(footer('$current'), findsOneWidget);
+      expect(footer(' / '), findsNothing);
+      return (current, int.parse(parts.last));
     }
 
     List<String> libro() => [
@@ -1422,9 +1431,9 @@ void main() {
 
       var pages = 1;
       for (var i = 0; i < 200; i++) {
-        final before = tester.widget<Text>(footer(exact)).data;
+        final before = pageLabel;
         await act(tester, () => controller.next());
-        if (tester.widget<Text>(footer(exact)).data == before) break;
+        if (pageLabel == before) break;
         pages++;
         expect(shown(tester), (pages, total));
       }
@@ -1439,12 +1448,13 @@ void main() {
 
       final seen = <String>[];
       for (var i = 0; i < 9; i++) {
-        seen.add(tester.widget<Text>(footer(exact)).data!);
+        seen.add(pageLabel!);
         await act(tester, () => controller.next());
       }
       for (var i = 8; i >= 0; i--) {
         await act(tester, () => controller.previous());
-        expect(tester.widget<Text>(footer(exact)).data, seen[i]);
+        expect(pageLabel, seen[i]);
+        expect(footer(seen[i].split(' / ').first), findsOneWidget);
       }
     });
 
@@ -1459,9 +1469,9 @@ void main() {
       await tester.pumpWidget(const SizedBox.shrink());
       await mount(tester, sourceWith(libro()), locator: 'spine:2#0');
       final during = <String>{};
-      for (var i = 0; i < 40 && footer(exact).evaluate().isEmpty; i++) {
+      for (var i = 0; i < 40 && pageLabel == null; i++) {
         for (final e in footer(any).evaluate()) {
-          during.add((e.widget as Text).data!.split(' / ').first);
+          during.add((e.widget as Text).data!);
         }
         await settle(tester);
       }
@@ -1482,10 +1492,9 @@ void main() {
         ]),
         locator: 'spine:1#0',
       );
-      final alone = RegExp(r'^\d+$');
       var early = false;
-      for (var i = 0; i < 400 && footer(exact).evaluate().isEmpty; i++) {
-        if (footer(alone).evaluate().isNotEmpty) early = true;
+      for (var i = 0; i < 400 && pageLabel == null; i++) {
+        if (footer(any).evaluate().isNotEmpty) early = true;
         await tester.runAsync(
           () => Future<void>.delayed(const Duration(milliseconds: 2)),
         );

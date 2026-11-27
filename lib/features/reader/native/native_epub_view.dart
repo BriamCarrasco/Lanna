@@ -338,6 +338,7 @@ class _NativeEpubViewState extends State<NativeEpubView>
         atEnd: atEnd,
       ),
     );
+    _emitPageLabel();
   }
 
   late final List<({EpubTocEntry entry, int chapter, String? anchor})>
@@ -472,6 +473,7 @@ class _NativeEpubViewState extends State<NativeEpubView>
       if (shown || !_numberReady) return;
       shown = true;
       setState(() {});
+      _emitPageLabel();
     }
 
     while (live()) {
@@ -513,6 +515,7 @@ class _NativeEpubViewState extends State<NativeEpubView>
 
     if (!mounted || round != _countRound) return;
     setState(() {});
+    _emitPageLabel();
     final counts = _counts.toList();
     if (counts != null && !_countsStored) {
       _countsStored = true;
@@ -523,6 +526,28 @@ class _NativeEpubViewState extends State<NativeEpubView>
   void _settle() {
     widget.callbacks.onRendered?.call();
     _emitLocation();
+  }
+
+  String? _pageLabel;
+
+  void _emitPageLabel() {
+    final page = _current;
+    final number = page == null
+        ? null
+        : pageNumber(
+            chapter: _chapter,
+            pageInChapter: page.index,
+            chapterCount: widget.source.chapterCount,
+            pagesOf: _pagesOf,
+          );
+    final columns = _metrics.columns;
+    final total = number?.total;
+    final label = number == null || total == null
+        ? null
+        : '${(number.current - 1) * columns + 1} / ${total * columns}';
+    if (label == _pageLabel) return;
+    _pageLabel = label;
+    widget.callbacks.onPageLabel?.call(label);
   }
 
   @override
@@ -839,9 +864,7 @@ class _NativeEpubViewState extends State<NativeEpubView>
           right: 0,
           bottom: bottom,
           child: Text(
-            number.total == null
-                ? '${number.current}'
-                : '${number.current} / ${number.total}',
+            '${number.current}',
             textAlign: TextAlign.center,
             style: style,
           ),
