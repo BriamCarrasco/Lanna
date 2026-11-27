@@ -1976,6 +1976,24 @@ abstract class AppLocalizations {
   /// **'Ver la biblioteca ({count})'**
   String seeLibrary(int count);
 
+  /// No description provided for @addedToday.
+  ///
+  /// In es, this message translates to:
+  /// **'añadido hoy'**
+  String get addedToday;
+
+  /// No description provided for @addedYesterday.
+  ///
+  /// In es, this message translates to:
+  /// **'añadido ayer'**
+  String get addedYesterday;
+
+  /// No description provided for @addedDaysAgo.
+  ///
+  /// In es, this message translates to:
+  /// **'añadido hace {days} días'**
+  String addedDaysAgo(int days);
+
   /// No description provided for @weekSummary.
   ///
   /// In es, this message translates to:

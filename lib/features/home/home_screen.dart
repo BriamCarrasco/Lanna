@@ -28,6 +28,9 @@ class HomeScreen extends ConsumerWidget {
 
   static const _wideFrom = 1000.0;
   static const _panelFrom = 1240.0;
+  static const _phoneBelow = 600.0;
+  static const _shelfRows = 3;
+  static const _recentListLength = 5;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -39,6 +42,7 @@ class HomeScreen extends ConsumerWidget {
       final scan = ref.read(libraryScanProvider.notifier);
       return FadeIn(
         child: EmptyLibraryView(
+          welcome: true,
           hasFolders: hasFolders,
           onAddFolder: () => unawaited(
             reportScan(
@@ -73,6 +77,9 @@ class HomeScreen extends ConsumerWidget {
         final section = wide ? 56.0 : 40.0;
         final side = width >= _panelFrom && stats != null;
         final others = reading.skip(1).toList();
+        final phone = width < _phoneBelow;
+        final shelf = phone && reading.isEmpty;
+        final lists = phone && reading.isNotEmpty;
         return SingleChildScrollView(
           padding: EdgeInsets.fromLTRB(
             gutter,
@@ -114,7 +121,17 @@ class HomeScreen extends ConsumerWidget {
                   )
                 else
                   _Hero(item: reading.first, stats: stats, wide: wide),
-                if (others.isNotEmpty && !side) ...[
+                if (others.isNotEmpty && lists) ...[
+                  SizedBox(height: section),
+                  _SectionHeader(context.l10n.alsoReading),
+                  const SizedBox(height: LannaSpacing.s2),
+                  for (final item in others)
+                    _CompactBook(
+                      book: item.book,
+                      detail: _position(context, item),
+                      progress: item.progress.percent,
+                    ),
+                ] else if (others.isNotEmpty && !side) ...[
                   SizedBox(height: section),
                   _SectionHeader(context.l10n.alsoReading),
                   const SizedBox(height: LannaSpacing.s4),
@@ -130,14 +147,47 @@ class HomeScreen extends ConsumerWidget {
                 SizedBox(height: section),
                 _SectionHeader(
                   context.l10n.recentlyAdded,
-                  link: context.l10n.seeLibrary(library.length),
+                  link: shelf ? null : context.l10n.seeLibrary(library.length),
                   onLink: () => context.go('/library'),
                 ),
-                const SizedBox(height: LannaSpacing.s4),
-                grid.row([
-                  for (final book in recent.take(grid.columns))
-                    _ShelfItem(book: book, detail: book.author),
-                ]),
+                if (lists) ...[
+                  const SizedBox(height: LannaSpacing.s2),
+                  for (final book in recent.take(_recentListLength))
+                    _CompactBook(book: book, detail: _added(context, book)),
+                ] else if (shelf) ...[
+                  const SizedBox(height: LannaSpacing.s4),
+                  grid.rows([
+                    for (final book in recent.take(grid.columns * _shelfRows))
+                      _ShelfItem(book: book, detail: book.author),
+                  ], gap: LannaSpacing.s5),
+                  const SizedBox(height: LannaSpacing.s6),
+                  OutlinedButton(
+                    onPressed: () => context.go('/library'),
+                    style: OutlinedButton.styleFrom(
+                      minimumSize: const Size.fromHeight(44),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Flexible(
+                          child: Text(
+                            context.l10n.seeLibrary(library.length),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        const SizedBox(width: 2),
+                        const Icon(Icons.chevron_right, size: 18),
+                      ],
+                    ),
+                  ),
+                ] else ...[
+                  const SizedBox(height: LannaSpacing.s4),
+                  grid.row([
+                    for (final book in recent.take(grid.columns))
+                      _ShelfItem(book: book, detail: book.author),
+                  ]),
+                ],
               ],
             ),
           ),
@@ -158,6 +208,17 @@ String _lastRead(BuildContext context, DateTime when) {
   final days = today.difference(day).inDays;
   if (days == 1) return l10n.lastReadYesterday;
   return l10n.lastReadDays(days);
+}
+
+String _added(BuildContext context, Book book) {
+  final l10n = context.l10n;
+  final days = dayOf(DateTime.now()).difference(dayOf(book.addedAt)).inDays;
+  final when = switch (days) {
+    <= 0 => l10n.addedToday,
+    1 => l10n.addedYesterday,
+    _ => l10n.addedDaysAgo(days),
+  };
+  return '${formatLabel(book)} · $when';
 }
 
 String _position(BuildContext context, BookWithProgress item) {
@@ -453,7 +514,12 @@ class _SideColumn extends StatelessWidget {
           const SizedBox(height: LannaSpacing.s8),
           _SectionHeader(context.l10n.alsoReading),
           const SizedBox(height: LannaSpacing.s2),
-          for (final item in others) _CompactBook(item: item),
+          for (final item in others)
+            _CompactBook(
+              book: item.book,
+              detail: _position(context, item),
+              progress: item.progress.percent,
+            ),
         ],
       ],
     );
@@ -461,13 +527,18 @@ class _SideColumn extends StatelessWidget {
 }
 
 class _CompactBook extends ConsumerWidget {
-  const _CompactBook({required this.item});
+  const _CompactBook({required this.book, required this.detail, this.progress});
 
-  final BookWithProgress item;
+  final Book book;
+  final String detail;
+  final double? progress;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final book = item.book;
+    final detailStyle = LannaType.sm.copyWith(
+      color: LannaColors.textMuted,
+      fontFeatures: LannaType.tabular,
+    );
     return Pressable(
       scale: 0.99,
       onTap: () => openBook(context, book),
@@ -505,29 +576,31 @@ class _CompactBook extends ConsumerWidget {
                       ),
                     ),
                   const SizedBox(height: LannaSpacing.s2),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(1),
-                          child: LinearProgressIndicator(
-                            value: item.progress.percent.clamp(0.0, 1.0),
-                            minHeight: 2,
-                            color: LannaColors.textMuted,
-                            backgroundColor: LannaColors.borderSubtle,
+                  if (progress case final progress?)
+                    Row(
+                      children: [
+                        Expanded(
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(1),
+                            child: LinearProgressIndicator(
+                              value: progress.clamp(0.0, 1.0),
+                              minHeight: 2,
+                              color: LannaColors.textMuted,
+                              backgroundColor: LannaColors.borderSubtle,
+                            ),
                           ),
                         ),
-                      ),
-                      const SizedBox(width: LannaSpacing.s3),
-                      Text(
-                        _position(context, item),
-                        style: LannaType.sm.copyWith(
-                          color: LannaColors.textMuted,
-                          fontFeatures: LannaType.tabular,
-                        ),
-                      ),
-                    ],
-                  ),
+                        const SizedBox(width: LannaSpacing.s3),
+                        Text(detail, style: detailStyle),
+                      ],
+                    )
+                  else
+                    Text(
+                      detail,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: detailStyle,
+                    ),
                 ],
               ),
             ),
@@ -602,6 +675,18 @@ class _ShelfGrid {
   final int columns;
   final double itemWidth;
   final double gap;
+
+  Widget rows(List<Widget> items, {required double gap}) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        for (var start = 0; start < items.length; start += columns) ...[
+          if (start > 0) SizedBox(height: gap),
+          row(items.sublist(start, math.min(start + columns, items.length))),
+        ],
+      ],
+    );
+  }
 
   Widget row(List<Widget> items) {
     return Row(

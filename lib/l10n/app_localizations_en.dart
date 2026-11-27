@@ -1249,6 +1249,17 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get addedToday => 'added today';
+
+  @override
+  String get addedYesterday => 'added yesterday';
+
+  @override
+  String addedDaysAgo(int days) {
+    return 'added $days days ago';
+  }
+
+  @override
   String weekSummary(String time, int days) {
     return '$time, on $days of 7 days';
   }

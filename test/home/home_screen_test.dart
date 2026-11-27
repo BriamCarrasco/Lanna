@@ -148,6 +148,78 @@ void main() {
     );
   }
 
+  testWidgets('en el teléfono, la biblioteca vacía da la bienvenida con logo', (
+    tester,
+  ) async {
+    final db = AppDatabase.forTesting(NativeDatabase.memory());
+    addTearDown(db.close);
+    Finder logo() =>
+        find.byWidgetPredicate((w) => w is Image && w.semanticLabel == 'Lanna');
+
+    await pumpApp(tester, db, const Size(400, 860));
+    expect(find.text('Tu biblioteca está vacía'), findsOneWidget);
+    expect(logo(), findsOneWidget);
+    expect(find.text('Elegir carpeta'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+    await shot(tester, 'inicio-vacio-400');
+    await unmount(tester);
+
+    await pumpApp(tester, db, const Size(1275, 800));
+    expect(find.text('Tu biblioteca está vacía'), findsOneWidget);
+    expect(logo(), findsNothing);
+    await unmount(tester);
+  });
+
+  testWidgets('en el teléfono, sin nada leído se ven varias filas de libros', (
+    tester,
+  ) async {
+    final db = AppDatabase.forTesting(NativeDatabase.memory());
+    addTearDown(db.close);
+    final now = DateTime.now();
+    for (var i = 0; i < 12; i++) {
+      await db.upsertBook(
+        BooksCompanion.insert(
+          id: 'b$i',
+          title: 'Libro de prueba $i',
+          filePath: '/libros/$i.epub',
+          format: BookFormat.epub,
+          addedAt: Value(now.subtract(Duration(hours: i))),
+        ),
+      );
+    }
+    await pumpApp(tester, db, const Size(400, 860));
+
+    expect(find.text('Elige un libro para empezar a leer.'), findsOneWidget);
+    expect(find.text('Libro de prueba 8'), findsWidgets);
+    expect(find.text('Libro de prueba 9'), findsNothing);
+    final button = find.text('Ver la biblioteca (12)');
+    expect(button, findsOneWidget);
+    expect(tester.takeException(), isNull);
+    await shot(tester, 'inicio-sin-leer-400');
+
+    await tester.ensureVisible(button);
+    await tester.tap(button);
+    await tester.pumpAndSettle();
+    expect(find.byType(LibraryScreen), findsOneWidget);
+    await unmount(tester);
+  });
+
+  testWidgets(
+    'en el teléfono, con lecturas en curso las secciones son listas',
+    (tester) async {
+      final db = await seeded();
+      addTearDown(db.close);
+      await pumpApp(tester, db, const Size(400, 860));
+
+      expect(find.text('EPUB · añadido hoy'), findsOneWidget);
+      expect(find.text('EPUB · añadido ayer'), findsOneWidget);
+      expect(find.text('PDF · añadido hace 2 días'), findsOneWidget);
+      expect(find.text('EPUB · añadido hace 5 días'), findsNothing);
+      expect(tester.takeException(), isNull);
+      await unmount(tester);
+    },
+  );
+
   testWidgets('el enlace lleva a la biblioteca', (tester) async {
     final db = await seeded();
     addTearDown(db.close);

@@ -864,6 +864,16 @@
       }
     }
   },
+  "addedToday": "añadido hoy",
+  "addedYesterday": "añadido ayer",
+  "addedDaysAgo": "añadido hace {days} días",
+  "@addedDaysAgo": {
+    "placeholders": {
+      "days": {
+        "type": "int"
+      }
+    }
+  },
   "weekSummary": "{time}, en {days} de los 7 días",
   "@weekSummary": {
     "placeholders": {
