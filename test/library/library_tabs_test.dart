@@ -154,6 +154,59 @@ void main() {
     });
   }
 
+  testWidgets('en el teléfono se pasa de sección deslizando', (tester) async {
+    final db = await seeded();
+    addTearDown(db.close);
+    await pumpApp(tester, db, const Size(400, 860));
+    await tester.tap(inBar('Biblioteca'));
+    await tester.pumpAndSettle();
+
+    final page = find.byType(PageView);
+    Finder selectedTab(String label) => find.ancestor(
+      of: find.text(label),
+      matching: find.byWidgetPredicate(
+        (w) => w is Semantics && (w.properties.selected ?? false),
+      ),
+    );
+    expect(selectedTab('Todos'), findsOneWidget);
+    final drag = await tester.startGesture(tester.getCenter(page));
+    await drag.moveBy(const Offset(-40, 0));
+    await drag.moveBy(const Offset(-230, 0));
+    await tester.pump();
+    expect(selectedTab('Favoritos'), findsOneWidget);
+    expect(selectedTab('Todos'), findsNothing);
+    await drag.moveBy(const Offset(230, 0));
+    await drag.up();
+    await tester.pumpAndSettle();
+    expect(selectedTab('Todos'), findsOneWidget);
+    expect(find.byType(LibraryScreen), findsOneWidget);
+
+    await tester.fling(page, const Offset(-300, 0), 1500);
+    await tester.pumpAndSettle();
+    expect(find.byType(FavoritesScreen), findsOneWidget);
+    expect(find.byType(LibraryScreen), findsNothing);
+    expect(find.byTooltip('Ordenar'), findsNothing);
+
+    await tester.fling(page, const Offset(-300, 0), 1500);
+    await tester.pumpAndSettle();
+    await tester.fling(page, const Offset(-300, 0), 1500);
+    await tester.pumpAndSettle();
+    expect(find.text('Aún no tienes colecciones'), findsOneWidget);
+
+    await tester.tap(find.text('Todos'));
+    await tester.pumpAndSettle();
+    expect(find.byType(LibraryScreen), findsOneWidget);
+    expect(find.byTooltip('Ordenar'), findsOneWidget);
+
+    await tester.fling(page, const Offset(300, 0), 1500);
+    await tester.pumpAndSettle();
+    expect(find.byType(LibraryScreen), findsOneWidget);
+    expect(selectedInBar(tester), 1);
+
+    expect(tester.takeException(), isNull);
+    await unmount(tester);
+  });
+
   for (final size in const [
     Size(1275, 800),
     Size(1919, 1000),

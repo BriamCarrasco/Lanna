@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 import 'dart:math' as math;
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -9,6 +11,11 @@ import 'package:go_router/go_router.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/theme/tokens.dart';
 import '../../l10n/l10n.dart';
+import 'authors_screen.dart';
+import 'collections_screen.dart';
+import 'favorites_screen.dart';
+import 'folders_screen.dart';
+import 'library_screen.dart';
 import 'widgets/library_sidebar.dart';
 import 'widgets/section_scaffold.dart';
 
@@ -28,7 +35,11 @@ class LibraryShell extends ConsumerStatefulWidget {
 class _LibraryShellState extends ConsumerState<LibraryShell> {
   final _searchController = TextEditingController();
   final _searchFocus = FocusNode(debugLabel: 'búsqueda');
-  final _tabActions = SectionActionsNotifier();
+  final _tabActions = {
+    for (final s in _librarySubsections) s: SectionActionsNotifier(),
+  };
+  final _swipePosition = ValueNotifier<double>(0);
+  bool _swiping = false;
   LibrarySection? _lastSection;
   bool _searchFromHome = false;
 
@@ -43,7 +54,10 @@ class _LibraryShellState extends ConsumerState<LibraryShell> {
     HardwareKeyboard.instance.removeHandler(_onKey);
     _searchController.dispose();
     _searchFocus.dispose();
-    _tabActions.dispose();
+    for (final notifier in _tabActions.values) {
+      notifier.dispose();
+    }
+    _swipePosition.dispose();
     super.dispose();
   }
 
@@ -125,12 +139,13 @@ class _LibraryShellState extends ConsumerState<LibraryShell> {
         if (constraints.maxWidth >= _wideBreakpoint) {
           return _wide(section);
         }
-        return _narrow(section);
+        return _narrow(section, path);
       },
     );
   }
 
   Widget _wide(LibrarySection section) {
+    _swiping = false;
     return Scaffold(
       backgroundColor: LannaColors.bg,
       body: SafeArea(
@@ -167,8 +182,29 @@ class _LibraryShellState extends ConsumerState<LibraryShell> {
     LibrarySection.authors,
   ];
 
-  Widget _narrow(LibrarySection section) {
+  static const _swipeRoots = {
+    '/library',
+    '/favorites',
+    '/folders',
+    '/collections',
+    '/authors',
+  };
+
+  static Widget _screenFor(LibrarySection section) => switch (section) {
+    LibrarySection.favorites => const FavoritesScreen(),
+    LibrarySection.folders => const FoldersScreen(),
+    LibrarySection.collections => const CollectionsScreen(),
+    LibrarySection.authors => const AuthorsScreen(),
+    _ => const LibraryScreen(),
+  };
+
+  Widget _narrow(LibrarySection section, String path) {
     final inLibrary = _librarySubsections.contains(section);
+    final swipe = inLibrary && _swipeRoots.contains(path);
+    if (swipe && !_swiping) {
+      _swipePosition.value = _librarySubsections.indexOf(section).toDouble();
+    }
+    _swiping = swipe;
     final barSection = inLibrary ? LibrarySection.library : section;
     final all = librarySections(context.l10n);
     final sections = [
@@ -201,18 +237,30 @@ class _LibraryShellState extends ConsumerState<LibraryShell> {
                           onChanged: _onSearchChanged,
                         ),
                       ),
-                      ValueListenableBuilder<SectionActions?>(
-                        valueListenable: _tabActions,
-                        builder: (context, value, _) {
-                          final actions = value?.widgets ?? const <Widget>[];
-                          return Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              const SizedBox(width: LannaSpacing.s1),
-                              ...actions,
-                              if (actions.isEmpty)
-                                const SizedBox(width: LannaSpacing.s1),
-                            ],
+                      ValueListenableBuilder<double>(
+                        valueListenable: _swipePosition,
+                        builder: (context, position, _) {
+                          final shown = swipe
+                              ? _librarySubsections[position.round().clamp(
+                                  0,
+                                  _librarySubsections.length - 1,
+                                )]
+                              : section;
+                          return ValueListenableBuilder<SectionActions?>(
+                            valueListenable: _tabActions[shown]!,
+                            builder: (context, value, _) {
+                              final actions =
+                                  value?.widgets ?? const <Widget>[];
+                              return Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const SizedBox(width: LannaSpacing.s1),
+                                  ...actions,
+                                  if (actions.isEmpty)
+                                    const SizedBox(width: LannaSpacing.s1),
+                                ],
+                              );
+                            },
                           );
                         },
                       ),
@@ -231,13 +279,36 @@ class _LibraryShellState extends ConsumerState<LibraryShell> {
                     ),
                 ],
                 active: section,
+                position: swipe ? _swipePosition : null,
                 onSelect: (s) => _select(s, section),
               ),
             ],
             Expanded(
-              child: inLibrary
-                  ? SectionTabsScope(actions: _tabActions, child: widget.child)
-                  : widget.child,
+              child: !inLibrary
+                  ? widget.child
+                  : swipe
+                  ? Stack(
+                      fit: StackFit.expand,
+                      children: [
+                        _Dormant(child: widget.child),
+                        Positioned.fill(
+                          child: _SwipeSections(
+                            sections: _librarySubsections,
+                            active: section,
+                            position: _swipePosition,
+                            onSettled: (s) => _select(s, section),
+                            pageFor: (s) => SectionTabsScope(
+                              actions: _tabActions[s]!,
+                              child: _screenFor(s),
+                            ),
+                          ),
+                        ),
+                      ],
+                    )
+                  : SectionTabsScope(
+                      actions: _tabActions[section]!,
+                      child: widget.child,
+                    ),
             ),
           ],
         ),
@@ -301,15 +372,131 @@ class _LibraryShellState extends ConsumerState<LibraryShell> {
   }
 }
 
+class _Dormant extends SingleChildRenderObjectWidget {
+  const _Dormant({required super.child});
+
+  @override
+  RenderObject createRenderObject(BuildContext context) => _RenderDormant();
+
+  @override
+  SingleChildRenderObjectElement createElement() => _DormantElement(this);
+}
+
+class _DormantElement extends SingleChildRenderObjectElement {
+  _DormantElement(super.widget);
+
+  @override
+  void debugVisitOnstageChildren(ElementVisitor visitor) {}
+}
+
+class _RenderDormant extends RenderProxyBox {
+  @override
+  void performLayout() => size = constraints.smallest;
+
+  @override
+  void paint(PaintingContext context, Offset offset) {}
+
+  @override
+  bool hitTestChildren(BoxHitTestResult result, {required Offset position}) =>
+      false;
+
+  @override
+  void visitChildrenForSemantics(RenderObjectVisitor visitor) {}
+}
+
+class _SwipeSections extends StatefulWidget {
+  const _SwipeSections({
+    required this.sections,
+    required this.active,
+    required this.position,
+    required this.onSettled,
+    required this.pageFor,
+  });
+
+  final List<LibrarySection> sections;
+  final LibrarySection active;
+  final ValueNotifier<double> position;
+  final ValueChanged<LibrarySection> onSettled;
+  final Widget Function(LibrarySection section) pageFor;
+
+  @override
+  State<_SwipeSections> createState() => _SwipeSectionsState();
+}
+
+class _SwipeSectionsState extends State<_SwipeSections> {
+  late final PageController _controller = PageController(
+    initialPage: _indexOf(widget.active),
+  )..addListener(_track);
+
+  void _track() {
+    if (!_controller.hasClients) return;
+    final page = _controller.page;
+    if (page != null) widget.position.value = page;
+  }
+
+  int _indexOf(LibrarySection section) =>
+      math.max(0, widget.sections.indexOf(section));
+
+  @override
+  void didUpdateWidget(_SwipeSections oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.active == widget.active) return;
+    final target = _indexOf(widget.active);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !_controller.hasClients) return;
+      final page = _controller.page?.round() ?? target;
+      if (page == target) return;
+      if ((page - target).abs() == 1) {
+        _controller.animateToPage(
+          target,
+          duration: LannaMotion.slow,
+          curve: LannaMotion.ease,
+        );
+      } else {
+        _controller.jumpToPage(target);
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  bool _onScrollEnd(ScrollEndNotification notification) {
+    if (notification.depth != 0 || !_controller.hasClients) return false;
+    final page = _controller.page?.round();
+    if (page == null) return false;
+    final section = widget.sections[page];
+    if (section != widget.active) widget.onSettled(section);
+    return false;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return NotificationListener<ScrollEndNotification>(
+      onNotification: _onScrollEnd,
+      child: PageView.builder(
+        controller: _controller,
+        itemCount: widget.sections.length,
+        itemBuilder: (context, i) => widget.pageFor(widget.sections[i]),
+      ),
+    );
+  }
+}
+
 class _LibraryTabs extends StatefulWidget {
   const _LibraryTabs({
     required this.tabs,
     required this.active,
     required this.onSelect,
+    this.position,
   });
 
   final List<(LibrarySection, String)> tabs;
   final LibrarySection active;
+  final ValueListenable<double>? position;
   final ValueChanged<LibrarySection> onSelect;
 
   @override
@@ -317,55 +504,128 @@ class _LibraryTabs extends StatefulWidget {
 }
 
 class _LibraryTabsState extends State<_LibraryTabs> {
-  final _keys = <LibrarySection, GlobalKey>{};
+  static const _tabPadding = LannaSpacing.s3 - 1;
+  static const _rowPadding = LannaSpacing.s2;
 
-  GlobalKey _keyFor(LibrarySection s) => _keys.putIfAbsent(s, GlobalKey.new);
+  final _scroll = ScrollController();
+  int? _revealed;
 
-  @override
-  void initState() {
-    super.initState();
-    _reveal(animate: false);
-  }
+  static final _labelStyle = LannaType.md.copyWith(fontWeight: FontWeight.w600);
 
   @override
-  void didUpdateWidget(_LibraryTabs oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.active != widget.active) _reveal(animate: true);
+  void dispose() {
+    _scroll.dispose();
+    super.dispose();
   }
 
-  void _reveal({required bool animate}) {
+  int get _activeIndex =>
+      math.max(0, widget.tabs.indexWhere((t) => t.$1 == widget.active));
+
+  List<double> _labelWidths(BuildContext context) {
+    final scaler = MediaQuery.textScalerOf(context);
+    return [
+      for (final (_, label) in widget.tabs)
+        () {
+          final painter = TextPainter(
+            text: TextSpan(text: label, style: _labelStyle),
+            textDirection: TextDirection.ltr,
+            textScaler: scaler,
+            maxLines: 1,
+          )..layout();
+          final width = painter.width.ceilToDouble();
+          painter.dispose();
+          return width;
+        }(),
+    ];
+  }
+
+  void _reveal(int index, List<double> starts, List<double> widths) {
+    if (_revealed == index) return;
+    final animate = _revealed != null;
+    _revealed = index;
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      final context = _keys[widget.active]?.currentContext;
-      if (context == null || !context.mounted) return;
-      Scrollable.ensureVisible(
-        context,
-        alignment: 0.5,
-        duration: animate ? LannaMotion.slow : Duration.zero,
-        curve: LannaMotion.ease,
+      if (!mounted || !_scroll.hasClients) return;
+      final position = _scroll.position;
+      final center = _rowPadding + starts[index] + widths[index] / 2;
+      final target = (center - position.viewportDimension / 2).clamp(
+        position.minScrollExtent,
+        position.maxScrollExtent,
       );
+      if (animate) {
+        _scroll.animateTo(
+          target,
+          duration: LannaMotion.slow,
+          curve: LannaMotion.ease,
+        );
+      } else {
+        _scroll.jumpTo(target);
+      }
     });
   }
 
   @override
   Widget build(BuildContext context) {
+    final labels = _labelWidths(context);
+    final widths = [for (final w in labels) w + _tabPadding * 2];
+    final starts = <double>[];
+    var x = 0.0;
+    for (final w in widths) {
+      starts.add(x);
+      x += w;
+    }
+
+    Widget strip(double position) {
+      final last = widget.tabs.length - 1;
+      final clamped = position.clamp(0.0, last.toDouble());
+      final from = clamped.floor();
+      final to = math.min(from + 1, last);
+      final t = clamped - from;
+      final left =
+          (starts[from] + (starts[to] - starts[from]) * t) + _tabPadding;
+      final width = labels[from] + (labels[to] - labels[from]) * t;
+      final selected = clamped.round();
+      _reveal(selected, starts, widths);
+
+      return Stack(
+        children: [
+          Row(
+            children: [
+              for (var i = 0; i < widget.tabs.length; i++)
+                _LibraryTab(
+                  width: widths[i],
+                  label: widget.tabs[i].$2,
+                  style: _labelStyle,
+                  selected: i == selected,
+                  onTap: () => widget.onSelect(widget.tabs[i].$1),
+                ),
+            ],
+          ),
+          Positioned(
+            left: left,
+            width: width,
+            bottom: 0,
+            height: 2,
+            child: const ColoredBox(color: LannaColors.accent),
+          ),
+        ],
+      );
+    }
+
+    final position = widget.position;
     return DecoratedBox(
       decoration: const BoxDecoration(
         border: Border(bottom: BorderSide(color: LannaColors.borderSubtle)),
       ),
       child: SingleChildScrollView(
+        controller: _scroll,
         scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: LannaSpacing.s2),
-        child: Row(
-          children: [
-            for (final (section, label) in widget.tabs)
-              _LibraryTab(
-                key: _keyFor(section),
-                label: label,
-                selected: section == widget.active,
-                onTap: () => widget.onSelect(section),
+        padding: const EdgeInsets.symmetric(horizontal: _rowPadding),
+        child: position == null
+            ? strip(_activeIndex.toDouble())
+            : ValueListenableBuilder<double>(
+                valueListenable: position,
+                builder: (context, value, _) => strip(value),
               ),
-          ],
-        ),
       ),
     );
   }
@@ -373,13 +633,16 @@ class _LibraryTabsState extends State<_LibraryTabs> {
 
 class _LibraryTab extends StatelessWidget {
   const _LibraryTab({
-    super.key,
+    required this.width,
     required this.label,
+    required this.style,
     required this.selected,
     required this.onTap,
   });
 
+  final double width;
   final String label;
+  final TextStyle style;
   final bool selected;
   final VoidCallback onTap;
 
@@ -390,30 +653,19 @@ class _LibraryTab extends StatelessWidget {
       button: true,
       child: InkWell(
         onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: LannaSpacing.s3 - 1),
-          child: AnimatedContainer(
-            duration: LannaMotion.base,
-            curve: LannaMotion.ease,
-            height: 44,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              border: Border(
-                bottom: BorderSide(
-                  color: selected ? LannaColors.accent : Colors.transparent,
-                  width: 2,
-                ),
-              ),
-            ),
-            child: Text(
-              label,
-              maxLines: 1,
-              style: LannaType.md.copyWith(
-                fontWeight: FontWeight.w600,
+        child: SizedBox(
+          width: width,
+          height: 44,
+          child: Center(
+            child: AnimatedDefaultTextStyle(
+              duration: LannaMotion.fast,
+              curve: LannaMotion.ease,
+              style: style.copyWith(
                 color: selected
                     ? LannaColors.textStrong
                     : LannaColors.textMuted,
               ),
+              child: Text(label, maxLines: 1, softWrap: false),
             ),
           ),
         ),
